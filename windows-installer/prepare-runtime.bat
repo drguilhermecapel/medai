@@ -10,36 +10,79 @@ if not exist "%RUNTIME_DIR%" mkdir "%RUNTIME_DIR%"
 if not exist "%APP_DIR%" mkdir "%APP_DIR%"
 if not exist "%TEMP_DIR%" mkdir "%TEMP_DIR%"
 
+:: Check if PowerShell is available
+:check_powershell
+where powershell >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    set "POWERSHELL_AVAILABLE=1"
+    echo ✓ PowerShell detected and available
+) else (
+    set "POWERSHELL_AVAILABLE=0"
+    echo ⚠ PowerShell not detected - using alternative methods
+)
+goto :eof
+
 echo.
 echo ========================================
 echo Environment Diagnostics
 echo ========================================
+call :check_powershell
+
+if %POWERSHELL_AVAILABLE% EQU 0 (
+    echo.
+    echo ========================================
+    echo PowerShell Not Detected
+    echo ========================================
+    echo PowerShell is not available on this system.
+    echo The installer will use alternative download methods.
+    echo.
+    echo For optimal performance, consider installing PowerShell:
+    echo https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows
+    echo.
+    echo Alternative download methods will be used:
+    echo - certutil (Windows built-in)
+    echo - bitsadmin (Windows built-in)
+    echo - VBScript extraction (for older systems)
+    echo.
+    echo Continuing with alternative methods...
+    echo ========================================
+    echo.
+)
+
 echo Windows Version:
 ver
 echo.
-echo PowerShell Version:
-powershell -Command "try { $PSVersionTable.PSVersion } catch { Write-Host 'PowerShell not available or restricted' }"
-echo.
-echo PowerShell Execution Policy:
-powershell -Command "try { Get-ExecutionPolicy } catch { Write-Host 'Cannot determine execution policy' }"
-echo.
-echo Network Connectivity Test:
-echo Testing connection to nodejs.org...
-powershell -Command "try { Test-NetConnection -ComputerName nodejs.org -Port 443 -InformationLevel Quiet } catch { Write-Host 'Network test failed or unavailable' }"
-if %ERRORLEVEL% EQU 0 (
-    echo ✓ Network connection to nodejs.org successful
+echo PowerShell Status:
+if %POWERSHELL_AVAILABLE% EQU 1 (
+    powershell -Command "try { $PSVersionTable.PSVersion } catch { Write-Host 'PowerShell restricted' }"
+    echo PowerShell Execution Policy:
+    powershell -Command "try { Get-ExecutionPolicy } catch { Write-Host 'Cannot determine execution policy' }"
 ) else (
-    echo ✗ Network connection to nodejs.org failed
-    echo This may indicate firewall or proxy restrictions
+    echo PowerShell not available - using alternative download methods
 )
 echo.
-echo Testing connection to github.com...
-powershell -Command "try { Test-NetConnection -ComputerName github.com -Port 443 -InformationLevel Quiet } catch { Write-Host 'Network test failed or unavailable' }"
-if %ERRORLEVEL% EQU 0 (
-    echo ✓ Network connection to github.com successful
+echo Network Connectivity Test:
+if %POWERSHELL_AVAILABLE% EQU 1 (
+    echo Testing connection to nodejs.org...
+    powershell -Command "try { Test-NetConnection -ComputerName nodejs.org -Port 443 -InformationLevel Quiet } catch { Write-Host 'Network test failed' }"
+    if %ERRORLEVEL% EQU 0 (
+        echo ✓ Network connection to nodejs.org successful
+    ) else (
+        echo ✗ Network connection to nodejs.org failed
+        echo This may indicate firewall or proxy restrictions
+    )
+    
+    echo Testing connection to github.com...
+    powershell -Command "try { Test-NetConnection -ComputerName github.com -Port 443 -InformationLevel Quiet } catch { Write-Host 'Network test failed' }"
+    if %ERRORLEVEL% EQU 0 (
+        echo ✓ Network connection to github.com successful
+    ) else (
+        echo ✗ Network connection to github.com failed
+        echo This may indicate firewall or proxy restrictions
+    )
 ) else (
-    echo ✗ Network connection to github.com failed
-    echo This may indicate firewall or proxy restrictions
+    echo Skipping network connectivity tests (PowerShell not available)
+    echo Will attempt downloads using alternative methods
 )
 echo.
 echo Current Directory: %~dp0
@@ -57,23 +100,88 @@ echo ========================================
 :: Download Python embeddable
 if not exist "%RUNTIME_DIR%\python" (
     echo Downloading Python 3.11.9 embeddable...
-    powershell -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip' -OutFile '%TEMP_DIR%\python.zip'"
-    if %ERRORLEVEL% NEQ 0 (
-        echo ERROR: Failed to download Python embeddable!
-        pause
-        exit /b 1
+    
+    set "PYTHON_URL=https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip"
+    
+    :: Strategy 1: PowerShell (if available)
+    if %POWERSHELL_AVAILABLE% EQU 1 (
+        echo [1/3] Trying PowerShell download...
+        powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%TEMP_DIR%\python.zip' -UseBasicParsing -TimeoutSec 600 } catch { exit 1 }"
+        if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\python.zip" goto :python_verify
     )
     
+    :: Strategy 2: certutil download
+    echo [2/3] Trying certutil download...
+    certutil -urlcache -split -f "%PYTHON_URL%" "%TEMP_DIR%\python.zip" >nul 2>&1
+    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\python.zip" goto :python_verify
+    
+    :: Strategy 3: bitsadmin download
+    echo [3/3] Trying bitsadmin download...
+    bitsadmin /transfer "PythonDownload" /download /priority normal "%PYTHON_URL%" "%TEMP_DIR%\python.zip" >nul 2>&1
+    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\python.zip" goto :python_verify
+    
+    :: All strategies failed
+    goto :python_download_failed
+    
+    :python_verify
+    echo Verifying Python download...
+    if not exist "%TEMP_DIR%\python.zip" goto :python_download_failed
+    
+    :: Check file size (should be around 9MB)
+    for %%A in ("%TEMP_DIR%\python.zip") do set "pythonfilesize=%%~zA"
+    if %pythonfilesize% LSS 5000000 (
+        echo ERROR: Python zip file is too small (%pythonfilesize% bytes). Expected ~9MB.
+        del "%TEMP_DIR%\python.zip" 2>nul
+        goto :python_download_failed
+    )
+    
+    echo Python download verified successfully (%pythonfilesize% bytes)
+    goto :python_extract
+    
+    :python_download_failed
+    echo ERROR: Failed to download Python embeddable!
+    echo MANUAL SOLUTION:
+    echo 1. Download Python manually from: %PYTHON_URL%
+    echo 2. Save the file as: %TEMP_DIR%\python.zip
+    echo 3. Re-run this script
+    pause
+    exit /b 1
+    
+    :python_extract
     echo Extracting Python...
-    powershell -Command "Expand-Archive -Path '%TEMP_DIR%\python.zip' -DestinationPath '%RUNTIME_DIR%\python' -Force"
+    if %POWERSHELL_AVAILABLE% EQU 1 (
+        powershell -Command "Expand-Archive -Path '%TEMP_DIR%\python.zip' -DestinationPath '%RUNTIME_DIR%\python' -Force"
+    ) else (
+        :: Use built-in Windows extraction for older systems
+        echo Using built-in extraction method...
+        if not exist "%RUNTIME_DIR%\python" mkdir "%RUNTIME_DIR%\python"
+        cd /d "%TEMP_DIR%"
+        echo Set objShell = CreateObject("Shell.Application") > extract.vbs
+        echo Set objFolder = objShell.NameSpace("%RUNTIME_DIR%\python") >> extract.vbs
+        echo objFolder.CopyHere objShell.NameSpace("%TEMP_DIR%\python.zip").Items, 16 >> extract.vbs
+        cscript //nologo extract.vbs
+        del extract.vbs
+        cd /d "%~dp0"
+    )
+    
     if %ERRORLEVEL% NEQ 0 (
         echo ERROR: Failed to extract Python embeddable!
         pause
         exit /b 1
     )
     
-    :: Download get-pip.py
-    powershell -Command "Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%RUNTIME_DIR%\python\get-pip.py'"
+    :: Download get-pip.py using same fallback strategy
+    echo Downloading get-pip.py...
+    if %POWERSHELL_AVAILABLE% EQU 1 (
+        powershell -Command "Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%RUNTIME_DIR%\python\get-pip.py'"
+    ) else (
+        certutil -urlcache -split -f "https://bootstrap.pypa.io/get-pip.py" "%RUNTIME_DIR%\python\get-pip.py" >nul 2>&1
+    )
+    
+    if %ERRORLEVEL% NEQ 0 (
+        echo WARNING: Failed to download get-pip.py automatically
+        echo You may need to install pip manually later
+    )
     
     :: Configure Python embeddable to enable site-packages
     echo Configuring Python embeddable...
@@ -247,13 +355,43 @@ if not exist "%RUNTIME_DIR%\postgresql" (
     set "POSTGRES_ALT_URL=https://sbp.enterprisedb.com/getfile.jsp?fileid=1258893"
     
     echo Attempting to download PostgreSQL from primary source...
-    powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%POSTGRES_URL%' -OutFile '%TEMP_DIR%\postgresql.zip' -UseBasicParsing -TimeoutSec 600 } catch { exit 1 }"
     
-    if %ERRORLEVEL% NEQ 0 (
-        echo Primary PostgreSQL download failed, trying alternative approach...
-        echo NOTE: PostgreSQL download may require manual intervention due to licensing requirements.
-        echo Attempting alternative download...
-        powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://ftp.postgresql.org/pub/binary/v15.7/win32/postgresql-15.7-1-windows-x64-binaries.zip' -OutFile '%TEMP_DIR%\postgresql.zip' -UseBasicParsing -TimeoutSec 600 } catch { exit 1 }"
+    :: Strategy 1: PowerShell (if available)
+    if %POWERSHELL_AVAILABLE% EQU 1 (
+        echo [1/3] Trying PowerShell download...
+        powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%POSTGRES_URL%' -OutFile '%TEMP_DIR%\postgresql.zip' -UseBasicParsing -TimeoutSec 600 } catch { exit 1 }"
+        if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+    )
+    
+    :: Strategy 2: certutil download
+    echo [2/3] Trying certutil download...
+    certutil -urlcache -split -f "%POSTGRES_URL%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
+    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+    
+    :: Strategy 3: bitsadmin download
+    echo [3/3] Trying bitsadmin download...
+    bitsadmin /transfer "PostgreSQLDownload" /download /priority normal "%POSTGRES_URL%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
+    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+    
+    :: Primary source failed, try alternative
+    echo Primary PostgreSQL download failed, trying alternative approach...
+    echo NOTE: PostgreSQL download may require manual intervention due to licensing requirements.
+    echo Attempting alternative download...
+    
+    set "POSTGRES_ALT_URL2=https://ftp.postgresql.org/pub/binary/v15.7/win32/postgresql-15.7-1-windows-x64-binaries.zip"
+    
+    if %POWERSHELL_AVAILABLE% EQU 1 (
+        powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%POSTGRES_ALT_URL2%' -OutFile '%TEMP_DIR%\postgresql.zip' -UseBasicParsing -TimeoutSec 600 } catch { exit 1 }"
+        if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+    ) else (
+        certutil -urlcache -split -f "%POSTGRES_ALT_URL2%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
+        if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        
+        bitsadmin /transfer "PostgreSQLAltDownload" /download /priority normal "%POSTGRES_ALT_URL2%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
+        if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+    )
+    
+    :postgres_verify
         
         if %ERRORLEVEL% NEQ 0 (
             echo ERROR: Failed to download PostgreSQL from all sources!
@@ -300,7 +438,19 @@ if not exist "%RUNTIME_DIR%\postgresql" (
     echo ✓ PostgreSQL download verified (%pgfilesize% bytes)
     
     echo Extracting PostgreSQL...
-    powershell -Command "Expand-Archive -Path '%TEMP_DIR%\postgresql.zip' -DestinationPath '%TEMP_DIR%' -Force"
+    if %POWERSHELL_AVAILABLE% EQU 1 (
+        powershell -Command "Expand-Archive -Path '%TEMP_DIR%\postgresql.zip' -DestinationPath '%TEMP_DIR%' -Force"
+    ) else (
+        :: Use built-in Windows extraction for older systems
+        echo Using built-in extraction method...
+        cd /d "%TEMP_DIR%"
+        echo Set objShell = CreateObject("Shell.Application") > extract_pg.vbs
+        echo Set objFolder = objShell.NameSpace("%TEMP_DIR%") >> extract_pg.vbs
+        echo objFolder.CopyHere objShell.NameSpace("%TEMP_DIR%\postgresql.zip").Items, 16 >> extract_pg.vbs
+        cscript //nologo extract_pg.vbs
+        del extract_pg.vbs
+        cd /d "%~dp0"
+    )
     if %ERRORLEVEL% NEQ 0 (
         echo ERROR: Failed to extract PostgreSQL!
         pause
@@ -342,7 +492,30 @@ if not exist "%RUNTIME_DIR%\redis" (
     set "REDIS_ALT_URL=https://download.redis.io/redis-stable/src/redis-stable.tar.gz"
     
     echo Attempting to download Redis...
-    powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%REDIS_URL%' -OutFile '%TEMP_DIR%\redis.zip' -UseBasicParsing -TimeoutSec 300 } catch { exit 1 }"
+    
+    :: Strategy 1: PowerShell (if available)
+    if %POWERSHELL_AVAILABLE% EQU 1 (
+        echo [1/3] Trying PowerShell download...
+        powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%REDIS_URL%' -OutFile '%TEMP_DIR%\redis.zip' -UseBasicParsing -TimeoutSec 300 } catch { exit 1 }"
+        if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
+    )
+    
+    :: Strategy 2: certutil download
+    echo [2/3] Trying certutil download...
+    certutil -urlcache -split -f "%REDIS_URL%" "%TEMP_DIR%\redis.zip" >nul 2>&1
+    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
+    
+    :: Strategy 3: bitsadmin download
+    echo [3/3] Trying bitsadmin download...
+    bitsadmin /transfer "RedisDownload" /download /priority normal "%REDIS_URL%" "%TEMP_DIR%\redis.zip" >nul 2>&1
+    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
+    
+    :: All strategies failed
+    echo Redis download failed. Redis is optional for basic functionality.
+    echo Continuing without Redis...
+    goto :skip_redis
+    
+    :redis_verify_download
     
     if %ERRORLEVEL% NEQ 0 (
         echo Redis download failed. Redis is optional for basic functionality.
@@ -369,7 +542,20 @@ if not exist "%RUNTIME_DIR%\redis" (
     echo ✓ Redis download verified (%redisfilesize% bytes)
     
     echo Extracting Redis...
-    powershell -Command "Expand-Archive -Path '%TEMP_DIR%\redis.zip' -DestinationPath '%RUNTIME_DIR%\redis' -Force"
+    if %POWERSHELL_AVAILABLE% EQU 1 (
+        powershell -Command "Expand-Archive -Path '%TEMP_DIR%\redis.zip' -DestinationPath '%RUNTIME_DIR%\redis' -Force"
+    ) else (
+        :: Use built-in Windows extraction for older systems
+        echo Using built-in extraction method...
+        if not exist "%RUNTIME_DIR%\redis" mkdir "%RUNTIME_DIR%\redis"
+        cd /d "%TEMP_DIR%"
+        echo Set objShell = CreateObject("Shell.Application") > extract_redis.vbs
+        echo Set objFolder = objShell.NameSpace("%RUNTIME_DIR%\redis") >> extract_redis.vbs
+        echo objFolder.CopyHere objShell.NameSpace("%TEMP_DIR%\redis.zip").Items, 16 >> extract_redis.vbs
+        cscript //nologo extract_redis.vbs
+        del extract_redis.vbs
+        cd /d "%~dp0"
+    )
     if %ERRORLEVEL% NEQ 0 (
         echo ERROR: Failed to extract Redis!
         echo Attempting cleanup...
@@ -593,17 +779,37 @@ echo ========================================
 if not exist "%~dp0redist" mkdir "%~dp0redist"
 if not exist "%~dp0redist\VC_redist.x64.exe" (
     echo Downloading Visual C++ Redistributables...
-    powershell -Command "Invoke-WebRequest -Uri 'https://aka.ms/vs/17/release/vc_redist.x64.exe' -OutFile '%~dp0redist\VC_redist.x64.exe'"
-    if %ERRORLEVEL% NEQ 0 (
-        echo ERROR: Failed to download Visual C++ Redistributables!
-        echo.
-        echo MANUAL SOLUTION:
-        echo 1. Download VC++ Redistributables manually from: https://aka.ms/vs/17/release/vc_redist.x64.exe
-        echo 2. Save the file as: %~dp0redist\VC_redist.x64.exe
-        echo 3. Re-run this script
-        pause
-        exit /b 1
+    
+    set "VC_REDIST_URL=https://aka.ms/vs/17/release/vc_redist.x64.exe"
+    
+    :: Strategy 1: PowerShell (if available)
+    if %POWERSHELL_AVAILABLE% EQU 1 (
+        echo [1/3] Trying PowerShell download...
+        powershell -Command "Invoke-WebRequest -Uri '%VC_REDIST_URL%' -OutFile '%~dp0redist\VC_redist.x64.exe'"
+        if %ERRORLEVEL% EQU 0 if exist "%~dp0redist\VC_redist.x64.exe" goto :vc_redist_verify
     )
+    
+    :: Strategy 2: certutil download
+    echo [2/3] Trying certutil download...
+    certutil -urlcache -split -f "%VC_REDIST_URL%" "%~dp0redist\VC_redist.x64.exe" >nul 2>&1
+    if %ERRORLEVEL% EQU 0 if exist "%~dp0redist\VC_redist.x64.exe" goto :vc_redist_verify
+    
+    :: Strategy 3: bitsadmin download
+    echo [3/3] Trying bitsadmin download...
+    bitsadmin /transfer "VCRedistDownload" /download /priority normal "%VC_REDIST_URL%" "%~dp0redist\VC_redist.x64.exe" >nul 2>&1
+    if %ERRORLEVEL% EQU 0 if exist "%~dp0redist\VC_redist.x64.exe" goto :vc_redist_verify
+    
+    :: All strategies failed
+    echo ERROR: Failed to download Visual C++ Redistributables!
+    echo.
+    echo MANUAL SOLUTION:
+    echo 1. Download VC++ Redistributables manually from: %VC_REDIST_URL%
+    echo 2. Save the file as: %~dp0redist\VC_redist.x64.exe
+    echo 3. Re-run this script
+    pause
+    exit /b 1
+    
+    :vc_redist_verify
     
     :: Verify VC++ Redistributables download
     if not exist "%~dp0redist\VC_redist.x64.exe" (
