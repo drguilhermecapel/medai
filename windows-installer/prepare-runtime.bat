@@ -38,9 +38,11 @@ if not exist "%RUNTIME_DIR%\python" (
     
     :: Configure Python embeddable to enable site-packages
     echo Configuring Python embeddable...
-    echo import site > "%RUNTIME_DIR%\python\python311._pth"
+    echo python311.zip > "%RUNTIME_DIR%\python\python311._pth"
     echo . >> "%RUNTIME_DIR%\python\python311._pth"
+    echo .\Lib >> "%RUNTIME_DIR%\python\python311._pth"
     echo .\Lib\site-packages >> "%RUNTIME_DIR%\python\python311._pth"
+    echo import site >> "%RUNTIME_DIR%\python\python311._pth"
     
     :: Install pip
     echo Installing pip...
