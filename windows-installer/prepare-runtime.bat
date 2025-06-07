@@ -83,6 +83,14 @@ if not exist "%RUNTIME_DIR%\nodejs" (
         )
     )
     
+    :: Verify download was successful
+    if not exist "%TEMP_DIR%\nodejs.zip" (
+        echo ERROR: Node.js zip file was not downloaded successfully!
+        echo File path: %TEMP_DIR%\nodejs.zip
+        pause
+        exit /b 1
+    )
+    
     echo Extracting Node.js...
     powershell -Command "Expand-Archive -Path '%TEMP_DIR%\nodejs.zip' -DestinationPath '%TEMP_DIR%' -Force"
     if %ERRORLEVEL% NEQ 0 (
@@ -107,9 +115,40 @@ echo ========================================
 :: Download PostgreSQL portable
 if not exist "%RUNTIME_DIR%\postgresql" (
     echo Downloading PostgreSQL 15.7...
-    powershell -Command "Invoke-WebRequest -Uri 'https://get.enterprisedb.com/postgresql/postgresql-15.7-1-windows-x64-binaries.zip' -OutFile '%TEMP_DIR%\postgresql.zip'"
+    
+    :: Try primary PostgreSQL download
+    set "POSTGRES_URL=https://get.enterprisedb.com/postgresql/postgresql-15.7-1-windows-x64-binaries.zip"
+    set "POSTGRES_ALT_URL=https://sbp.enterprisedb.com/getfile.jsp?fileid=1258893"
+    
+    echo Attempting to download PostgreSQL from primary source...
+    powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%POSTGRES_URL%' -OutFile '%TEMP_DIR%\postgresql.zip' -UseBasicParsing -TimeoutSec 600 } catch { exit 1 }"
+    
     if %ERRORLEVEL% NEQ 0 (
-        echo ERROR: Failed to download PostgreSQL!
+        echo Primary PostgreSQL download failed, trying alternative approach...
+        echo NOTE: PostgreSQL download may require manual intervention due to licensing requirements.
+        echo Attempting alternative download...
+        powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://ftp.postgresql.org/pub/binary/v15.7/win32/postgresql-15.7-1-windows-x64-binaries.zip' -OutFile '%TEMP_DIR%\postgresql.zip' -UseBasicParsing -TimeoutSec 600 } catch { exit 1 }"
+        
+        if %ERRORLEVEL% NEQ 0 (
+            echo ERROR: Failed to download PostgreSQL from all sources!
+            echo This may be due to:
+            echo 1. Network connectivity issues
+            echo 2. PostgreSQL download server restrictions
+            echo 3. Corporate firewall blocking downloads
+            echo.
+            echo Please manually download PostgreSQL 15.7 Windows binaries and place in:
+            echo %TEMP_DIR%\postgresql.zip
+            echo.
+            echo Download from: https://www.enterprisedb.com/download-postgresql-binaries
+            pause
+            exit /b 1
+        )
+    )
+    
+    :: Verify PostgreSQL download was successful
+    if not exist "%TEMP_DIR%\postgresql.zip" (
+        echo ERROR: PostgreSQL zip file was not downloaded successfully!
+        echo File path: %TEMP_DIR%\postgresql.zip
         pause
         exit /b 1
     )
@@ -138,11 +177,25 @@ echo ========================================
 :: Download Redis
 if not exist "%RUNTIME_DIR%\redis" (
     echo Downloading Redis 5.0.14...
-    powershell -Command "Invoke-WebRequest -Uri 'https://github.com/microsoftarchive/redis/releases/download/win-3.0.504/Redis-x64-3.0.504.zip' -OutFile '%TEMP_DIR%\redis.zip'"
+    
+    :: Try Redis download with retry logic
+    set "REDIS_URL=https://github.com/microsoftarchive/redis/releases/download/win-3.0.504/Redis-x64-3.0.504.zip"
+    set "REDIS_ALT_URL=https://download.redis.io/redis-stable/src/redis-stable.tar.gz"
+    
+    echo Attempting to download Redis...
+    powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%REDIS_URL%' -OutFile '%TEMP_DIR%\redis.zip' -UseBasicParsing -TimeoutSec 300 } catch { exit 1 }"
+    
     if %ERRORLEVEL% NEQ 0 (
-        echo ERROR: Failed to download Redis!
-        pause
-        exit /b 1
+        echo Redis download failed. Redis is optional for basic functionality.
+        echo Continuing without Redis...
+        goto :skip_redis
+    )
+    
+    :: Verify Redis download was successful
+    if not exist "%TEMP_DIR%\redis.zip" (
+        echo WARNING: Redis zip file was not downloaded successfully!
+        echo Redis is optional, continuing without it...
+        goto :skip_redis
     )
     
     echo Extracting Redis...
@@ -152,6 +205,13 @@ if not exist "%RUNTIME_DIR%\redis" (
         pause
         exit /b 1
     )
+    goto :redis_done
+
+:skip_redis
+    echo Redis installation skipped - continuing without Redis support.
+    echo Note: Some caching features may not be available.
+
+:redis_done
 )
 
 echo.
