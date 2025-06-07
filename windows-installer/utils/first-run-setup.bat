@@ -34,9 +34,17 @@ echo Creating SPEI database...
 echo Installing Python dependencies...
 cd /d "%SPEI_HOME%\backend"
 python -m pip install --upgrade pip
-python -m pip install poetry
-poetry config virtualenvs.create false
-poetry install --no-dev
+if exist "%SPEI_HOME%\backend\requirements.txt" (
+    python -m pip install -r "%SPEI_HOME%\backend\requirements.txt"
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to install Python dependencies!
+        pause
+        exit /b 1
+    )
+) else (
+    echo WARNING: requirements.txt not found!
+    pause
+)
 
 :: Run database migrations
 echo Running database migrations...

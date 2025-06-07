@@ -19,16 +19,37 @@ echo ========================================
 if not exist "%RUNTIME_DIR%\python" (
     echo Downloading Python 3.11.9 embeddable...
     powershell -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip' -OutFile '%TEMP_DIR%\python.zip'"
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to download Python embeddable!
+        pause
+        exit /b 1
+    )
     
     echo Extracting Python...
     powershell -Command "Expand-Archive -Path '%TEMP_DIR%\python.zip' -DestinationPath '%RUNTIME_DIR%\python' -Force"
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to extract Python embeddable!
+        pause
+        exit /b 1
+    )
     
     :: Download get-pip.py
     powershell -Command "Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%RUNTIME_DIR%\python\get-pip.py'"
     
+    :: Configure Python embeddable to enable site-packages
+    echo Configuring Python embeddable...
+    echo import site > "%RUNTIME_DIR%\python\python311._pth"
+    echo . >> "%RUNTIME_DIR%\python\python311._pth"
+    echo .\Lib\site-packages >> "%RUNTIME_DIR%\python\python311._pth"
+    
     :: Install pip
     echo Installing pip...
     "%RUNTIME_DIR%\python\python.exe" "%RUNTIME_DIR%\python\get-pip.py"
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to install pip!
+        pause
+        exit /b 1
+    )
 )
 
 echo.
@@ -40,10 +61,26 @@ echo ========================================
 if not exist "%RUNTIME_DIR%\nodejs" (
     echo Downloading Node.js 18.20.3...
     powershell -Command "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v18.20.3/node-v18.20.3-win-x64.zip' -OutFile '%TEMP_DIR%\nodejs.zip'"
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to download Node.js!
+        pause
+        exit /b 1
+    )
     
     echo Extracting Node.js...
     powershell -Command "Expand-Archive -Path '%TEMP_DIR%\nodejs.zip' -DestinationPath '%TEMP_DIR%' -Force"
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to extract Node.js!
+        pause
+        exit /b 1
+    )
+    
     move "%TEMP_DIR%\node-v18.20.3-win-x64" "%RUNTIME_DIR%\nodejs"
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to move Node.js to runtime directory!
+        pause
+        exit /b 1
+    )
 )
 
 echo.
@@ -55,10 +92,26 @@ echo ========================================
 if not exist "%RUNTIME_DIR%\postgresql" (
     echo Downloading PostgreSQL 15.7...
     powershell -Command "Invoke-WebRequest -Uri 'https://get.enterprisedb.com/postgresql/postgresql-15.7-1-windows-x64-binaries.zip' -OutFile '%TEMP_DIR%\postgresql.zip'"
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to download PostgreSQL!
+        pause
+        exit /b 1
+    )
     
     echo Extracting PostgreSQL...
     powershell -Command "Expand-Archive -Path '%TEMP_DIR%\postgresql.zip' -DestinationPath '%TEMP_DIR%' -Force"
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to extract PostgreSQL!
+        pause
+        exit /b 1
+    )
+    
     move "%TEMP_DIR%\pgsql" "%RUNTIME_DIR%\postgresql"
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to move PostgreSQL to runtime directory!
+        pause
+        exit /b 1
+    )
 )
 
 echo.
@@ -70,9 +123,19 @@ echo ========================================
 if not exist "%RUNTIME_DIR%\redis" (
     echo Downloading Redis 5.0.14...
     powershell -Command "Invoke-WebRequest -Uri 'https://github.com/microsoftarchive/redis/releases/download/win-3.0.504/Redis-x64-3.0.504.zip' -OutFile '%TEMP_DIR%\redis.zip'"
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to download Redis!
+        pause
+        exit /b 1
+    )
     
     echo Extracting Redis...
     powershell -Command "Expand-Archive -Path '%TEMP_DIR%\redis.zip' -DestinationPath '%RUNTIME_DIR%\redis' -Force"
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to extract Redis!
+        pause
+        exit /b 1
+    )
 )
 
 echo.
@@ -107,14 +170,24 @@ echo Installing Python Dependencies
 echo ========================================
 
 :: Install Python dependencies in embedded Python
-if exist "%APP_DIR%\backend\pyproject.toml" (
-    echo Installing Poetry and dependencies...
-    "%RUNTIME_DIR%\python\python.exe" -m pip install poetry
+if exist "%APP_DIR%\backend\requirements.txt" (
+    echo Installing Python dependencies...
+    "%RUNTIME_DIR%\python\python.exe" -m pip install --upgrade pip
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to upgrade pip!
+        pause
+        exit /b 1
+    )
     
-    cd /d "%APP_DIR%\backend"
-    "%RUNTIME_DIR%\python\python.exe" -m poetry config virtualenvs.create false
-    "%RUNTIME_DIR%\python\python.exe" -m poetry install --no-dev
-    cd /d "%~dp0"
+    "%RUNTIME_DIR%\python\python.exe" -m pip install -r "%APP_DIR%\backend\requirements.txt"
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to install Python dependencies!
+        pause
+        exit /b 1
+    )
+) else (
+    echo WARNING: requirements.txt not found in backend directory!
+    pause
 )
 
 echo.
@@ -147,6 +220,11 @@ if not exist "%~dp0redist" mkdir "%~dp0redist"
 if not exist "%~dp0redist\VC_redist.x64.exe" (
     echo Downloading Visual C++ Redistributables...
     powershell -Command "Invoke-WebRequest -Uri 'https://aka.ms/vs/17/release/vc_redist.x64.exe' -OutFile '%~dp0redist\VC_redist.x64.exe'"
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to download Visual C++ Redistributables!
+        pause
+        exit /b 1
+    )
 )
 
 echo.
