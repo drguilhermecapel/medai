@@ -400,7 +400,7 @@ const SPEIApp = (): JSX.Element => {
     const ActivityChart = (): JSX.Element => {
       const [data, setData] = useState(Array.from({ length: 20 }, () => Math.random() * 100))
 
-      useEffect(() => {
+      useEffect((): (() => void) => {
         const interval = setInterval(() => {
           setData(prev => [...prev.slice(1), Math.random() * 100])
         }, 1000)
