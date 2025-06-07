@@ -81,9 +81,9 @@ xcopy ..\frontend app\frontend /E /I /Y
 ### 2. Install Dependencies
 ```batch
 # Install Python dependencies
-runtime\python\python.exe -m pip install poetry
+runtime\python\python.exe -m pip install --upgrade pip
 cd app\backend
-..\..\runtime\python\python.exe -m poetry install --no-dev
+..\..\runtime\python\python.exe -m pip install -r requirements.txt
 
 # Build frontend
 cd ..\frontend
