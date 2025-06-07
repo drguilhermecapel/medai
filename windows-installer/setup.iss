@@ -1,10 +1,14 @@
+; SPEI Windows Installer Script
+; Sistema de Prontuário Eletrônico Inteligente
+; Version 1.0.0
+
 [Setup]
 AppName=SPEI - Sistema de Prontuário Eletrônico Inteligente
 AppVersion=1.0.0
 AppPublisher=CardioAI Pro
 AppPublisherURL=https://spei.med.br
-AppSupportURL=https://spei.med.br/support
-AppUpdatesURL=https://spei.med.br/updates
+AppSupportURL=https://spei.med.br/suporte
+AppUpdatesURL=https://spei.med.br/atualizacoes
 DefaultDirName={autopf}\SPEI
 DefaultGroupName=SPEI
 AllowNoIcons=yes
@@ -19,56 +23,63 @@ WizardStyle=modern
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
-MinVersion=10.0.17763
+MinVersion=10.0
+DisableProgramGroupPage=yes
+DisableReadyPage=no
+DisableFinishedPage=no
+ShowLanguageDialog=no
+LanguageDetectionMethod=uilanguage
+UninstallDisplayIcon={app}\assets\spei-icon.ico
+UninstallDisplayName=SPEI - Sistema de Prontuário Eletrônico Inteligente
+VersionInfoVersion=1.0.0.0
+VersionInfoCompany=CardioAI Pro
+VersionInfoDescription=Sistema de Prontuário Eletrônico Inteligente
+VersionInfoCopyright=Copyright (C) 2025 CardioAI Pro
+VersionInfoProductName=SPEI
+VersionInfoProductVersion=1.0.0
 
 [Languages]
-Name: "english"; MessagesFile: "compiler:Default.isl"
-Name: "portuguese"; MessagesFile: "compiler:Languages\Portuguese.isl"
+Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 
 [Types]
-Name: "full"; Description: "Instalação Completa (Recomendado)"
+Name: "full"; Description: "Instalação Completa"
 Name: "compact"; Description: "Instalação Compacta"
 Name: "custom"; Description: "Instalação Personalizada"; Flags: iscustom
 
 [Components]
-Name: "core"; Description: "Sistema Principal SPEI"; Types: full compact custom; Flags: fixed
+Name: "core"; Description: "Sistema Principal"; Types: full compact custom; Flags: fixed
 Name: "database"; Description: "Banco de Dados PostgreSQL"; Types: full compact custom; Flags: fixed
 Name: "ai"; Description: "Módulos de Inteligência Artificial"; Types: full custom
-Name: "samples"; Description: "Dados de Exemplo"; Types: full
-Name: "docs"; Description: "Documentação"; Types: full
+Name: "samples"; Description: "Dados de Exemplo"; Types: full custom
+Name: "docs"; Description: "Documentação"; Types: full custom
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 6.1
-Name: "firewall"; Description: "Configurar Firewall do Windows"; GroupDescription: "Configurações de Rede"
-Name: "autostart"; Description: "Iniciar SPEI automaticamente com o Windows"; GroupDescription: "Configurações de Sistema"
+Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 6.1; Check: not IsAdminInstallMode
+Name: "autostart"; Description: "Iniciar SPEI automaticamente com o Windows"; GroupDescription: "Opções de Sistema"
+Name: "firewall"; Description: "Configurar regras do Windows Firewall"; GroupDescription: "Opções de Rede"
 
 [Files]
 ; Core application files
-Source: "runtime\python\*"; DestDir: "{app}\runtime\python"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: core
-Source: "runtime\nodejs\*"; DestDir: "{app}\runtime\nodejs"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: core
-Source: "runtime\postgresql\*"; DestDir: "{app}\runtime\postgresql"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: database
-Source: "runtime\redis\*"; DestDir: "{app}\runtime\redis"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: core
+Source: "app\*"; DestDir: "{app}\app"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: core
+Source: "runtime\*"; DestDir: "{app}\runtime"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: core
+Source: "config\*"; DestDir: "{app}\config"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: core
 
-; Application source code
-Source: "app\backend\*"; DestDir: "{app}\backend"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: core
-Source: "app\frontend\*"; DestDir: "{app}\frontend"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: core
+; Utility scripts
+Source: "utils\*"; DestDir: "{app}\utils"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: core
 
-; Configuration files
-Source: "config\*.conf"; DestDir: "{app}\config"; Flags: ignoreversion; Components: core
-Source: "config\.env.windows"; DestDir: "{app}"; DestName: ".env"; Flags: ignoreversion; Components: core
+; Assets and documentation
+Source: "assets\*"; DestDir: "{app}\assets"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: core
+Source: "docs\*"; DestDir: "{app}\docs"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: docs
+Source: "LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion; Components: core
+Source: "README.txt"; DestDir: "{app}"; Flags: ignoreversion; Components: core
+Source: "BUILD-INSTRUCTIONS.md"; DestDir: "{app}"; Flags: ignoreversion; Components: docs
 
-; AI Models
+; AI Models (optional)
 Source: "models\*"; DestDir: "{app}\models"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: ai
 
-; Sample data
+; Sample data (optional)
 Source: "samples\*"; DestDir: "{app}\samples"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: samples
-
-; Documentation
-Source: "docs\*"; DestDir: "{app}\docs"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: docs
-
-; Utilities and scripts
-Source: "utils\*"; DestDir: "{app}\utils"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: core
 
 ; Visual C++ Redistributables
 Source: "redist\VC_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
@@ -122,33 +133,39 @@ var
 
 procedure InitializeWizard;
 begin
-  // Database configuration page
+  // Database password configuration page
   DatabasePasswordPage := CreateInputQueryPage(wpSelectComponents,
-    'Configuração do Banco de Dados', 'Configure a senha do banco de dados',
-    'Por favor, defina uma senha segura para o banco de dados PostgreSQL:');
+    'Configuração do Banco de Dados', 'Configure a senha do banco de dados PostgreSQL',
+    'Digite uma senha segura para o banco de dados. Esta senha será usada para proteger seus dados médicos.');
   DatabasePasswordPage.Add('Senha do banco de dados:', True);
-  DatabasePasswordPage.Values[0] := 'spei_secure_' + IntToStr(Random(9999));
+  DatabasePasswordPage.Values[0] := 'spei2025!';
 
   // Admin user configuration page
   AdminUserPage := CreateInputQueryPage(DatabasePasswordPage.ID,
-    'Usuário Administrador', 'Configure o usuário administrador do sistema',
-    'Defina as credenciais do usuário administrador:');
+    'Configuração do Administrador', 'Configure a conta de administrador do sistema',
+    'Digite as informações para a conta de administrador inicial do SPEI.');
+  AdminUserPage.Add('Nome do administrador:', False);
   AdminUserPage.Add('Email do administrador:', False);
   AdminUserPage.Add('Senha do administrador:', True);
-  AdminUserPage.Values[0] := 'admin@hospital.local';
-  AdminUserPage.Values[1] := 'Admin123!';
+  AdminUserPage.Values[0] := 'Administrador';
+  AdminUserPage.Values[1] := 'admin@spei.local';
+  AdminUserPage.Values[2] := 'admin123!';
 
   // Port configuration page
   PortConfigPage := CreateInputQueryPage(AdminUserPage.ID,
-    'Configuração de Portas', 'Configure as portas de rede',
-    'Defina as portas que o sistema utilizará:');
-  PortConfigPage.Add('Porta da API (padrão: 8000):', False);
-  PortConfigPage.Add('Porta da Interface Web (padrão: 3000):', False);
+    'Configuração de Portas', 'Configure as portas de rede do sistema',
+    'Configure as portas que o SPEI usará para comunicação. Use as portas padrão a menos que haja conflitos.');
+  PortConfigPage.Add('Porta da API (backend):', False);
+  PortConfigPage.Add('Porta da interface web (frontend):', False);
+  PortConfigPage.Add('Porta do banco de dados:', False);
   PortConfigPage.Values[0] := '8000';
   PortConfigPage.Values[1] := '3000';
+  PortConfigPage.Values[2] := '5432';
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  Port: Integer;
 begin
   Result := True;
   
@@ -162,18 +179,35 @@ begin
   end
   else if CurPageID = AdminUserPage.ID then
   begin
-    if (Length(AdminUserPage.Values[0]) = 0) or (Length(AdminUserPage.Values[1]) < 6) then
+    if (Length(AdminUserPage.Values[0]) = 0) or (Length(AdminUserPage.Values[1]) = 0) or (Length(AdminUserPage.Values[2]) = 0) then
     begin
-      MsgBox('Por favor, preencha o email e defina uma senha com pelo menos 6 caracteres.', mbError, MB_OK);
+      MsgBox('Todos os campos do administrador são obrigatórios.', mbError, MB_OK);
+      Result := False;
+    end
+    else if Length(AdminUserPage.Values[2]) < 6 then
+    begin
+      MsgBox('A senha do administrador deve ter pelo menos 6 caracteres.', mbError, MB_OK);
       Result := False;
     end;
   end
   else if CurPageID = PortConfigPage.ID then
   begin
-    if (StrToIntDef(PortConfigPage.Values[0], 0) <= 1024) or 
-       (StrToIntDef(PortConfigPage.Values[1], 0) <= 1024) then
+    // Validate API port
+    if not TryStrToInt(PortConfigPage.Values[0], Port) or (Port < 1024) or (Port > 65535) then
     begin
-      MsgBox('As portas devem ser números maiores que 1024.', mbError, MB_OK);
+      MsgBox('A porta da API deve ser um número entre 1024 e 65535.', mbError, MB_OK);
+      Result := False;
+    end
+    // Validate web port
+    else if not TryStrToInt(PortConfigPage.Values[1], Port) or (Port < 1024) or (Port > 65535) then
+    begin
+      MsgBox('A porta da interface web deve ser um número entre 1024 e 65535.', mbError, MB_OK);
+      Result := False;
+    end
+    // Validate database port
+    else if not TryStrToInt(PortConfigPage.Values[2], Port) or (Port < 1024) or (Port > 65535) then
+    begin
+      MsgBox('A porta do banco de dados deve ser um número entre 1024 e 65535.', mbError, MB_OK);
       Result := False;
     end;
   end;
@@ -181,86 +215,44 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 var
-  ConfigFile: string;
-  ConfigContent: TStringList;
+  EnvFile: string;
+  ConfigContent: TArrayOfString;
 begin
   if CurStep = ssPostInstall then
   begin
-    // Update configuration file with user settings
-    ConfigFile := ExpandConstant('{app}\.env');
-    ConfigContent := TStringList.Create;
-    try
-      ConfigContent.LoadFromFile(ConfigFile);
+    // Update .env.windows file with user configuration
+    EnvFile := ExpandConstant('{app}\config\.env.windows');
+    
+    if LoadStringsFromFile(EnvFile, ConfigContent) then
+    begin
+      // Update database password
+      StringChangeEx(ConfigContent, 'DB_PASSWORD=your_secure_password_here', 
+        'DB_PASSWORD=' + DatabasePasswordPage.Values[0], True);
       
-      // Replace placeholders with actual values
-      StringChangeEx(ConfigContent.Text, '{{DB_PASSWORD}}', DatabasePasswordPage.Values[0], True);
-      StringChangeEx(ConfigContent.Text, '{{ADMIN_EMAIL}}', AdminUserPage.Values[0], True);
-      StringChangeEx(ConfigContent.Text, '{{ADMIN_PASSWORD}}', AdminUserPage.Values[1], True);
-      StringChangeEx(ConfigContent.Text, '{{API_PORT}}', PortConfigPage.Values[0], True);
-      StringChangeEx(ConfigContent.Text, '{{WEB_PORT}}', PortConfigPage.Values[1], True);
+      // Update admin user information
+      StringChangeEx(ConfigContent, 'ADMIN_NAME=Admin User', 
+        'ADMIN_NAME=' + AdminUserPage.Values[0], True);
+      StringChangeEx(ConfigContent, 'ADMIN_EMAIL=admin@spei.local', 
+        'ADMIN_EMAIL=' + AdminUserPage.Values[1], True);
+      StringChangeEx(ConfigContent, 'ADMIN_PASSWORD=admin123', 
+        'ADMIN_PASSWORD=' + AdminUserPage.Values[2], True);
       
-      ConfigContent.SaveToFile(ConfigFile);
-    finally
-      ConfigContent.Free;
+      // Update port configuration
+      StringChangeEx(ConfigContent, 'API_PORT=8000', 
+        'API_PORT=' + PortConfigPage.Values[0], True);
+      StringChangeEx(ConfigContent, 'FRONTEND_PORT=3000', 
+        'FRONTEND_PORT=' + PortConfigPage.Values[1], True);
+      StringChangeEx(ConfigContent, 'DB_PORT=5432', 
+        'DB_PORT=' + PortConfigPage.Values[2], True);
+      
+      SaveStringsToFile(EnvFile, ConfigContent, False);
     end;
   end;
 end;
 
-function ShouldSkipPage(PageID: Integer): Boolean;
-begin
-  Result := False;
-  // Skip configuration pages in silent mode
-  if (PageID = DatabasePasswordPage.ID) or 
-     (PageID = AdminUserPage.ID) or 
-     (PageID = PortConfigPage.ID) then
-    Result := WizardSilent;
-end;
-
-function InitializeSetup(): Boolean;
+function InitializeUninstall(): Boolean;
 begin
   Result := True;
-  
-  // Check Windows version
-  if not IsWin64 then
-  begin
-    MsgBox('SPEI requer Windows 64-bit. A instalação será cancelada.', mbError, MB_OK);
+  if MsgBox('Tem certeza de que deseja remover o SPEI e todos os seus dados?', mbConfirmation, MB_YESNO) = IDNO then
     Result := False;
-    Exit;
-  end;
-  
-  // Check available disk space (minimum 2GB)
-  if GetSpaceOnDisk(ExpandConstant('{app}'), False, nil, nil, nil) < 2147483648 then
-  begin
-    MsgBox('Espaço insuficiente em disco. São necessários pelo menos 2GB livres.', mbError, MB_OK);
-    Result := False;
-    Exit;
-  end;
-end;
-
-function PrepareToInstall(var NeedsRestart: Boolean): String;
-begin
-  Result := '';
-  NeedsRestart := False;
-  
-  // Check if ports are available
-  if IsPortInUse(StrToInt(PortConfigPage.Values[0])) then
-  begin
-    Result := 'A porta ' + PortConfigPage.Values[0] + ' já está em uso. Por favor, escolha outra porta.';
-    Exit;
-  end;
-  
-  if IsPortInUse(StrToInt(PortConfigPage.Values[1])) then
-  begin
-    Result := 'A porta ' + PortConfigPage.Values[1] + ' já está em uso. Por favor, escolha outra porta.';
-    Exit;
-  end;
-end;
-
-function IsPortInUse(Port: Integer): Boolean;
-var
-  ResultCode: Integer;
-begin
-  Result := False;
-  if Exec('netstat', '-an | findstr :' + IntToStr(Port), '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
-    Result := (ResultCode = 0);
 end;

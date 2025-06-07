@@ -52,6 +52,30 @@ O SPEI é um sistema completo de prontuário eletrônico desenvolvido com tecnol
 
 ## 📦 Instalação e Configuração
 
+### 🖥️ Instalação Windows (Recomendada para Usuários Finais)
+
+**Instalador Automático - Sem Conhecimento Técnico Necessário**
+
+1. **Baixe o Instalador Windows**
+   - Baixe `SPEI-Setup-v1.0.0.exe` da página de releases
+   - Instalação completamente automatizada
+   - Não requer Docker, Python ou configurações manuais
+
+2. **Execute o Instalador**
+   ```cmd
+   SPEI-Setup-v1.0.0.exe
+   ```
+   - Siga o assistente de instalação
+   - Configure senha do banco de dados e usuário administrador
+   - Escolha componentes (Sistema Principal, Banco de Dados, Modelos IA, Dados de Exemplo)
+
+3. **Acesse o SPEI**
+   - Interface Web: http://localhost:3000
+   - Documentação API: http://localhost:8000/docs
+   - O instalador cria atalhos na área de trabalho para fácil acesso
+
+### 🐳 Instalação com Docker (Para Desenvolvedores)
+
 ### Pré-requisitos
 - Docker e Docker Compose
 - Node.js 18+ (para desenvolvimento)
@@ -59,7 +83,6 @@ O SPEI é um sistema completo de prontuário eletrônico desenvolvido com tecnol
 - PostgreSQL 15+
 - Redis 7+
 
-### Instalação Rápida com Docker
 ```bash
 # Clone o repositório
 git clone https://github.com/drguilhermecapel/medai.git
@@ -76,6 +99,10 @@ docker-compose up -d
 # Backend API: http://localhost:8000
 # Documentação API: http://localhost:8000/docs
 ```
+
+### 📋 Instalação Manual (Usuários Avançados)
+
+Consulte [windows-installer/BUILD-INSTRUCTIONS.md](windows-installer/BUILD-INSTRUCTIONS.md) para instruções detalhadas de instalação manual.
 
 ### Desenvolvimento Local
 
