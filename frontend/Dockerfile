@@ -6,6 +6,7 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 COPY yarn.lock* ./
+COPY tsconfig*.json ./
 
 # Install dependencies
 RUN npm install
