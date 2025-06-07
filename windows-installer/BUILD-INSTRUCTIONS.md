@@ -2,7 +2,14 @@
 
 ## Overview
 
-This document provides instructions for building the SPEI Windows installer package. The installer creates a self-contained Windows application that requires no technical knowledge from end users.
+This document provides comprehensive instructions for building the SPEI (Sistema de Prontuário Eletrônico Inteligente) Windows installer package. The installer creates a completely self-contained medical EMR system with AI support that requires no technical knowledge from end users.
+
+**Key Features of the Windows Installer:**
+- **Zero Technical Knowledge Required**: Fully automated installation process
+- **Self-Contained**: Includes Python, Node.js, PostgreSQL, and all dependencies
+- **Medical Compliance**: Pre-configured for ANVISA, FDA, EU MDR, LGPD, and HIPAA compliance
+- **AI-Ready**: Includes medical diagnostic AI models and inference engine
+- **Production Ready**: Suitable for medical practices and healthcare institutions
 
 ## Prerequisites
 

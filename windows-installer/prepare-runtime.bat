@@ -206,11 +206,31 @@ if not exist "%RUNTIME_DIR%\nodejs" (
     move "%TEMP_DIR%\node-v18.20.3-win-x64" "%RUNTIME_DIR%\nodejs"
     if %ERRORLEVEL% NEQ 0 (
         echo ERROR: Failed to move Node.js to runtime directory!
+        echo Attempting cleanup...
+        if exist "%TEMP_DIR%\node-v18.20.3-win-x64" rmdir /S /Q "%TEMP_DIR%\node-v18.20.3-win-x64" 2>nul
+        if exist "%TEMP_DIR%\nodejs.zip" del "%TEMP_DIR%\nodejs.zip" 2>nul
         pause
         exit /b 1
     )
     
-    echo Node.js installation completed successfully!
+    :: Verify Node.js installation
+    if not exist "%RUNTIME_DIR%\nodejs\node.exe" (
+        echo ERROR: Node.js executable not found after installation!
+        echo Expected: %RUNTIME_DIR%\nodejs\node.exe
+        pause
+        exit /b 1
+    )
+    
+    :: Test Node.js functionality
+    "%RUNTIME_DIR%\nodejs\node.exe" --version >nul 2>&1
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Node.js installation is not functional!
+        echo The executable exists but cannot run properly.
+        pause
+        exit /b 1
+    )
+    
+    echo ✓ Node.js installation completed and verified successfully!
 )
 
 echo.
@@ -259,6 +279,26 @@ if not exist "%RUNTIME_DIR%\postgresql" (
         exit /b 1
     )
     
+    :: Check PostgreSQL file size (should be around 200MB)
+    for %%A in ("%TEMP_DIR%\postgresql.zip") do set "pgfilesize=%%~zA"
+    if %pgfilesize% LSS 100000000 (
+        echo ERROR: PostgreSQL zip file is too small (%pgfilesize% bytes). Expected ~200MB.
+        echo This indicates a partial or corrupted download.
+        del "%TEMP_DIR%\postgresql.zip" 2>nul
+        echo.
+        echo ======================================== 
+        echo ERROR: PostgreSQL download failed!
+        echo.
+        echo MANUAL SOLUTION:
+        echo 1. Download PostgreSQL manually from: https://www.enterprisedb.com/download-postgresql-binaries
+        echo 2. Save the file as: %TEMP_DIR%\postgresql.zip
+        echo 3. Re-run this script
+        echo ======================================== 
+        pause
+        exit /b 1
+    )
+    echo ✓ PostgreSQL download verified (%pgfilesize% bytes)
+    
     echo Extracting PostgreSQL...
     powershell -Command "Expand-Archive -Path '%TEMP_DIR%\postgresql.zip' -DestinationPath '%TEMP_DIR%' -Force"
     if %ERRORLEVEL% NEQ 0 (
@@ -270,9 +310,22 @@ if not exist "%RUNTIME_DIR%\postgresql" (
     move "%TEMP_DIR%\pgsql" "%RUNTIME_DIR%\postgresql"
     if %ERRORLEVEL% NEQ 0 (
         echo ERROR: Failed to move PostgreSQL to runtime directory!
+        echo Attempting cleanup...
+        if exist "%TEMP_DIR%\pgsql" rmdir /S /Q "%TEMP_DIR%\pgsql" 2>nul
+        if exist "%TEMP_DIR%\postgresql.zip" del "%TEMP_DIR%\postgresql.zip" 2>nul
         pause
         exit /b 1
     )
+    
+    :: Verify PostgreSQL installation
+    if not exist "%RUNTIME_DIR%\postgresql\bin\postgres.exe" (
+        echo ERROR: PostgreSQL executable not found after installation!
+        echo Expected: %RUNTIME_DIR%\postgresql\bin\postgres.exe
+        pause
+        exit /b 1
+    )
+    
+    echo ✓ PostgreSQL installation completed and verified successfully!
 )
 
 echo.
@@ -304,13 +357,36 @@ if not exist "%RUNTIME_DIR%\redis" (
         goto :skip_redis
     )
     
+    :: Check Redis file size (should be around 5MB)
+    for %%A in ("%TEMP_DIR%\redis.zip") do set "redisfilesize=%%~zA"
+    if %redisfilesize% LSS 1000000 (
+        echo WARNING: Redis zip file is too small (%redisfilesize% bytes). Expected ~5MB.
+        echo This indicates a partial or corrupted download.
+        del "%TEMP_DIR%\redis.zip" 2>nul
+        echo Redis is optional, continuing without it...
+        goto :skip_redis
+    )
+    echo ✓ Redis download verified (%redisfilesize% bytes)
+    
     echo Extracting Redis...
     powershell -Command "Expand-Archive -Path '%TEMP_DIR%\redis.zip' -DestinationPath '%RUNTIME_DIR%\redis' -Force"
     if %ERRORLEVEL% NEQ 0 (
         echo ERROR: Failed to extract Redis!
-        pause
-        exit /b 1
+        echo Attempting cleanup...
+        if exist "%TEMP_DIR%\redis.zip" del "%TEMP_DIR%\redis.zip" 2>nul
+        if exist "%RUNTIME_DIR%\redis" rmdir /S /Q "%RUNTIME_DIR%\redis" 2>nul
+        echo Redis is optional, continuing without it...
+        goto :skip_redis
     )
+    
+    :: Verify Redis installation
+    if not exist "%RUNTIME_DIR%\redis\redis-server.exe" (
+        echo WARNING: Redis executable not found after extraction!
+        echo Redis is optional, continuing without it...
+        goto :skip_redis
+    )
+    
+    echo ✓ Redis installation completed and verified successfully!
     goto :redis_done
 
 :skip_redis
@@ -329,16 +405,40 @@ echo ========================================
 if exist "..\backend" (
     echo Copying backend files...
     xcopy "..\backend" "%APP_DIR%\backend" /E /I /Y /Q
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to copy backend files!
+        echo Source: ..\backend
+        echo Destination: %APP_DIR%\backend
+        pause
+        exit /b 1
+    )
+    echo ✓ Backend files copied successfully
 ) else (
-    echo WARNING: Backend directory not found!
+    echo ERROR: Backend directory not found!
+    echo Expected location: ..\backend
+    echo Please ensure you are running this script from the windows-installer directory.
+    pause
+    exit /b 1
 )
 
 :: Copy frontend
 if exist "..\frontend" (
     echo Copying frontend files...
     xcopy "..\frontend" "%APP_DIR%\frontend" /E /I /Y /Q
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to copy frontend files!
+        echo Source: ..\frontend
+        echo Destination: %APP_DIR%\frontend
+        pause
+        exit /b 1
+    )
+    echo ✓ Frontend files copied successfully
 ) else (
-    echo WARNING: Frontend directory not found!
+    echo ERROR: Frontend directory not found!
+    echo Expected location: ..\frontend
+    echo Please ensure you are running this script from the windows-installer directory.
+    pause
+    exit /b 1
 )
 
 :: Copy other necessary files
@@ -354,9 +454,21 @@ echo ========================================
 :: Install Python dependencies in embedded Python
 if exist "%APP_DIR%\backend\requirements.txt" (
     echo Installing Python dependencies...
+    
+    :: Verify Python is functional
+    "%RUNTIME_DIR%\python\python.exe" --version >nul 2>&1
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Python runtime is not functional!
+        echo Please run prepare-runtime.bat again to reinstall Python.
+        pause
+        exit /b 1
+    )
+    
     "%RUNTIME_DIR%\python\python.exe" -m pip install --upgrade pip
     if %ERRORLEVEL% NEQ 0 (
         echo ERROR: Failed to upgrade pip!
+        echo This may indicate Python embeddable configuration issues.
+        echo Please check that python311._pth file exists and is configured correctly.
         pause
         exit /b 1
     )
@@ -364,12 +476,35 @@ if exist "%APP_DIR%\backend\requirements.txt" (
     "%RUNTIME_DIR%\python\python.exe" -m pip install -r "%APP_DIR%\backend\requirements.txt"
     if %ERRORLEVEL% NEQ 0 (
         echo ERROR: Failed to install Python dependencies!
+        echo.
+        echo This could be due to:
+        echo 1. Network connectivity issues
+        echo 2. Missing system dependencies
+        echo 3. Incompatible package versions
+        echo 4. Python embeddable configuration problems
+        echo.
+        echo Please check the error messages above for specific details.
         pause
         exit /b 1
     )
+    
+    :: Verify critical packages are installed
+    echo Verifying critical package installations...
+    "%RUNTIME_DIR%\python\python.exe" -c "import fastapi, uvicorn, sqlalchemy" >nul 2>&1
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Critical Python packages are not properly installed!
+        echo The backend may not function correctly.
+        pause
+        exit /b 1
+    )
+    
+    echo ✓ Python dependencies installed and verified successfully
 ) else (
-    echo WARNING: requirements.txt not found in backend directory!
+    echo ERROR: requirements.txt not found in backend directory!
+    echo Expected: %APP_DIR%\backend\requirements.txt
+    echo Cannot proceed without Python dependencies list.
     pause
+    exit /b 1
 )
 
 echo.
@@ -381,15 +516,72 @@ echo ========================================
 if exist "%APP_DIR%\frontend\package.json" (
     echo Installing Node.js dependencies...
     cd /d "%APP_DIR%\frontend"
+    
+    :: Verify Node.js and npm are functional
+    "%RUNTIME_DIR%\nodejs\node.exe" --version >nul 2>&1
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Node.js is not functional!
+        cd /d "%~dp0"
+        pause
+        exit /b 1
+    )
+    
+    "%RUNTIME_DIR%\nodejs\npm.cmd" --version >nul 2>&1
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: npm is not functional!
+        cd /d "%~dp0"
+        pause
+        exit /b 1
+    )
+    
     "%RUNTIME_DIR%\nodejs\npm.cmd" install
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to install Node.js dependencies!
+        echo.
+        echo This could be due to:
+        echo 1. Network connectivity issues
+        echo 2. Incompatible package versions
+        echo 3. Missing system dependencies
+        echo.
+        echo Please check the error messages above for details.
+        cd /d "%~dp0"
+        pause
+        exit /b 1
+    )
     
     echo Building frontend...
     "%RUNTIME_DIR%\nodejs\npm.cmd" run build
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Frontend build failed!
+        echo.
+        echo Please check the error messages above for details.
+        echo Common issues:
+        echo 1. TypeScript compilation errors
+        echo 2. Missing dependencies
+        echo 3. Build configuration problems
+        echo.
+        cd /d "%~dp0"
+        pause
+        exit /b 1
+    )
+    
+    :: Verify build output
+    if not exist "dist\index.html" (
+        echo ERROR: Frontend build completed but index.html was not generated!
+        echo Expected: %APP_DIR%\frontend\dist\index.html
+        cd /d "%~dp0"
+        pause
+        exit /b 1
+    )
+    
+    echo ✓ Frontend built and verified successfully
     cd /d "%~dp0"
 ) else (
-    echo Creating minimal frontend structure...
-    mkdir "%APP_DIR%\frontend\dist"
-    echo ^<html^>^<head^>^<title^>SPEI^</title^>^</head^>^<body^>^<h1^>SPEI Loading...^</h1^>^</body^>^</html^> > "%APP_DIR%\frontend\dist\index.html"
+    echo ERROR: package.json not found in frontend directory!
+    echo Expected: %APP_DIR%\frontend\package.json
+    echo Cannot build frontend without package configuration.
+    pause
+    exit /b 1
 )
 
 echo.
@@ -404,17 +596,102 @@ if not exist "%~dp0redist\VC_redist.x64.exe" (
     powershell -Command "Invoke-WebRequest -Uri 'https://aka.ms/vs/17/release/vc_redist.x64.exe' -OutFile '%~dp0redist\VC_redist.x64.exe'"
     if %ERRORLEVEL% NEQ 0 (
         echo ERROR: Failed to download Visual C++ Redistributables!
+        echo.
+        echo MANUAL SOLUTION:
+        echo 1. Download VC++ Redistributables manually from: https://aka.ms/vs/17/release/vc_redist.x64.exe
+        echo 2. Save the file as: %~dp0redist\VC_redist.x64.exe
+        echo 3. Re-run this script
         pause
         exit /b 1
     )
+    
+    :: Verify VC++ Redistributables download
+    if not exist "%~dp0redist\VC_redist.x64.exe" (
+        echo ERROR: VC++ Redistributables file was not downloaded successfully!
+        pause
+        exit /b 1
+    )
+    
+    :: Check file size (should be around 13MB)
+    for %%A in ("%~dp0redist\VC_redist.x64.exe") do set "vcfilesize=%%~zA"
+    if %vcfilesize% LSS 10000000 (
+        echo ERROR: VC++ Redistributables file is too small (%vcfilesize% bytes). Expected ~13MB.
+        echo This indicates a partial or corrupted download.
+        del "%~dp0redist\VC_redist.x64.exe" 2>nul
+        pause
+        exit /b 1
+    )
+    
+    echo ✓ Visual C++ Redistributables downloaded and verified (%vcfilesize% bytes)
 )
 
 echo.
 echo ========================================
-echo Cleaning up temporary files
+echo Final Verification and Cleanup
 echo ========================================
 
-if exist "%TEMP_DIR%" rmdir /S /Q "%TEMP_DIR%"
+:: Final verification of all components
+echo Performing final component verification...
+
+:: Verify Python runtime
+if not exist "%RUNTIME_DIR%\python\python.exe" (
+    echo ERROR: Python runtime verification failed!
+    echo Missing: %RUNTIME_DIR%\python\python.exe
+    pause
+    exit /b 1
+)
+
+:: Verify Node.js runtime
+if not exist "%RUNTIME_DIR%\nodejs\node.exe" (
+    echo ERROR: Node.js runtime verification failed!
+    echo Missing: %RUNTIME_DIR%\nodejs\node.exe
+    pause
+    exit /b 1
+)
+
+:: Verify PostgreSQL runtime
+if not exist "%RUNTIME_DIR%\postgresql\bin\postgres.exe" (
+    echo ERROR: PostgreSQL runtime verification failed!
+    echo Missing: %RUNTIME_DIR%\postgresql\bin\postgres.exe
+    pause
+    exit /b 1
+)
+
+:: Verify application files
+if not exist "%APP_DIR%\backend" (
+    echo ERROR: Backend application files verification failed!
+    echo Missing: %APP_DIR%\backend
+    pause
+    exit /b 1
+)
+
+if not exist "%APP_DIR%\frontend" (
+    echo ERROR: Frontend application files verification failed!
+    echo Missing: %APP_DIR%\frontend
+    pause
+    exit /b 1
+)
+
+:: Verify VC++ Redistributables
+if not exist "%~dp0redist\VC_redist.x64.exe" (
+    echo ERROR: VC++ Redistributables verification failed!
+    echo Missing: %~dp0redist\VC_redist.x64.exe
+    pause
+    exit /b 1
+)
+
+echo ✓ All components verified successfully
+
+echo Cleaning up temporary files...
+if exist "%TEMP_DIR%" (
+    rmdir /S /Q "%TEMP_DIR%" 2>nul
+    if exist "%TEMP_DIR%" (
+        echo WARNING: Could not completely clean temporary directory
+        echo Some files may still exist in: %TEMP_DIR%
+    ) else (
+        echo ✓ Temporary files cleaned successfully
+    )
+)
 
 echo.
 echo ========================================
