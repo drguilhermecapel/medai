@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { resolve } from 'path'
 
+const __dirname = new URL('.', import.meta.url).pathname
+
 export default defineConfig({
   plugins: [
     react(),
@@ -33,9 +35,37 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    port: 3000,
+    host: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/ws': {
+        target: 'ws://localhost:8000',
+        ws: true,
+        changeOrigin: true,
+      },
+    },
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          mui: ['@mui/material', '@mui/icons-material'],
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
-      '@': resolve(import.meta.dirname || __dirname, './src'),
+      '@': resolve(__dirname, './src'),
     },
   },
 })

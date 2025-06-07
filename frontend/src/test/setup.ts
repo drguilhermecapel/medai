@@ -13,7 +13,7 @@ Object.defineProperty(window, 'matchMedia', {
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
   })),
-});
+})
 
 interface MockResizeObserver {
   observe: ReturnType<typeof vi.fn>
@@ -21,8 +21,10 @@ interface MockResizeObserver {
   disconnect: ReturnType<typeof vi.fn>
 }
 
-(globalThis as unknown as { ResizeObserver: new () => MockResizeObserver }).ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+;(globalThis as unknown as { ResizeObserver: new () => MockResizeObserver }).ResizeObserver = vi
+  .fn()
+  .mockImplementation(() => ({
+    observe: vi.fn(),
+    unobserve: vi.fn(),
+    disconnect: vi.fn(),
+  }))
