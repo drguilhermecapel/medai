@@ -19,6 +19,21 @@ set "OUTPUT_DIR=%~dp0dist"
 :: Create output directory
 if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%"
 
+:: Check if source directories exist
+if not exist "..\backend" (
+    echo ERROR: Backend directory not found at ..\backend
+    echo Please ensure you are running this from the windows-installer directory
+    pause
+    exit /b 1
+)
+
+if not exist "..\frontend" (
+    echo ERROR: Frontend directory not found at ..\frontend
+    echo Please ensure you are running this from the windows-installer directory
+    pause
+    exit /b 1
+)
+
 :: Download and prepare runtime components
 echo Preparing runtime components...
 call prepare-runtime.bat
@@ -33,13 +48,22 @@ if %ERRORLEVEL% EQU 0 (
     echo Installer built successfully!
     echo.
     echo Output: %OUTPUT_DIR%\SPEI-Setup-v1.0.0.exe
-    echo Size: 
-    dir "%OUTPUT_DIR%\SPEI-Setup-v1.0.0.exe" | findstr "SPEI-Setup"
+    if exist "%OUTPUT_DIR%\SPEI-Setup-v1.0.0.exe" (
+        echo Size: 
+        dir "%OUTPUT_DIR%\SPEI-Setup-v1.0.0.exe" | findstr "SPEI-Setup"
+    ) else (
+        echo WARNING: Installer file not found in expected location
+    )
     echo ========================================
 ) else (
     echo.
     echo ERROR: Failed to build installer!
     echo Check the error messages above.
+    echo.
+    echo Common issues:
+    echo - Missing source directories (backend/frontend)
+    echo - Inno Setup not installed or wrong version
+    echo - Missing runtime components
 )
 
 pause

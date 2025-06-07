@@ -83,7 +83,7 @@ echo ========================================
 :: Copy backend
 if exist "..\backend" (
     echo Copying backend files...
-    xcopy "..\backend" "%APP_DIR%\backend" /E /I /Y /Q
+    xcopy "..\backend" "backend" /E /I /Y /Q
 ) else (
     echo WARNING: Backend directory not found!
 )
@@ -91,7 +91,7 @@ if exist "..\backend" (
 :: Copy frontend
 if exist "..\frontend" (
     echo Copying frontend files...
-    xcopy "..\frontend" "%APP_DIR%\frontend" /E /I /Y /Q
+    xcopy "..\frontend" "frontend" /E /I /Y /Q
 ) else (
     echo WARNING: Frontend directory not found!
 )
@@ -107,11 +107,11 @@ echo Installing Python Dependencies
 echo ========================================
 
 :: Install Python dependencies in embedded Python
-if exist "%APP_DIR%\backend\pyproject.toml" (
+if exist "backend\pyproject.toml" (
     echo Installing Poetry and dependencies...
     "%RUNTIME_DIR%\python\python.exe" -m pip install poetry
     
-    cd /d "%APP_DIR%\backend"
+    cd /d "backend"
     "%RUNTIME_DIR%\python\python.exe" -m poetry config virtualenvs.create false
     "%RUNTIME_DIR%\python\python.exe" -m poetry install --no-dev
     cd /d "%~dp0"
@@ -123,9 +123,9 @@ echo Building Frontend
 echo ========================================
 
 :: Build frontend if package.json exists
-if exist "%APP_DIR%\frontend\package.json" (
+if exist "frontend\package.json" (
     echo Installing Node.js dependencies...
-    cd /d "%APP_DIR%\frontend"
+    cd /d "frontend"
     "%RUNTIME_DIR%\nodejs\npm.cmd" install
     
     echo Building frontend...
@@ -133,8 +133,8 @@ if exist "%APP_DIR%\frontend\package.json" (
     cd /d "%~dp0"
 ) else (
     echo Creating minimal frontend structure...
-    mkdir "%APP_DIR%\frontend\dist"
-    echo ^<html^>^<head^>^<title^>SPEI^</title^>^</head^>^<body^>^<h1^>SPEI Loading...^</h1^>^</body^>^</html^> > "%APP_DIR%\frontend\dist\index.html"
+    mkdir "frontend\dist"
+    echo ^<html^>^<head^>^<title^>SPEI^</title^>^</head^>^<body^>^<h1^>SPEI Loading...^</h1^>^</body^>^</html^> > "frontend\dist\index.html"
 )
 
 echo.

@@ -51,18 +51,17 @@ Source: "runtime\postgresql\*"; DestDir: "{app}\runtime\postgresql"; Flags: igno
 Source: "runtime\redis\*"; DestDir: "{app}\runtime\redis"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: core
 
 ; Application source code
-Source: "app\backend\*"; DestDir: "{app}\backend"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: core
-Source: "app\frontend\*"; DestDir: "{app}\frontend"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: core
+Source: "..\backend\*"; DestDir: "{app}\backend"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: core
+Source: "..\frontend\*"; DestDir: "{app}\frontend"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: core
 
 ; Configuration files
-Source: "config\*.conf"; DestDir: "{app}\config"; Flags: ignoreversion; Components: core
 Source: "config\.env.windows"; DestDir: "{app}"; DestName: ".env"; Flags: ignoreversion; Components: core
 
-; AI Models
-Source: "models\*"; DestDir: "{app}\models"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: ai
+; AI Models (commented out - models directory not available in repository)
+; Source: "models\*"; DestDir: "{app}\models"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: ai
 
-; Sample data
-Source: "samples\*"; DestDir: "{app}\samples"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: samples
+; Sample data (commented out - samples directory not available in repository)
+; Source: "samples\*"; DestDir: "{app}\samples"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: samples
 
 ; Documentation
 Source: "docs\*"; DestDir: "{app}\docs"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: docs
@@ -74,17 +73,17 @@ Source: "utils\*"; DestDir: "{app}\utils"; Flags: ignoreversion recursesubdirs c
 Source: "redist\VC_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
 [Icons]
-Name: "{group}\SPEI"; Filename: "{app}\SPEI.exe"; WorkingDir: "{app}"
+Name: "{group}\SPEI"; Filename: "{app}\utils\SPEI.bat"; WorkingDir: "{app}"
 Name: "{group}\SPEI Web Interface"; Filename: "http://localhost:3000"; IconFilename: "{app}\assets\web-icon.ico"
 Name: "{group}\Documentação"; Filename: "{app}\docs\index.html"
 Name: "{group}\{cm:UninstallProgram,SPEI}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\SPEI"; Filename: "{app}\SPEI.exe"; WorkingDir: "{app}"; Tasks: desktopicon
-Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\SPEI"; Filename: "{app}\SPEI.exe"; WorkingDir: "{app}"; Tasks: quicklaunchicon
+Name: "{autodesktop}\SPEI"; Filename: "{app}\utils\SPEI.bat"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\SPEI"; Filename: "{app}\utils\SPEI.bat"; WorkingDir: "{app}"; Tasks: quicklaunchicon
 
 [Registry]
 Root: HKCU; Subkey: "Software\SPEI"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\SPEI"; ValueType: string; ValueName: "Version"; ValueData: "1.0.0"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "SPEI"; ValueData: """{app}\SPEI.exe"" --minimized"; Tasks: autostart; Flags: uninsdeletevalue
+Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "SPEI"; ValueData: """{app}\utils\SPEI.bat"" --minimized"; Tasks: autostart; Flags: uninsdeletevalue
 
 [Run]
 ; Install Visual C++ Redistributables
@@ -104,7 +103,7 @@ Filename: "netsh"; Parameters: "advfirewall firewall add rule name=""SPEI API"" 
 Filename: "netsh"; Parameters: "advfirewall firewall add rule name=""SPEI Web"" dir=in action=allow protocol=TCP localport=3000"; StatusMsg: "Configurando firewall..."; Flags: waituntilterminated runhidden; Tasks: firewall
 
 ; Start services
-Filename: "{app}\SPEI.exe"; Description: "{cm:LaunchProgram,SPEI}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\utils\SPEI.bat"; Description: "{cm:LaunchProgram,SPEI}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
 ; Stop services
