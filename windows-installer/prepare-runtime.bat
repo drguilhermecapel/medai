@@ -38,9 +38,11 @@ if not exist "%RUNTIME_DIR%\python" (
     
     :: Configure Python embeddable to enable site-packages
     echo Configuring Python embeddable...
-    echo import site > "%RUNTIME_DIR%\python\python311._pth"
+    echo python311.zip > "%RUNTIME_DIR%\python\python311._pth"
     echo . >> "%RUNTIME_DIR%\python\python311._pth"
+    echo .\Lib >> "%RUNTIME_DIR%\python\python311._pth"
     echo .\Lib\site-packages >> "%RUNTIME_DIR%\python\python311._pth"
+    echo import site >> "%RUNTIME_DIR%\python\python311._pth"
     
     :: Install pip
     echo Installing pip...
@@ -60,11 +62,25 @@ echo ========================================
 :: Download Node.js
 if not exist "%RUNTIME_DIR%\nodejs" (
     echo Downloading Node.js 18.20.3...
-    powershell -Command "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v18.20.3/node-v18.20.3-win-x64.zip' -OutFile '%TEMP_DIR%\nodejs.zip'"
+    
+    :: Try primary download with retry logic
+    set "NODEJS_URL=https://nodejs.org/dist/v18.20.3/node-v18.20.3-win-x64.zip"
+    set "NODEJS_ALT_URL=https://github.com/nodejs/node/releases/download/v18.20.3/node-v18.20.3-win-x64.zip"
+    
+    echo Attempting to download from primary source...
+    powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%NODEJS_URL%' -OutFile '%TEMP_DIR%\nodejs.zip' -UseBasicParsing -TimeoutSec 300 } catch { exit 1 }"
+    
     if %ERRORLEVEL% NEQ 0 (
-        echo ERROR: Failed to download Node.js!
-        pause
-        exit /b 1
+        echo Primary download failed, trying alternative source...
+        powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%NODEJS_ALT_URL%' -OutFile '%TEMP_DIR%\nodejs.zip' -UseBasicParsing -TimeoutSec 300 } catch { exit 1 }"
+        
+        if %ERRORLEVEL% NEQ 0 (
+            echo ERROR: Failed to download Node.js from both primary and alternative sources!
+            echo Please check your internet connection and try again.
+            echo You may need to configure proxy settings or disable antivirus temporarily.
+            pause
+            exit /b 1
+        )
     )
     
     echo Extracting Node.js...
