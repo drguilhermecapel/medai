@@ -3,31 +3,31 @@ import { createTheme } from '@mui/material/styles'
 export const theme = createTheme({
   palette: {
     primary: {
-      main: '#1976d2',
-      light: '#42a5f5',
-      dark: '#1565c0',
+      main: '#00e0ff',
+      light: '#33f1ff',
+      dark: '#00b8d4',
     },
     secondary: {
-      main: '#dc004e',
-      light: '#ff5983',
-      dark: '#9a0036',
+      main: '#8e24aa',
+      light: '#c158dc',
+      dark: '#5c007a',
     },
     background: {
-      default: '#f5f5f5',
-      paper: '#ffffff',
+      default: '#0d1117',
+      paper: '#161b22',
     },
     success: {
-      main: '#2e7d32',
+      main: '#2ecc71',
     },
     warning: {
-      main: '#ed6c02',
+      main: '#f1c40f',
     },
     error: {
-      main: '#d32f2f',
+      main: '#e74c3c',
     },
   },
   typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Orbitron", "Roboto", "Helvetica", "Arial", sans-serif',
     h1: {
       fontSize: '2.5rem',
       fontWeight: 500,
