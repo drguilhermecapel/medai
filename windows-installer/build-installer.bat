@@ -156,14 +156,31 @@ echo ========================================
 
 :: Check if runtime components exist, if not prepare them
 if not exist "%RUNTIME_DIR%\python\python.exe" (
-    echo Python runtime not found. Preparing runtime components...
-    call prepare-runtime.bat
-    if !ERRORLEVEL! NEQ 0 (
-        echo ERROR: Failed to prepare runtime components!
-        echo Please check the error messages above and resolve any issues.
-        pause
-        exit /b 1
-    )
+    echo.
+    echo ========================================
+    echo RUNTIME COMPONENTS NOT FOUND
+    echo ========================================
+    echo.
+    echo The runtime directory does not exist or is incomplete.
+    echo This is normal for first-time builds.
+    echo.
+    echo REQUIRED: You must run prepare-runtime.bat FIRST to:
+    echo - Download Python 3.11 embeddable (~50MB)
+    echo - Download Node.js runtime (~30MB)
+    echo - Download PostgreSQL portable (~200MB)
+    echo - Download Redis for Windows
+    echo - Create complete runtime directory structure
+    echo.
+    echo SOLUTION:
+    echo 1. Close this window
+    echo 2. Run: prepare-runtime.bat
+    echo 3. Wait for all downloads to complete
+    echo 4. Then run: build-installer.bat
+    echo.
+    echo ========================================
+    echo.
+    pause
+    exit /b 1
 ) else (
     echo ✓ Python runtime found
 )
