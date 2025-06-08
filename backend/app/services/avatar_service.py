@@ -5,6 +5,7 @@ Supports Full HD (1920x1080) and 8K (7680x4320) resolutions.
 
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from fastapi import HTTPException, UploadFile
 from PIL import Image, ImageOps
@@ -25,7 +26,7 @@ class AvatarService:
         (7680, 4320),    # 8K
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         try:
             upload_base = Path(settings.UPLOAD_DIR)
         except (AttributeError, PermissionError):
@@ -38,7 +39,7 @@ class AvatarService:
         except PermissionError:
             pass
 
-    async def upload_avatar(self, user_id: int, file: UploadFile) -> dict:
+    async def upload_avatar(self, user_id: int, file: UploadFile) -> dict[str, Any]:
         """
         Upload and process avatar image into multiple resolutions.
 
@@ -60,7 +61,7 @@ class AvatarService:
         await file.seek(0)
 
         try:
-            with Image.open(file) as img:
+            with Image.open(file.file) as img:
                 if img.mode in ("RGBA", "P"):
                     img = img.convert("RGB")
 
@@ -70,7 +71,10 @@ class AvatarService:
                 total_size = 0
 
                 for width, height in self.RESOLUTIONS:
-                    processed_img = self._resize_and_optimize(img, width, height)
+                    if img is not None:
+                        processed_img = self._resize_and_optimize(img.copy(), width, height)
+                    else:
+                        continue
                     filename = f"avatar_{width}x{height}.jpg"
                     file_path = user_dir / filename
 
@@ -240,4 +244,4 @@ class AvatarService:
         return img
 
 
-avatar_service = AvatarService()
+avatar_service: AvatarService = AvatarService()

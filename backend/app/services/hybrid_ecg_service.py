@@ -73,7 +73,7 @@ class UniversalECGReader:
     def _read_mitbih(self, filepath: str, sampling_rate: int | None = None) -> dict[str, Any] | None:
         """Read MIT-BIH files"""
         try:
-            record = wfdb.rdrecord(filepath.replace('.dat', ''))
+            record = wfdb.rdrecord(filepath.replace('.dat', ''))  # type: ignore[no-untyped-call]
             return {
                 'signal': record.p_signal,
                 'sampling_rate': record.fs,
@@ -88,17 +88,17 @@ class UniversalECGReader:
         """Read EDF files"""
         try:
             import pyedflib
-            f = pyedflib.EdfReader(filepath)
-            n_channels = f.signals_in_file
+            f = pyedflib.EdfReader(filepath)  # type: ignore[no-untyped-call]
+            n_channels = f.signals_in_file  # type: ignore[attr-defined]
 
             signal_data = []
             labels = []
             for i in range(n_channels):
-                signal_data.append(f.readSignal(i))
-                labels.append(f.signal_label(i))
+                signal_data.append(f.readSignal(i))  # type: ignore[attr-defined]
+                labels.append(f.signal_label(i))  # type: ignore[attr-defined]
 
-            fs = f.getSampleFrequency(0)
-            f.close()
+            fs = f.getSampleFrequency(0)  # type: ignore[attr-defined]
+            f.close()  # type: ignore[attr-defined]
 
             return {
                 'signal': np.array(signal_data).T,
