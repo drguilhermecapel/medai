@@ -47,7 +47,6 @@ echo ⚠ PowerShell not detected - using alternative methods
 goto :powershell_not_detected
 
 :powershell_detected
-goto :eof
 
 :powershell_not_detected
 
