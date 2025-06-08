@@ -47,14 +47,19 @@ echo ⚠ PowerShell not detected - using alternative methods
 goto :powershell_not_detected
 
 :powershell_detected
-
-:powershell_not_detected
-
 echo.
 echo ========================================
 echo Environment Diagnostics
 echo ========================================
-call :check_powershell
+goto :continue_after_powershell_check
+
+:powershell_not_detected
+echo.
+echo ========================================
+echo Environment Diagnostics
+echo ========================================
+
+:continue_after_powershell_check
 
 if %POWERSHELL_AVAILABLE% EQU 0 (
     echo.
