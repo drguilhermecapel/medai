@@ -1,6 +1,8 @@
 @echo off
 setlocal enabledelayedexpansion
 
+call "%~dp0progress-indicator.bat" "Instalando Dependências Python" "7" "8" "Configurando backend"
+
 echo ========================================
 echo SPEI Python Dependencies Installation
 echo ========================================
@@ -17,25 +19,19 @@ echo.
 
 :: Check if Python runtime exists
 if not exist "%PYTHON_HOME%\python.exe" (
-    echo ERROR: Python runtime not found at %PYTHON_HOME%
-    echo Please run prepare-runtime.bat first to download Python.
-    pause
+    call "%~dp0error-handler.bat" "Python Runtime" "Python não encontrado em %PYTHON_HOME%" "Execute o download do Python primeiro"
     exit /b 1
 )
 
 :: Check if backend directory exists
 if not exist "%BACKEND_DIR%" (
-    echo ERROR: Backend directory not found at %BACKEND_DIR%
-    echo Please ensure the application files are properly installed.
-    pause
+    call "%~dp0error-handler.bat" "Backend Files" "Diretório backend não encontrado em %BACKEND_DIR%" "Verifique se os arquivos da aplicação foram instalados corretamente"
     exit /b 1
 )
 
 :: Check if requirements.txt exists
 if not exist "%BACKEND_DIR%\requirements.txt" (
-    echo ERROR: requirements.txt not found in %BACKEND_DIR%
-    echo Cannot install Python dependencies without requirements file.
-    pause
+    call "%~dp0error-handler.bat" "Requirements File" "requirements.txt não encontrado em %BACKEND_DIR%" "Arquivo de dependências necessário para instalação"
     exit /b 1
 )
 
@@ -43,9 +39,7 @@ if not exist "%BACKEND_DIR%\requirements.txt" (
 echo Checking pip installation...
 "%PYTHON_HOME%\python.exe" -m pip --version >nul 2>&1
 if !ERRORLEVEL! NEQ 0 (
-    echo ERROR: pip is not available in the Python environment!
-    echo Please run prepare-runtime.bat to properly configure Python.
-    pause
+    call "%~dp0error-handler.bat" "Pip Installation" "pip não está disponível no ambiente Python" "Execute o download e configuração do Python primeiro"
     exit /b 1
 )
 echo ✓ pip is available
@@ -62,15 +56,7 @@ echo Installing Python dependencies from requirements.txt...
 cd /d "%BACKEND_DIR%"
 "%PYTHON_HOME%\python.exe" -m pip install -r requirements.txt --no-warn-script-location
 if !ERRORLEVEL! NEQ 0 (
-    echo ERROR: Failed to install Python dependencies!
-    echo.
-    echo This could be due to:
-    echo - Network connectivity issues
-    echo - Missing system dependencies
-    echo - Incompatible package versions
-    echo.
-    echo Please check the error messages above and try again.
-    pause
+    call "%~dp0error-handler.bat" "Python Dependencies" "Falha ao instalar dependências Python" "Verifique conectividade com internet e arquivo requirements.txt"
     exit /b 1
 )
 

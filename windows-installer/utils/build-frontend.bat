@@ -1,6 +1,8 @@
 @echo off
 setlocal enabledelayedexpansion
 
+call "%~dp0progress-indicator.bat" "Construindo Interface Web" "8" "8" "Finalizando instalação"
+
 echo ========================================
 echo SPEI Frontend Build Process
 echo ========================================
@@ -17,25 +19,19 @@ echo.
 
 :: Check if Node.js runtime exists
 if not exist "%NODEJS_HOME%\node.exe" (
-    echo ERROR: Node.js runtime not found at %NODEJS_HOME%
-    echo Please run prepare-runtime.bat first to download Node.js.
-    pause
+    call "%~dp0error-handler.bat" "Node.js Runtime" "Node.js não encontrado em %NODEJS_HOME%" "Execute o download do Node.js primeiro"
     exit /b 1
 )
 
 :: Check if frontend directory exists
 if not exist "%FRONTEND_DIR%" (
-    echo ERROR: Frontend directory not found at %FRONTEND_DIR%
-    echo Please ensure the application files are properly installed.
-    pause
+    call "%~dp0error-handler.bat" "Frontend Files" "Diretório frontend não encontrado em %FRONTEND_DIR%" "Verifique se os arquivos da aplicação foram instalados corretamente"
     exit /b 1
 )
 
 :: Check if package.json exists
 if not exist "%FRONTEND_DIR%\package.json" (
-    echo ERROR: package.json not found in %FRONTEND_DIR%
-    echo Cannot build frontend without package configuration.
-    pause
+    call "%~dp0error-handler.bat" "Package Configuration" "package.json não encontrado em %FRONTEND_DIR%" "Arquivo de configuração necessário para build do frontend"
     exit /b 1
 )
 
@@ -47,16 +43,14 @@ set "NODE_ENV=production"
 echo Checking Node.js installation...
 "%NODEJS_HOME%\node.exe" --version
 if !ERRORLEVEL! NEQ 0 (
-    echo ERROR: Node.js is not working properly!
-    pause
+    call "%~dp0error-handler.bat" "Node.js Verification" "Node.js não está funcionando corretamente" "Verifique a instalação do Node.js"
     exit /b 1
 )
 
 echo Checking npm installation...
 "%NODEJS_HOME%\npm.cmd" --version
 if !ERRORLEVEL! NEQ 0 (
-    echo ERROR: npm is not working properly!
-    pause
+    call "%~dp0error-handler.bat" "NPM Verification" "npm não está funcionando corretamente" "Verifique a instalação do npm"
     exit /b 1
 )
 
@@ -78,15 +72,7 @@ if exist "dist" (
 echo Installing Node.js dependencies...
 "%NODEJS_HOME%\npm.cmd" install --production=false --no-audit --no-fund
 if !ERRORLEVEL! NEQ 0 (
-    echo ERROR: Failed to install Node.js dependencies!
-    echo.
-    echo This could be due to:
-    echo - Network connectivity issues
-    echo - Incompatible package versions
-    echo - Missing system dependencies
-    echo.
-    echo Please check the error messages above and try again.
-    pause
+    call "%~dp0error-handler.bat" "Node.js Dependencies" "Falha ao instalar dependências Node.js" "Verifique conectividade com internet e arquivo package.json"
     exit /b 1
 )
 
@@ -102,28 +88,18 @@ if !ERRORLEVEL! NEQ 0 (
 echo Building frontend for production...
 "%NODEJS_HOME%\npm.cmd" run build
 if !ERRORLEVEL! NEQ 0 (
-    echo ERROR: Frontend build failed!
-    echo.
-    echo Please check the error messages above for details.
-    echo Common issues:
-    echo - TypeScript compilation errors
-    echo - Missing dependencies
-    echo - Build configuration problems
-    echo.
-    pause
+    call "%~dp0error-handler.bat" "Frontend Build" "Falha ao construir aplicação frontend" "Verifique erros de TypeScript e dependências"
     exit /b 1
 )
 
 :: Verify build output
 if not exist "dist" (
-    echo ERROR: Build completed but dist directory was not created!
-    pause
+    call "%~dp0error-handler.bat" "Build Output" "Build concluído mas diretório dist não foi criado" "Verifique se o processo de build foi executado corretamente"
     exit /b 1
 )
 
 if not exist "dist\index.html" (
-    echo ERROR: Build completed but index.html was not generated!
-    pause
+    call "%~dp0error-handler.bat" "Build Verification" "Build concluído mas index.html não foi gerado" "Verifique configuração do build do frontend"
     exit /b 1
 )
 
