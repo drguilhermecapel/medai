@@ -10,16 +10,46 @@ if not exist "%RUNTIME_DIR%" mkdir "%RUNTIME_DIR%"
 if not exist "%APP_DIR%" mkdir "%APP_DIR%"
 if not exist "%TEMP_DIR%" mkdir "%TEMP_DIR%"
 
-:: Check if PowerShell is available
+:: Check if PowerShell is available with multiple detection methods
 :check_powershell
+:: Method 1: Direct command execution test (most reliable)
+powershell -Command "Get-Host" >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    set "POWERSHELL_AVAILABLE=1"
+    echo ✓ PowerShell detected and available (direct execution test)
+    goto :powershell_detected
+)
+
+:: Method 2: PATH-based detection (fallback)
 where powershell >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
     set "POWERSHELL_AVAILABLE=1"
-    echo ✓ PowerShell detected and available
-) else (
-    set "POWERSHELL_AVAILABLE=0"
-    echo ⚠ PowerShell not detected - using alternative methods
+    echo ✓ PowerShell detected and available (PATH detection)
+    goto :powershell_detected
 )
+
+:: Method 3: Common installation paths (fallback)
+if exist "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" (
+    set "POWERSHELL_AVAILABLE=1"
+    echo ✓ PowerShell detected and available (system path detection)
+    goto :powershell_detected
+)
+
+if exist "%ProgramFiles%\PowerShell\7\pwsh.exe" (
+    set "POWERSHELL_AVAILABLE=1"
+    echo ✓ PowerShell Core detected and available (PowerShell 7)
+    goto :powershell_detected
+)
+
+:: All detection methods failed
+set "POWERSHELL_AVAILABLE=0"
+echo ⚠ PowerShell not detected - using alternative methods
+goto :powershell_not_detected
+
+:powershell_detected
+goto :eof
+
+:powershell_not_detected
 
 echo.
 echo ========================================
