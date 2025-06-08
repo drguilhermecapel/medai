@@ -1,6 +1,8 @@
 @echo off
 setlocal enabledelayedexpansion
 
+call "%~dp0progress-indicator.bat" "Inicializando Banco de Dados" "6" "8" "Configurando PostgreSQL"
+
 echo ========================================
 echo SPEI Database Initialization
 echo ========================================
@@ -19,9 +21,7 @@ echo.
 
 :: Check if PostgreSQL runtime exists
 if not exist "%POSTGRES_HOME%\bin\postgres.exe" (
-    echo ERROR: PostgreSQL runtime not found at %POSTGRES_HOME%
-    echo Please run prepare-runtime.bat first to download PostgreSQL.
-    pause
+    call "%~dp0error-handler.bat" "PostgreSQL Runtime" "PostgreSQL não encontrado em %POSTGRES_HOME%" "Execute o download do PostgreSQL primeiro"
     exit /b 1
 )
 
@@ -30,9 +30,7 @@ if not exist "%PGDATA%" (
     echo Creating PostgreSQL data directory...
     mkdir "%PGDATA%" 2>nul
     if !ERRORLEVEL! NEQ 0 (
-        echo ERROR: Failed to create data directory %PGDATA%
-        echo Please check permissions and try running as Administrator.
-        pause
+        call "%~dp0error-handler.bat" "Directory Creation" "Falha ao criar diretório de dados %PGDATA%" "Verifique permissões e execute como Administrador"
         exit /b 1
     )
 )
@@ -42,9 +40,7 @@ if not exist "%PGDATA%\postgresql.conf" (
     echo Initializing PostgreSQL database cluster...
     "%POSTGRES_HOME%\bin\initdb.exe" -D "%PGDATA%" -U postgres --auth-local=trust --auth-host=md5
     if !ERRORLEVEL! NEQ 0 (
-        echo ERROR: Failed to initialize PostgreSQL database cluster!
-        echo Check the error messages above for details.
-        pause
+        call "%~dp0error-handler.bat" "Database Initialization" "Falha ao inicializar cluster PostgreSQL" "Verifique permissões e espaço em disco"
         exit /b 1
     )
     echo ✓ Database cluster initialized successfully
@@ -56,9 +52,7 @@ if not exist "%PGDATA%\postgresql.conf" (
 echo Starting PostgreSQL server...
 "%POSTGRES_HOME%\bin\pg_ctl.exe" -D "%PGDATA%" -l "%PGDATA%\postgresql.log" start
 if !ERRORLEVEL! NEQ 0 (
-    echo ERROR: Failed to start PostgreSQL server!
-    echo Check the log file: %PGDATA%\postgresql.log
-    pause
+    call "%~dp0error-handler.bat" "PostgreSQL Server" "Falha ao iniciar servidor PostgreSQL" "Verifique o log em %PGDATA%\postgresql.log"
     exit /b 1
 )
 

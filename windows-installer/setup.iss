@@ -81,8 +81,8 @@ Source: "models\*"; DestDir: "{app}\models"; Flags: ignoreversion recursesubdirs
 ; Sample data (optional)
 Source: "samples\*"; DestDir: "{app}\samples"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: samples
 
-; Visual C++ Redistributables
-Source: "redist\VC_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
+; Visual C++ Redistributables (downloaded during installation)
+; Source: "redist\VC_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
 [Icons]
 Name: "{group}\SPEI"; Filename: "{app}\utils\SPEI.exe.bat"; WorkingDir: "{app}"
@@ -98,21 +98,39 @@ Root: HKCU; Subkey: "Software\SPEI"; ValueType: string; ValueName: "Version"; Va
 Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "SPEI"; ValueData: """{app}\utils\SPEI.exe.bat"" --minimized"; Tasks: autostart; Flags: uninsdeletevalue
 
 [Run]
-; Install Visual C++ Redistributables
+; Download and setup runtime components during installation with progress tracking
+Filename: "{app}\utils\progress-indicator.bat"; Parameters: """Baixando Python Runtime"" ""1"" ""8"" ""Iniciando download"""; WorkingDir: "{app}"; StatusMsg: "Preparando download do Python..."; Flags: runhidden waituntilterminated
+Filename: "{app}\utils\download-python.bat"; WorkingDir: "{app}"; StatusMsg: "Baixando Python runtime (Etapa 1/8)..."; Flags: runhidden waituntilterminated
+
+Filename: "{app}\utils\progress-indicator.bat"; Parameters: """Baixando Node.js Runtime"" ""2"" ""8"" ""Iniciando download"""; WorkingDir: "{app}"; StatusMsg: "Preparando download do Node.js..."; Flags: runhidden waituntilterminated
+Filename: "{app}\utils\download-nodejs.bat"; WorkingDir: "{app}"; StatusMsg: "Baixando Node.js runtime (Etapa 2/8)..."; Flags: runhidden waituntilterminated
+
+Filename: "{app}\utils\progress-indicator.bat"; Parameters: """Baixando PostgreSQL Database"" ""3"" ""8"" ""Iniciando download"""; WorkingDir: "{app}"; StatusMsg: "Preparando download do PostgreSQL..."; Flags: runhidden waituntilterminated
+Filename: "{app}\utils\download-postgresql.bat"; WorkingDir: "{app}"; StatusMsg: "Baixando PostgreSQL database (Etapa 3/8)..."; Flags: runhidden waituntilterminated
+
+Filename: "{app}\utils\progress-indicator.bat"; Parameters: """Baixando Redis Cache"" ""4"" ""8"" ""Iniciando download"""; WorkingDir: "{app}"; StatusMsg: "Preparando download do Redis..."; Flags: runhidden waituntilterminated
+Filename: "{app}\utils\download-redis.bat"; WorkingDir: "{app}"; StatusMsg: "Baixando Redis cache (Etapa 4/8)..."; Flags: runhidden waituntilterminated
+
+; Download and install Visual C++ Redistributables with fallback and progress
+Filename: "{app}\utils\progress-indicator.bat"; Parameters: """Instalando Visual C++ Redistributables"" ""5"" ""8"" ""Baixando componentes"""; WorkingDir: "{app}"; StatusMsg: "Preparando Visual C++ Redistributables..."; Flags: runhidden waituntilterminated
+Filename: "powershell"; Parameters: "-Command ""try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://aka.ms/vs/17/release/vc_redist.x64.exe' -OutFile '{tmp}\VC_redist.x64.exe' -UseBasicParsing } catch { certutil -urlcache -split -f 'https://aka.ms/vs/17/release/vc_redist.x64.exe' '{tmp}\VC_redist.x64.exe' }"""; StatusMsg: "Baixando Visual C++ Redistributables (Etapa 5/8)..."; Flags: waituntilterminated runhidden
 Filename: "{tmp}\VC_redist.x64.exe"; Parameters: "/quiet /norestart"; StatusMsg: "Instalando Visual C++ Redistributables..."; Flags: waituntilterminated
 
-; Initialize database
-Filename: "{app}\utils\init-database.bat"; WorkingDir: "{app}"; StatusMsg: "Inicializando banco de dados..."; Flags: waituntilterminated runhidden
+; Initialize database with progress
+Filename: "{app}\utils\progress-indicator.bat"; Parameters: """Inicializando Banco de Dados"" ""6"" ""8"" ""Configurando PostgreSQL"""; WorkingDir: "{app}"; StatusMsg: "Preparando banco de dados..."; Flags: runhidden waituntilterminated
+Filename: "{app}\utils\init-database.bat"; WorkingDir: "{app}"; StatusMsg: "Inicializando banco de dados (Etapa 6/8)..."; Flags: waituntilterminated runhidden
 
-; Install Python dependencies
-Filename: "{app}\utils\install-dependencies.bat"; WorkingDir: "{app}"; StatusMsg: "Instalando dependências Python..."; Flags: waituntilterminated runhidden
+; Install Python dependencies with progress
+Filename: "{app}\utils\progress-indicator.bat"; Parameters: """Instalando Dependências Python"" ""7"" ""8"" ""Configurando backend"""; WorkingDir: "{app}"; StatusMsg: "Preparando dependências Python..."; Flags: runhidden waituntilterminated
+Filename: "{app}\utils\install-dependencies.bat"; WorkingDir: "{app}"; StatusMsg: "Instalando dependências Python (Etapa 7/8)..."; Flags: waituntilterminated runhidden
 
-; Build frontend
-Filename: "{app}\utils\build-frontend.bat"; WorkingDir: "{app}"; StatusMsg: "Construindo interface web..."; Flags: waituntilterminated runhidden
+; Build frontend with progress
+Filename: "{app}\utils\progress-indicator.bat"; Parameters: """Construindo Interface Web"" ""8"" ""8"" ""Finalizando instalação"""; WorkingDir: "{app}"; StatusMsg: "Preparando interface web..."; Flags: runhidden waituntilterminated
+Filename: "{app}\utils\build-frontend.bat"; WorkingDir: "{app}"; StatusMsg: "Construindo interface web (Etapa 8/8)..."; Flags: waituntilterminated runhidden
 
 ; Configure firewall
-Filename: "netsh"; Parameters: "advfirewall firewall add rule name=""SPEI API"" dir=in action=allow protocol=TCP localport=8000"; StatusMsg: "Configurando firewall..."; Flags: waituntilterminated runhidden; Tasks: firewall
-Filename: "netsh"; Parameters: "advfirewall firewall add rule name=""SPEI Web"" dir=in action=allow protocol=TCP localport=3000"; StatusMsg: "Configurando firewall..."; Flags: waituntilterminated runhidden; Tasks: firewall
+Filename: "netsh"; Parameters: "advfirewall firewall add rule name=""SPEI API"" dir=in action=allow protocol=TCP localport=8000"; StatusMsg: "Configurando firewall para API..."; Flags: waituntilterminated runhidden; Tasks: firewall
+Filename: "netsh"; Parameters: "advfirewall firewall add rule name=""SPEI Web"" dir=in action=allow protocol=TCP localport=3000"; StatusMsg: "Configurando firewall para interface web..."; Flags: waituntilterminated runhidden; Tasks: firewall
 
 ; Start services
 Filename: "{app}\utils\SPEI.exe.bat"; Description: "{cm:LaunchProgram,SPEI}"; Flags: nowait postinstall skipifsilent

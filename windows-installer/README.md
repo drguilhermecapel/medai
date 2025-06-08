@@ -38,9 +38,8 @@ This directory contains a complete Windows installer package for SPEI (Sistema d
 
 ### For Developers
 1. Install Inno Setup 6
-2. Run `prepare-runtime.bat`
-3. Run `build-installer.bat`
-4. Test the generated installer
+2. Run `build-installer.bat`
+3. Test the generated installer
 
 ## 📋 System Requirements
 
@@ -61,13 +60,12 @@ This directory contains a complete Windows installer package for SPEI (Sistema d
 ### Build Steps
 ```batch
 cd windows-installer
-prepare-runtime.bat    # Download all runtime components
-build-installer.bat    # Build the complete installer
+build-installer.bat    # Build the installer (downloads components during installation)
 ```
 
 ### Output
 - **File**: `dist/SPEI-Setup-v1.0.0.exe`
-- **Size**: ~500-800MB (self-contained)
+- **Size**: ~50MB (components downloaded during installation)
 - **Type**: Windows executable installer
 
 ## 📁 Directory Structure
@@ -76,13 +74,18 @@ build-installer.bat    # Build the complete installer
 windows-installer/
 ├── setup.iss                 # Inno Setup script
 ├── build-installer.bat       # Main build script
-├── prepare-runtime.bat       # Runtime download script
 ├── config/
 │   └── .env.windows          # Windows-specific configuration
 ├── utils/
 │   ├── SPEI.exe.bat         # Main application launcher
 │   ├── first-run-setup.bat  # Initial setup script
-│   └── stop-services.bat    # Service management
+│   ├── stop-services.bat    # Service management
+│   ├── download-python.bat  # Python runtime download utility
+│   ├── download-nodejs.bat  # Node.js runtime download utility
+│   ├── download-postgresql.bat # PostgreSQL download utility
+│   ├── download-redis.bat   # Redis download utility
+│   ├── error-handler.bat    # Centralized error handling
+│   └── progress-indicator.bat # Installation progress tracking
 ├── assets/
 │   ├── spei-icon.ico        # Application icon
 │   └── web-icon.ico         # Web interface icon

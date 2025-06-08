@@ -34,24 +34,7 @@ This document provides comprehensive instructions for building the SPEI (Sistema
 cd windows-installer
 ```
 
-### Step 2: Download Runtime Components
-
-Run the preparation script to download all required runtime components:
-
-```batch
-prepare-runtime.bat
-```
-
-This script will download:
-- **Python 3.11.9 Embeddable** (~15MB)
-- **Node.js 18.20.3** (~50MB)
-- **PostgreSQL 15.7 Portable** (~200MB)
-- **Redis for Windows** (~5MB)
-- **Visual C++ Redistributables** (~25MB)
-
-Total download size: ~295MB
-
-### Step 3: Build the Installer
+### Step 2: Build the Installer (Single-Step Process)
 
 ```batch
 build-installer.bat
@@ -59,17 +42,31 @@ build-installer.bat
 
 This will:
 1. Verify Inno Setup installation
-2. Prepare runtime components
-3. Copy application files
-4. Install Python dependencies
-5. Build frontend assets
-6. Compile the installer using Inno Setup
+2. Validate source application files
+3. Compile the installer using Inno Setup
+4. Create intelligent installer that downloads components during installation
 
-### Step 4: Test the Installer
+### Step 3: Test the Installer
 
 The completed installer will be in the `dist/` directory:
 - **File**: `SPEI-Setup-v1.0.0.exe`
-- **Size**: ~500-800MB (depending on components)
+- **Size**: ~50MB (components downloaded during installation)
+
+### What Happens During Installation
+
+The generated installer automatically:
+- **Downloads Python 3.11.9 Embeddable** (~15MB)
+- **Downloads Node.js 18.20.3** (~50MB)
+- **Downloads PostgreSQL 15.7 Portable** (~200MB)
+- **Downloads Redis for Windows** (~5MB)
+- **Downloads Visual C++ Redistributables** (~25MB)
+- **Configures all components**
+- **Installs Python dependencies**
+- **Builds frontend assets**
+- **Initializes database**
+- **Starts services**
+
+Total download during installation: ~295MB
 
 ## Manual Build Process
 
