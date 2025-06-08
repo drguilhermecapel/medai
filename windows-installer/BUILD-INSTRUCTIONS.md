@@ -34,17 +34,18 @@ This document provides comprehensive instructions for building the SPEI (Sistema
 cd windows-installer
 ```
 
-### Step 2: Build the Installer (Single-Step Process)
+### Step 2: Build the Portable Installer (Single-Step Process)
 
 ```batch
 build-installer.bat
 ```
 
-This will:
+This single command will:
 1. Verify Inno Setup installation
 2. Validate source application files
-3. Compile the installer using Inno Setup
-4. Create intelligent installer that downloads components during installation
+3. Compile the portable installer using Inno Setup
+4. Create intelligent installer that downloads all components during installation
+5. No manual preparation or component pre-downloading required
 
 ### Step 3: Test the Installer
 
@@ -68,37 +69,25 @@ The generated installer automatically:
 
 Total download during installation: ~295MB
 
-## Manual Build Process
+## Alternative: Manual Development Build Process
 
-If you prefer to build manually:
+**Note**: Manual preparation is no longer required for creating the portable installer. The `build-installer.bat` script creates a fully portable installer automatically.
 
-### 1. Prepare Components
+For development purposes only, if you need to manually prepare components:
+
+### 1. Development Component Preparation (Optional)
 ```batch
-# Download and extract runtimes
-powershell -ExecutionPolicy Bypass -File download-runtimes.ps1
-
-# Copy application files
-xcopy ..\backend app\backend /E /I /Y
-xcopy ..\frontend app\frontend /E /I /Y
+# Only needed for development testing - NOT required for portable installer
+prepare-runtime.bat
 ```
 
-### 2. Install Dependencies
+### 2. Portable Installer Compilation (Recommended)
 ```batch
-# Install Python dependencies
-runtime\python\python.exe -m pip install --upgrade pip
-cd app\backend
-..\..\runtime\python\python.exe -m pip install -r requirements.txt
-
-# Build frontend
-cd ..\frontend
-..\..\runtime\nodejs\npm.cmd install
-..\..\runtime\nodejs\npm.cmd run build
+# This is the standard approach - creates portable installer
+build-installer.bat
 ```
 
-### 3. Compile Installer
-```batch
-"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" setup.iss
-```
+The portable installer automatically handles all component downloads during installation, eliminating the need for manual preparation.
 
 ## Installer Components
 

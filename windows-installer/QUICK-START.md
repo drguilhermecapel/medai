@@ -7,9 +7,9 @@
 - ✅ Inno Setup 6 instalado: https://jrsoftware.org/isinfo.php
 - ✅ Conexão com internet (para downloads automáticos)
 
-### **🎯 NOVA ABORDAGEM - UM ÚNICO PASSO**
+### **🎯 INSTALADOR PORTÁTIL - UM ÚNICO PASSO**
 
-#### **Construir Instalador (Tudo Automatizado)**
+#### **Construir Instalador Portátil (Tudo Automatizado)**
 ```cmd
 cd caminho\para\medai\windows-installer
 build-installer.bat
@@ -17,9 +17,10 @@ build-installer.bat
 
 **O que este script faz:**
 - ✅ Valida arquivos fonte da aplicação
-- ✅ Compila o instalador com Inno Setup
-- ✅ Cria `dist/SPEI-Setup-v1.0.0.exe`
-- 🎯 **NOVO**: Instalador baixa componentes automaticamente durante instalação
+- ✅ Compila o instalador portátil com Inno Setup
+- ✅ Cria `dist/SPEI-Setup-v1.0.0.exe` (instalador portátil)
+- 🎯 **PORTÁTIL**: Instalador baixa componentes automaticamente durante instalação
+- 🚀 **DUPLO CLIQUE**: Funciona com apenas duplo clique, sem preparação manual
 
 ### **🔄 Durante a Instalação (Automático)**
 
@@ -53,19 +54,21 @@ O instalador criado irá automaticamente:
 | "Frontend source files not found" | Arquivos fonte ausentes | Verifique estrutura do projeto |
 | Downloads falham durante instalação | Problemas de rede/proxy | Usuário pode tentar novamente |
 
-### **✅ Resultado Final**
-- 📦 **Arquivo**: `dist/SPEI-Setup-v1.0.0.exe`
+### **✅ Resultado Final - Instalador Portátil**
+- 📦 **Arquivo**: `dist/SPEI-Setup-v1.0.0.exe` (instalador portátil)
 - 📏 **Tamanho**: ~50MB (componentes baixados durante instalação)
-- 🎯 **Pronto**: Para distribuição simplificada aos profissionais de saúde
+- 🎯 **Portátil**: Funciona com duplo clique em qualquer Windows 10/11
+- 🏥 **Profissional**: Para distribuição aos profissionais de saúde
 - 🌐 **Inteligente**: Sempre baixa versões mais recentes dos componentes
+- 🚀 **Zero Configuração**: Usuário final não precisa conhecimento técnico
 
-### **🔄 Processo Simplificado**
+### **🔄 Processo Ultra-Simplificado**
 ```cmd
-# APENAS UM COMANDO
+# APENAS UM COMANDO PARA CRIAR INSTALADOR PORTÁTIL
 build-installer.bat
 ```
 
-**Agora é só executar um comando e distribuir o instalador!**
+**Agora é só executar um comando e distribuir o instalador portátil!**
 
 ### **📋 Para Desenvolvedores**
 
