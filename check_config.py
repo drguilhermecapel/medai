@@ -5,7 +5,13 @@ Check configuration and models directory
 
 import sys
 import os
-sys.path.append('/app')
+
+# Add the backend directory to the Python path so the `app` package can be
+# imported when running this script directly from the repository root.
+REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
+BACKEND_PATH = os.path.join(REPO_ROOT, "backend")
+if BACKEND_PATH not in sys.path:
+    sys.path.append(BACKEND_PATH)
 
 from app.core.config import settings
 
