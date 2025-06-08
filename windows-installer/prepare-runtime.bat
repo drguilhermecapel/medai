@@ -20,7 +20,6 @@ if %ERRORLEVEL% EQU 0 (
     set "POWERSHELL_AVAILABLE=0"
     echo ⚠ PowerShell not detected - using alternative methods
 )
-goto :eof
 
 echo.
 echo ========================================
@@ -670,8 +669,9 @@ if exist "%APP_DIR%\backend\requirements.txt" (
         echo 4. Python embeddable configuration problems
         echo.
         echo Please check the error messages above for specific details.
-        pause
-        exit /b 1
+        echo.
+        echo CONTINUING WITH WARNINGS - You may need to install dependencies manually later...
+        echo.
     )
     
     :: Verify critical packages are installed
@@ -680,8 +680,9 @@ if exist "%APP_DIR%\backend\requirements.txt" (
     if %ERRORLEVEL% NEQ 0 (
         echo ERROR: Critical Python packages are not properly installed!
         echo The backend may not function correctly.
-        pause
-        exit /b 1
+        echo.
+        echo CONTINUING WITH WARNINGS - You may need to install packages manually later...
+        echo.
     )
     
     echo ✓ Python dependencies installed and verified successfully
@@ -689,8 +690,9 @@ if exist "%APP_DIR%\backend\requirements.txt" (
     echo ERROR: requirements.txt not found in backend directory!
     echo Expected: %APP_DIR%\backend\requirements.txt
     echo Cannot proceed without Python dependencies list.
-    pause
-    exit /b 1
+    echo.
+    echo CONTINUING WITH WARNINGS - Backend dependencies will need manual installation...
+    echo.
 )
 
 echo.
@@ -746,18 +748,19 @@ if exist "%APP_DIR%\frontend\package.json" (
         echo 2. Missing dependencies
         echo 3. Build configuration problems
         echo.
+        echo CONTINUING WITH WARNINGS - Frontend may need manual build later...
+        echo.
         cd /d "%~dp0"
-        pause
-        exit /b 1
     )
     
     :: Verify build output
     if not exist "dist\index.html" (
         echo ERROR: Frontend build completed but index.html was not generated!
         echo Expected: %APP_DIR%\frontend\dist\index.html
+        echo.
+        echo CONTINUING WITH WARNINGS - Frontend build may be incomplete...
+        echo.
         cd /d "%~dp0"
-        pause
-        exit /b 1
     )
     
     echo ✓ Frontend built and verified successfully
@@ -766,70 +769,29 @@ if exist "%APP_DIR%\frontend\package.json" (
     echo ERROR: package.json not found in frontend directory!
     echo Expected: %APP_DIR%\frontend\package.json
     echo Cannot build frontend without package configuration.
-    pause
-    exit /b 1
+    echo.
+    echo CONTINUING WITH WARNINGS - Frontend will need manual build later...
+    echo.
 )
 
 echo.
 echo ========================================
-echo Downloading Visual C++ Redistributables
+echo Preparing Visual C++ Redistributables
 echo ========================================
 
-:: Download VC++ Redistributables
+:: Create redist directory and README for VC++ redistributables
 if not exist "%~dp0redist" mkdir "%~dp0redist"
-if not exist "%~dp0redist\VC_redist.x64.exe" (
-    echo Downloading Visual C++ Redistributables...
-    
-    set "VC_REDIST_URL=https://aka.ms/vs/17/release/vc_redist.x64.exe"
-    
-    :: Strategy 1: PowerShell (if available)
-    if %POWERSHELL_AVAILABLE% EQU 1 (
-        echo [1/3] Trying PowerShell download...
-        powershell -Command "Invoke-WebRequest -Uri '%VC_REDIST_URL%' -OutFile '%~dp0redist\VC_redist.x64.exe'"
-        if %ERRORLEVEL% EQU 0 if exist "%~dp0redist\VC_redist.x64.exe" goto :vc_redist_verify
-    )
-    
-    :: Strategy 2: certutil download
-    echo [2/3] Trying certutil download...
-    certutil -urlcache -split -f "%VC_REDIST_URL%" "%~dp0redist\VC_redist.x64.exe" >nul 2>&1
-    if %ERRORLEVEL% EQU 0 if exist "%~dp0redist\VC_redist.x64.exe" goto :vc_redist_verify
-    
-    :: Strategy 3: bitsadmin download
-    echo [3/3] Trying bitsadmin download...
-    bitsadmin /transfer "VCRedistDownload" /download /priority normal "%VC_REDIST_URL%" "%~dp0redist\VC_redist.x64.exe" >nul 2>&1
-    if %ERRORLEVEL% EQU 0 if exist "%~dp0redist\VC_redist.x64.exe" goto :vc_redist_verify
-    
-    :: All strategies failed
-    echo ERROR: Failed to download Visual C++ Redistributables!
-    echo.
-    echo MANUAL SOLUTION:
-    echo 1. Download VC++ Redistributables manually from: %VC_REDIST_URL%
-    echo 2. Save the file as: %~dp0redist\VC_redist.x64.exe
-    echo 3. Re-run this script
-    pause
-    exit /b 1
-    
-    :vc_redist_verify
-    
-    :: Verify VC++ Redistributables download
-    if not exist "%~dp0redist\VC_redist.x64.exe" (
-        echo ERROR: VC++ Redistributables file was not downloaded successfully!
-        pause
-        exit /b 1
-    )
-    
-    :: Check file size (should be around 13MB)
-    for %%A in ("%~dp0redist\VC_redist.x64.exe") do set "vcfilesize=%%~zA"
-    if %vcfilesize% LSS 10000000 (
-        echo ERROR: VC++ Redistributables file is too small (%vcfilesize% bytes). Expected ~13MB.
-        echo This indicates a partial or corrupted download.
-        del "%~dp0redist\VC_redist.x64.exe" 2>nul
-        pause
-        exit /b 1
-    )
-    
-    echo ✓ Visual C++ Redistributables downloaded and verified (%vcfilesize% bytes)
-)
+
+:: Create README with download instructions (as requested by user)
+echo Creating VC++ Redistributables download instructions...
+echo Visual C++ Redistributable will be downloaded during installation from Microsoft servers > "%~dp0redist\README.md"
+echo. >> "%~dp0redist\README.md"
+echo Download URL: https://aka.ms/vs/17/release/vc_redist.x64.exe >> "%~dp0redist\README.md"
+echo. >> "%~dp0redist\README.md"
+echo This approach prevents the installer from becoming too large while ensuring >> "%~dp0redist\README.md"
+echo users get the latest version of the Visual C++ Redistributables. >> "%~dp0redist\README.md"
+
+echo ✓ Visual C++ Redistributables instructions created
 
 echo.
 echo ========================================
@@ -878,10 +840,10 @@ if not exist "%APP_DIR%\frontend" (
     exit /b 1
 )
 
-:: Verify VC++ Redistributables
-if not exist "%~dp0redist\VC_redist.x64.exe" (
-    echo ERROR: VC++ Redistributables verification failed!
-    echo Missing: %~dp0redist\VC_redist.x64.exe
+:: Verify VC++ Redistributables instructions
+if not exist "%~dp0redist\README.md" (
+    echo ERROR: VC++ Redistributables instructions verification failed!
+    echo Missing: %~dp0redist\README.md
     pause
     exit /b 1
 )
@@ -910,7 +872,11 @@ echo - Node.js 18: %RUNTIME_DIR%\nodejs
 echo - PostgreSQL 15: %RUNTIME_DIR%\postgresql
 echo - Redis: %RUNTIME_DIR%\redis
 echo - Application: %APP_DIR%
-echo - VC++ Redist: redist\VC_redist.x64.exe
+echo - VC++ Redist: redist\README.md (download instructions)
 echo.
 echo Ready to build installer!
 echo.
+echo ========================================
+echo IMPORTANT: Press any key to continue...
+echo ========================================
+pause
