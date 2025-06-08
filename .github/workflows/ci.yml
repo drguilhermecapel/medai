@@ -141,7 +141,7 @@ jobs:
       with:
         context: ./backend
         push: false
-        tags: cardioai-backend:test
+        tags: spei-backend:test
         cache-from: type=gha
         cache-to: type=gha,mode=max
     
@@ -150,14 +150,14 @@ jobs:
       with:
         context: ./frontend
         push: false
-        tags: cardioai-frontend:test
+        tags: spei-frontend:test
         cache-from: type=gha
         cache-to: type=gha,mode=max
     
     - name: Check image sizes
       run: |
-        backend_size=$(docker images cardioai-backend:test --format "table {{.Size}}" | tail -n 1)
-        frontend_size=$(docker images cardioai-frontend:test --format "table {{.Size}}" | tail -n 1)
+        backend_size=$(docker images spei-backend:test --format "table {{.Size}}" | tail -n 1)
+        frontend_size=$(docker images spei-frontend:test --format "table {{.Size}}" | tail -n 1)
         echo "Backend image size: $backend_size"
         echo "Frontend image size: $frontend_size"
 
@@ -175,11 +175,11 @@ jobs:
         ENVIRONMENT=test
         DEBUG=false
         
-        # Database Configuration - using cardioai user and database
-        DATABASE_URL=postgresql+asyncpg://cardioai:cardioai_dev_password@postgres:5432/cardioai_pro
-        POSTGRES_USER=cardioai
-        POSTGRES_PASSWORD=cardioai_dev_password
-        POSTGRES_DB=cardioai_pro
+        # Database Configuration - using spei user and database
+        DATABASE_URL=postgresql+asyncpg://spei:spei_dev_password@postgres:5432/spei_db
+        POSTGRES_USER=spei
+        POSTGRES_PASSWORD=spei_dev_password
+        POSTGRES_DB=spei_db
         
         # Security Configuration
         SECRET_KEY=test-secret-key-for-integration
@@ -188,11 +188,11 @@ jobs:
         ACCESS_TOKEN_EXPIRE_MINUTES=30
         
         # Redis Configuration
-        REDIS_URL=redis://:cardioai_dev_password@redis:6379/0
+        REDIS_URL=redis://:spei_dev_password@redis:6379/0
         
         # Celery Configuration
-        CELERY_BROKER_URL=redis://:cardioai_dev_password@redis:6379/0
-        CELERY_RESULT_BACKEND=redis://:cardioai_dev_password@redis:6379/0
+        CELERY_BROKER_URL=redis://:spei_dev_password@redis:6379/0
+        CELERY_RESULT_BACKEND=redis://:spei_dev_password@redis:6379/0
         
         # Application Configuration
         API_PORT=8000

@@ -2,7 +2,7 @@
 
 # Default target
 help:
-	@echo "CardioAI Pro - Available commands:"
+	@echo "SPEI - Available commands:"
 	@echo "  build     - Build all Docker images"
 	@echo "  up        - Start all services"
 	@echo "  down      - Stop all services"
@@ -59,7 +59,7 @@ clean:
 
 # Setup operations
 setup:
-	@echo "Setting up CardioAI Pro development environment..."
+	@echo "Setting up SPEI development environment..."
 	cp .env.example .env
 	@echo "Please edit .env file with your configuration"
 	@echo "Then run: make build && make up && make migrate"
