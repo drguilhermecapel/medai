@@ -5,7 +5,7 @@
 [Setup]
 AppName=SPEI - Sistema de Prontuário Eletrônico Inteligente
 AppVersion=1.0.0
-AppPublisher=CardioAI Pro
+AppPublisher=SPEI Medical Systems
 AppPublisherURL=https://spei.med.br
 AppSupportURL=https://spei.med.br/suporte
 AppUpdatesURL=https://spei.med.br/atualizacoes
@@ -32,9 +32,9 @@ LanguageDetectionMethod=uilanguage
 UninstallDisplayIcon={app}\assets\spei-icon.ico
 UninstallDisplayName=SPEI - Sistema de Prontuário Eletrônico Inteligente
 VersionInfoVersion=1.0.0.0
-VersionInfoCompany=CardioAI Pro
+VersionInfoCompany=SPEI Medical Systems
 VersionInfoDescription=Sistema de Prontuário Eletrônico Inteligente
-VersionInfoCopyright=Copyright (C) 2025 CardioAI Pro
+VersionInfoCopyright=Copyright (C) 2025 SPEI Medical Systems
 VersionInfoProductName=SPEI
 VersionInfoProductVersion=1.0.0
 

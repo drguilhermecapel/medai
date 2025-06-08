@@ -54,25 +54,58 @@ O SPEI é um sistema completo de prontuário eletrônico desenvolvido com tecnol
 
 ### 🖥️ Instalação Windows (Recomendada para Usuários Finais)
 
-**Instalador Automático - Sem Conhecimento Técnico Necessário**
+**Instalador Portátil - Duplo Clique para Instalar**
 
-1. **Baixe o Instalador Windows**
+1. **Baixe o Instalador Portátil**
    - Baixe `SPEI-Setup-v1.0.0.exe` da página de releases
-   - Instalação completamente automatizada
+   - Arquivo portátil de ~50MB que baixa componentes automaticamente
    - Não requer Docker, Python ou configurações manuais
 
-2. **Execute o Instalador**
+2. **Execute o Instalador Portátil**
    ```cmd
+   # Simplesmente dê duplo clique no arquivo ou execute:
    SPEI-Setup-v1.0.0.exe
    ```
-   - Siga o assistente de instalação
+   - Siga o assistente de instalação intuitivo
    - Configure senha do banco de dados e usuário administrador
    - Escolha componentes (Sistema Principal, Banco de Dados, Modelos IA, Dados de Exemplo)
+   - O instalador baixa automaticamente (~295MB total):
+     - Python 3.11 Embeddable (~15MB)
+     - Node.js 18.20.3 (~50MB)
+     - PostgreSQL 15.7 Portable (~200MB)
+     - Redis for Windows (~5MB)
+     - Visual C++ Redistributables (~25MB)
 
 3. **Acesse o SPEI**
    - Interface Web: http://localhost:3000
    - Documentação API: http://localhost:8000/docs
    - O instalador cria atalhos na área de trabalho para fácil acesso
+
+#### 🛠️ Criando o Instalador Portátil (Para Desenvolvedores)
+
+**Processo Simplificado - Um Único Comando**
+
+1. **Pré-requisitos**
+   - Windows 10/11
+   - Inno Setup 6 (baixe de: https://jrsoftware.org/isinfo.php)
+   - Código fonte completo do SPEI
+
+2. **Criar Instalador Portátil**
+   ```cmd
+   cd windows-installer
+   
+   # Opção 1: Script simplificado
+   create-portable-installer.bat
+   
+   # Opção 2: Script completo
+   build-installer.bat
+   ```
+
+3. **Resultado**
+   - Arquivo: `dist/SPEI-Setup-v1.0.0.exe`
+   - Tamanho: ~50MB (instalador portátil)
+   - Funcionalidade: Baixa componentes automaticamente durante instalação
+   - Distribuição: Pronto para compartilhar com usuários finais
 
 ### 🐳 Instalação com Docker (Para Desenvolvedores)
 

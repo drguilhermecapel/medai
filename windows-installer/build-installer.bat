@@ -152,12 +152,13 @@ echo ✓ Output directory ready
 
 echo.
 echo ========================================
-echo Single-Step Installer Configuration
+echo Portable Installer Configuration
 echo ========================================
 
-echo ✓ Single-step installer mode enabled
-echo ✓ Runtime components will be downloaded during installation
-echo ✓ No manual preparation required
+echo ✓ Portable installer mode enabled
+echo ✓ Runtime components downloaded automatically during installation
+echo ✓ No manual preparation or pre-installation steps required
+echo ✓ Creates fully self-contained SPEI medical EMR system
 
 :: Check for source application files (will be copied during installation)
 echo Validating source application files...
@@ -241,18 +242,19 @@ if not exist "%INSTALLER_PATH%" (
 )
 echo ✓ Installer file created successfully
 
-:: Check installer file size (should be substantial)
+:: Check installer file size (should be reasonable for portable installer)
 for %%A in ("%INSTALLER_PATH%") do set "installer_size=%%~zA"
-if %installer_size% LSS 50000000 (
+if %installer_size% LSS 10000000 (
     echo WARNING: Installer file is smaller than expected (%installer_size% bytes).
-    echo Expected size: ~200MB or more
-    echo This may indicate missing components or incomplete build.
+    echo Expected size: ~50MB base installer
+    echo This may indicate missing application files or incomplete build.
     echo.
-    echo Please verify the installer contains all required components:
-    echo - Python runtime (~50MB)
-    echo - Node.js runtime (~30MB)
-    echo - PostgreSQL runtime (~200MB)
-    echo - Application files
+    echo Note: Runtime components (~295MB total) are downloaded during installation:
+    echo - Python 3.11 Embeddable (~15MB)
+    echo - Node.js 18.20.3 (~50MB)
+    echo - PostgreSQL 15.7 Portable (~200MB)
+    echo - Redis for Windows (~5MB)
+    echo - Visual C++ Redistributables (~25MB)
     echo.
     pause
 )
@@ -275,16 +277,23 @@ dir "%DIST_DIR%" /B
 
 echo.
 echo ========================================
-echo Next Steps
+echo Portable Installer Ready!
 echo ========================================
 echo.
-echo 1. Test the installer on a clean Windows system
-echo 2. Verify all components install correctly
-echo 3. Test the application functionality after installation
-echo 4. Check that all services start properly
-echo 5. Validate database initialization and data persistence
+echo Your portable SPEI installer is ready for distribution:
+echo - Double-click to install on any Windows 10/11 system
+echo - No technical knowledge required from end users
+echo - Automatically downloads and configures all components
+echo - Creates fully functional medical EMR system
 echo.
-echo The installer is ready for distribution!
+echo Testing checklist:
+echo 1. Test installer on clean Windows system
+echo 2. Verify automatic component downloads work
+echo 3. Confirm application launches after installation
+echo 4. Test medical record functionality
+echo 5. Validate compliance and security features
+echo.
+echo The portable installer is ready for distribution!
 echo.
 
 pause

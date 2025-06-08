@@ -30,16 +30,17 @@ This directory contains a complete Windows installer package for SPEI (Sistema d
 
 ## 🚀 Quick Start
 
-### For End Users
-1. Download `SPEI-Setup-v1.0.0.exe`
-2. Run as Administrator
-3. Follow the installation wizard
-4. Access SPEI at http://localhost:3000
+### For End Users (Zero Technical Knowledge Required)
+1. Download `SPEI-Setup-v1.0.0.exe` (portable installer)
+2. Double-click to run (Administrator rights will be requested automatically)
+3. Follow the simple installation wizard
+4. All components download and configure automatically
+5. Access SPEI at http://localhost:3000 when installation completes
 
-### For Developers
+### For Developers (Single-Step Build)
 1. Install Inno Setup 6
-2. Run `build-installer.bat`
-3. Test the generated installer
+2. Run `build-installer.bat` (creates portable installer automatically)
+3. Test the generated portable installer
 
 ## 📋 System Requirements
 
@@ -57,16 +58,17 @@ This directory contains a complete Windows installer package for SPEI (Sistema d
 - Internet connection for downloading components
 - Administrator privileges
 
-### Build Steps
+### Build Steps (Single Command)
 ```batch
 cd windows-installer
-build-installer.bat    # Build the installer (downloads components during installation)
+build-installer.bat    # Creates portable installer that downloads components during installation
 ```
 
 ### Output
 - **File**: `dist/SPEI-Setup-v1.0.0.exe`
-- **Size**: ~50MB (components downloaded during installation)
-- **Type**: Windows executable installer
+- **Size**: ~50MB base installer (295MB total downloaded during installation)
+- **Type**: Portable Windows executable installer
+- **Features**: Self-contained, no manual preparation required
 
 ## 📁 Directory Structure
 
