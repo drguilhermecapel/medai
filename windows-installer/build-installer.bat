@@ -31,9 +31,10 @@ echo ========================================
 
 :: Check if Inno Setup is installed
 echo Checking Inno Setup installation...
+echo Looking for: "%INNO_SETUP%"
 if not exist "%INNO_SETUP%" (
     echo ERROR: Inno Setup 6 not found!
-    echo Expected location: %INNO_SETUP%
+    echo Expected location: "%INNO_SETUP%"
     echo.
     echo SOLUTION:
     echo 1. Download Inno Setup 6 from: https://jrsoftware.org/isinfo.php
@@ -249,6 +250,7 @@ echo Building Installer
 echo ========================================
 
 echo Running Inno Setup compiler...
+echo Command: "%INNO_SETUP%" "%SCRIPT_PATH%"
 "%INNO_SETUP%" "%SCRIPT_PATH%"
 
 if !ERRORLEVEL! NEQ 0 (
