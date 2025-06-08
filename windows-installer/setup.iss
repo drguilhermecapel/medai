@@ -226,23 +226,27 @@ begin
     if LoadStringsFromFile(EnvFile, ConfigContent) then
     begin
       // Update database password
-      StringChangeEx(ConfigContent, 'DB_PASSWORD=your_secure_password_here', 
+      StringChangeEx(ConfigContent, 'DB_PASSWORD={{DB_PASSWORD}}',
         'DB_PASSWORD=' + DatabasePasswordPage.Values[0], True);
       
       // Update admin user information
-      StringChangeEx(ConfigContent, 'ADMIN_NAME=Admin User', 
+      StringChangeEx(ConfigContent, 'ADMIN_NAME={{ADMIN_NAME}}',
         'ADMIN_NAME=' + AdminUserPage.Values[0], True);
-      StringChangeEx(ConfigContent, 'ADMIN_EMAIL=admin@spei.local', 
+      StringChangeEx(ConfigContent, 'ADMIN_EMAIL={{ADMIN_EMAIL}}',
         'ADMIN_EMAIL=' + AdminUserPage.Values[1], True);
-      StringChangeEx(ConfigContent, 'ADMIN_PASSWORD=admin123', 
+      StringChangeEx(ConfigContent, 'ADMIN_PASSWORD={{ADMIN_PASSWORD}}',
         'ADMIN_PASSWORD=' + AdminUserPage.Values[2], True);
+      StringChangeEx(ConfigContent, 'INITIAL_ADMIN_EMAIL={{ADMIN_EMAIL}}',
+        'INITIAL_ADMIN_EMAIL=' + AdminUserPage.Values[1], True);
+      StringChangeEx(ConfigContent, 'INITIAL_ADMIN_PASSWORD={{ADMIN_PASSWORD}}',
+        'INITIAL_ADMIN_PASSWORD=' + AdminUserPage.Values[2], True);
       
       // Update port configuration
-      StringChangeEx(ConfigContent, 'API_PORT=8000', 
+      StringChangeEx(ConfigContent, 'API_PORT={{API_PORT}}',
         'API_PORT=' + PortConfigPage.Values[0], True);
-      StringChangeEx(ConfigContent, 'FRONTEND_PORT=3000', 
+      StringChangeEx(ConfigContent, 'FRONTEND_PORT={{WEB_PORT}}',
         'FRONTEND_PORT=' + PortConfigPage.Values[1], True);
-      StringChangeEx(ConfigContent, 'DB_PORT=5432', 
+      StringChangeEx(ConfigContent, 'DB_PORT={{DB_PORT}}',
         'DB_PORT=' + PortConfigPage.Values[2], True);
       
       SaveStringsToFile(EnvFile, ConfigContent, False);
