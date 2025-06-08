@@ -152,97 +152,52 @@ echo ✓ Output directory ready
 
 echo.
 echo ========================================
-echo Runtime Components Preparation
+echo Single-Step Installer Configuration
 echo ========================================
 
-:: Check if runtime components exist, if not prepare them
-if not exist "%RUNTIME_DIR%\python\python.exe" (
-    echo.
-    echo ========================================
-    echo RUNTIME COMPONENTS NOT FOUND
-    echo ========================================
-    echo.
-    echo The runtime directory does not exist or is incomplete.
-    echo This is normal for first-time builds.
-    echo.
-    echo REQUIRED: You must run prepare-runtime.bat FIRST to:
-    echo - Download Python 3.11 embeddable (~50MB)
-    echo - Download Node.js runtime (~30MB)
-    echo - Download PostgreSQL portable (~200MB)
-    echo - Download Redis for Windows
-    echo - Create complete runtime directory structure
-    echo.
-    echo SOLUTION:
-    echo 1. Close this window
-    echo 2. Run: prepare-runtime.bat
-    echo 3. Wait for all downloads to complete
-    echo 4. Then run: build-installer.bat
-    echo.
-    echo ========================================
-    echo.
-    pause
-    exit /b 1
-) else (
-    echo ✓ Python runtime found
-)
+echo ✓ Single-step installer mode enabled
+echo ✓ Runtime components will be downloaded during installation
+echo ✓ No manual preparation required
 
-if not exist "%RUNTIME_DIR%\nodejs\node.exe" (
-    echo ERROR: Node.js runtime not found after preparation!
-    echo Expected: %RUNTIME_DIR%\nodejs\node.exe
-    echo Please run prepare-runtime.bat manually to resolve this issue.
+:: Check for source application files (will be copied during installation)
+echo Validating source application files...
+if not exist "..\backend" (
+    echo ERROR: Backend source files not found!
+    echo Expected: ..\backend
+    echo Please ensure you are running this script from the windows-installer directory.
     pause
     exit /b 1
 )
-echo ✓ Node.js runtime found
+echo ✓ Backend source files found
 
-if not exist "%RUNTIME_DIR%\postgresql\bin\postgres.exe" (
-    echo ERROR: PostgreSQL runtime not found after preparation!
-    echo Expected: %RUNTIME_DIR%\postgresql\bin\postgres.exe
-    echo Please run prepare-runtime.bat manually to resolve this issue.
+if not exist "..\frontend" (
+    echo ERROR: Frontend source files not found!
+    echo Expected: ..\frontend
+    echo Please ensure you are running this script from the windows-installer directory.
     pause
     exit /b 1
 )
-echo ✓ PostgreSQL runtime found
+echo ✓ Frontend source files found
 
-:: Check for application files
-echo Validating application files...
-if not exist "%APP_DIR%\backend" (
-    echo ERROR: Backend application files not found!
-    echo Expected: %APP_DIR%\backend
-    echo Please run prepare-runtime.bat to copy application files.
-    pause
-    exit /b 1
-)
-echo ✓ Backend application files found
-
-if not exist "%APP_DIR%\frontend" (
-    echo ERROR: Frontend application files not found!
-    echo Expected: %APP_DIR%\frontend
-    echo Please run prepare-runtime.bat to copy application files.
-    pause
-    exit /b 1
-)
-echo ✓ Frontend application files found
-
-:: Verify backend requirements.txt exists
-if not exist "%APP_DIR%\backend\requirements.txt" (
-    echo ERROR: Backend requirements.txt not found!
-    echo Expected: %APP_DIR%\backend\requirements.txt
+:: Verify backend requirements.txt exists in source
+if not exist "..\backend\requirements.txt" (
+    echo ERROR: Backend requirements.txt not found in source!
+    echo Expected: ..\backend\requirements.txt
     echo This file is required for Python dependency installation.
     pause
     exit /b 1
 )
-echo ✓ Backend requirements.txt found
+echo ✓ Backend requirements.txt found in source
 
-:: Verify frontend package.json exists
-if not exist "%APP_DIR%\frontend\package.json" (
-    echo ERROR: Frontend package.json not found!
-    echo Expected: %APP_DIR%\frontend\package.json
+:: Verify frontend package.json exists in source
+if not exist "..\frontend\package.json" (
+    echo ERROR: Frontend package.json not found in source!
+    echo Expected: ..\frontend\package.json
     echo This file is required for Node.js dependency installation.
     pause
     exit /b 1
 )
-echo ✓ Frontend package.json found
+echo ✓ Frontend package.json found in source
 
 echo.
 echo ========================================
