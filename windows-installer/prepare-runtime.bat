@@ -52,9 +52,8 @@ goto :powershell_not_detected
 
 echo.
 echo ========================================
-echo Environment Diagnostics
+echo Environment Diagnostics Complete
 echo ========================================
-call :check_powershell
 
 if %POWERSHELL_AVAILABLE% EQU 0 (
     echo.
