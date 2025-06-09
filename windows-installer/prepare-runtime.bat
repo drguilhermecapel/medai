@@ -23,7 +23,7 @@ if not exist "%TEMP_DIR%" mkdir "%TEMP_DIR%"
 
 :: Check if PowerShell is available
 powershell -Command "exit 0" >nul 2>&1
-if %ERRORLEVEL% EQU 0 (
+if "%ERRORLEVEL%"=="0" (
     set POWERSHELL_AVAILABLE=1
     echo PowerShell detected and available
 ) else (
@@ -48,7 +48,7 @@ echo.
 if "%POWERSHELL_AVAILABLE%"=="1" (
     echo Testing network connectivity...
     powershell -Command "try { Test-NetConnection -ComputerName www.google.com -Port 443 -InformationLevel Quiet | Out-Null; exit 0 } catch { exit 1 }" >nul 2>&1
-    if %ERRORLEVEL% EQU 0 (
+    if "%ERRORLEVEL%"=="0" (
         echo Network connection successful
     ) else (
         echo Network connection test failed
