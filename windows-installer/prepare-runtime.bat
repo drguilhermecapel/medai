@@ -134,18 +134,24 @@ if not exist "%RUNTIME_DIR%\python" (
     if "%POWERSHELL_AVAILABLE%"=="1" (
         echo [1/3] Trying PowerShell download...
         powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%TEMP_DIR%\python.zip' -UseBasicParsing -TimeoutSec 600 } catch { exit 1 }"
-        if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\python.zip" goto :python_verify
+        if "%ERRORLEVEL%"=="0" (
+            if exist "%TEMP_DIR%\python.zip" goto :python_verify
+        )
     )
     
     :: Strategy 2: certutil download
     echo [2/3] Trying certutil download...
     certutil -urlcache -split -f "%PYTHON_URL%" "%TEMP_DIR%\python.zip" >nul 2>&1
-    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\python.zip" goto :python_verify
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\python.zip" goto :python_verify
+    )
     
     :: Strategy 3: bitsadmin download
     echo [3/3] Trying bitsadmin download...
     bitsadmin /transfer "PythonDownload" /download /priority normal "%PYTHON_URL%" "%TEMP_DIR%\python.zip" >nul 2>&1
-    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\python.zip" goto :python_verify
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\python.zip" goto :python_verify
+    )
     
     :: All strategies failed
     goto :python_download_failed
@@ -191,7 +197,7 @@ if not exist "%RUNTIME_DIR%\python" (
         cd /d "%~dp0"
     )
     
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to extract Python embeddable!
         pause
         exit /b 1
@@ -205,7 +211,7 @@ if not exist "%RUNTIME_DIR%\python" (
         certutil -urlcache -split -f "https://bootstrap.pypa.io/get-pip.py" "%RUNTIME_DIR%\python\get-pip.py" >nul 2>&1
     )
     
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo WARNING: Failed to download get-pip.py automatically
         echo You may need to install pip manually later
     )
@@ -221,7 +227,7 @@ if not exist "%RUNTIME_DIR%\python" (
     :: Install pip
     echo Installing pip...
     "%RUNTIME_DIR%\python\python.exe" "%RUNTIME_DIR%\python\get-pip.py"
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to install pip!
         pause
         exit /b 1
@@ -248,23 +254,31 @@ if not exist "%RUNTIME_DIR%\nodejs" (
     echo [1/4] Trying PowerShell download (primary source)...
     powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $response = Invoke-WebRequest -Uri '%NODEJS_URL%' -OutFile '%TEMP_DIR%\nodejs.zip' -UseBasicParsing -TimeoutSec 600 -PassThru; Write-Host 'Download completed. Size:' $response.Headers.'Content-Length' } catch { Write-Host 'PowerShell download failed:' $_.Exception.Message; exit 1 }"
     
-    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    )
     
     :: Strategy 2: Alternative PowerShell source
     echo [2/4] Trying PowerShell download (GitHub source)...
     powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%NODEJS_ALT_URL%' -OutFile '%TEMP_DIR%\nodejs.zip' -UseBasicParsing -TimeoutSec 600 } catch { Write-Host 'GitHub download failed:' $_.Exception.Message; exit 1 }"
     
-    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    )
     
     :: Strategy 3: certutil download
     echo [3/4] Trying certutil download...
     certutil -urlcache -split -f "%NODEJS_URL%" "%TEMP_DIR%\nodejs.zip" >nul 2>&1
-    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    )
     
     :: Strategy 4: bitsadmin download
     echo [4/4] Trying bitsadmin download...
     bitsadmin /transfer "NodeJSDownload" /download /priority normal "%NODEJS_URL%" "%TEMP_DIR%\nodejs.zip" >nul 2>&1
-    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    )
     
     :: All strategies failed
     goto :nodejs_download_failed
@@ -322,7 +336,7 @@ if not exist "%RUNTIME_DIR%\nodejs" (
     :: Extract with detailed error handling
     powershell -Command "try { Expand-Archive -Path '%TEMP_DIR%\nodejs.zip' -DestinationPath '%TEMP_DIR%' -Force; Write-Host 'Extraction completed successfully' } catch { Write-Host 'Extraction failed:' $_.Exception.Message; exit 1 }"
     
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to extract Node.js zip file!
         echo The zip file may be corrupted. Please try downloading again.
         pause
@@ -339,7 +353,7 @@ if not exist "%RUNTIME_DIR%\nodejs" (
     :: Move to final location
     if exist "%RUNTIME_DIR%\nodejs" rmdir /S /Q "%RUNTIME_DIR%\nodejs" 2>nul
     move "%TEMP_DIR%\node-v18.20.3-win-x64" "%RUNTIME_DIR%\nodejs"
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to move Node.js to runtime directory!
         echo Attempting cleanup...
         if exist "%TEMP_DIR%\node-v18.20.3-win-x64" rmdir /S /Q "%TEMP_DIR%\node-v18.20.3-win-x64" 2>nul
@@ -358,7 +372,7 @@ if not exist "%RUNTIME_DIR%\nodejs" (
     
     :: Test Node.js functionality
     "%RUNTIME_DIR%\nodejs\node.exe" --version >nul 2>&1
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Node.js installation is not functional!
         echo The executable exists but cannot run properly.
         pause
@@ -387,18 +401,24 @@ if not exist "%RUNTIME_DIR%\postgresql" (
     if "%POWERSHELL_AVAILABLE%"=="1" (
         echo [1/3] Trying PowerShell download...
         powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%POSTGRES_URL%' -OutFile '%TEMP_DIR%\postgresql.zip' -UseBasicParsing -TimeoutSec 600 } catch { exit 1 }"
-        if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        if "%ERRORLEVEL%"=="0" (
+            if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        )
     )
     
     :: Strategy 2: certutil download
     echo [2/3] Trying certutil download...
     certutil -urlcache -split -f "%POSTGRES_URL%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
-    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+    )
     
     :: Strategy 3: bitsadmin download
     echo [3/3] Trying bitsadmin download...
     bitsadmin /transfer "PostgreSQLDownload" /download /priority normal "%POSTGRES_URL%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
-    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+    )
     
     :: Primary source failed, try alternative
     echo Primary PostgreSQL download failed, trying alternative approach...
@@ -409,18 +429,24 @@ if not exist "%RUNTIME_DIR%\postgresql" (
     
     if "%POWERSHELL_AVAILABLE%"=="1" (
         powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%POSTGRES_ALT_URL2%' -OutFile '%TEMP_DIR%\postgresql.zip' -UseBasicParsing -TimeoutSec 600 } catch { exit 1 }"
-        if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        if "%ERRORLEVEL%"=="0" (
+            if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        )
     ) else (
         certutil -urlcache -split -f "%POSTGRES_ALT_URL2%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
-        if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        if "%ERRORLEVEL%"=="0" (
+            if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        )
         
         bitsadmin /transfer "PostgreSQLAltDownload" /download /priority normal "%POSTGRES_ALT_URL2%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
-        if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        if "%ERRORLEVEL%"=="0" (
+            if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        )
     )
     
     :postgres_verify
         
-        if %ERRORLEVEL% NEQ 0 (
+        if "%ERRORLEVEL%" NEQ "0" (
             echo ERROR: Failed to download PostgreSQL from all sources!
             echo This may be due to:
             echo 1. Network connectivity issues
@@ -478,14 +504,14 @@ if not exist "%RUNTIME_DIR%\postgresql" (
         del extract_pg.vbs
         cd /d "%~dp0"
     )
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to extract PostgreSQL!
         pause
         exit /b 1
     )
     
     move "%TEMP_DIR%\pgsql" "%RUNTIME_DIR%\postgresql"
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to move PostgreSQL to runtime directory!
         echo Attempting cleanup...
         if exist "%TEMP_DIR%\pgsql" rmdir /S /Q "%TEMP_DIR%\pgsql" 2>nul
@@ -524,18 +550,24 @@ if not exist "%RUNTIME_DIR%\redis" (
     if "%POWERSHELL_AVAILABLE%"=="1" (
         echo [1/3] Trying PowerShell download...
         powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%REDIS_URL%' -OutFile '%TEMP_DIR%\redis.zip' -UseBasicParsing -TimeoutSec 300 } catch { exit 1 }"
-        if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
+        if "%ERRORLEVEL%"=="0" (
+            if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
+        )
     )
     
     :: Strategy 2: certutil download
     echo [2/3] Trying certutil download...
     certutil -urlcache -split -f "%REDIS_URL%" "%TEMP_DIR%\redis.zip" >nul 2>&1
-    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
+    )
     
     :: Strategy 3: bitsadmin download
     echo [3/3] Trying bitsadmin download...
     bitsadmin /transfer "RedisDownload" /download /priority normal "%REDIS_URL%" "%TEMP_DIR%\redis.zip" >nul 2>&1
-    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
+    )
     
     :: All strategies failed
     echo Redis download failed. Redis is optional for basic functionality.
@@ -544,7 +576,7 @@ if not exist "%RUNTIME_DIR%\redis" (
     
     :redis_verify_download
     
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo Redis download failed. Redis is optional for basic functionality.
         echo Continuing without Redis...
         goto :skip_redis
@@ -583,7 +615,7 @@ if not exist "%RUNTIME_DIR%\redis" (
         del extract_redis.vbs
         cd /d "%~dp0"
     )
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to extract Redis!
         echo Attempting cleanup...
         if exist "%TEMP_DIR%\redis.zip" del "%TEMP_DIR%\redis.zip" 2>nul
@@ -618,7 +650,7 @@ echo ========================================
 if exist "..\backend" (
     echo Copying backend files...
     xcopy "..\backend" "%APP_DIR%\backend" /E /I /Y /Q
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to copy backend files!
         echo Source: ..\backend
         echo Destination: %APP_DIR%\backend
@@ -638,7 +670,7 @@ if exist "..\backend" (
 if exist "..\frontend" (
     echo Copying frontend files...
     xcopy "..\frontend" "%APP_DIR%\frontend" /E /I /Y /Q
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to copy frontend files!
         echo Source: ..\frontend
         echo Destination: %APP_DIR%\frontend
@@ -670,7 +702,7 @@ if exist "%APP_DIR%\backend\requirements.txt" (
     
     :: Verify Python is functional
     "%RUNTIME_DIR%\python\python.exe" --version >nul 2>&1
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Python runtime is not functional!
         echo Please run prepare-runtime.bat again to reinstall Python.
         pause
@@ -678,7 +710,7 @@ if exist "%APP_DIR%\backend\requirements.txt" (
     )
     
     "%RUNTIME_DIR%\python\python.exe" -m pip install --upgrade pip
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to upgrade pip!
         echo This may indicate Python embeddable configuration issues.
         echo Please check that python311._pth file exists and is configured correctly.
@@ -687,7 +719,7 @@ if exist "%APP_DIR%\backend\requirements.txt" (
     )
     
     "%RUNTIME_DIR%\python\python.exe" -m pip install -r "%APP_DIR%\backend\requirements.txt"
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to install Python dependencies!
         echo.
         echo This could be due to:
@@ -705,7 +737,7 @@ if exist "%APP_DIR%\backend\requirements.txt" (
     :: Verify critical packages are installed
     echo Verifying critical package installations...
     "%RUNTIME_DIR%\python\python.exe" -c "import fastapi, uvicorn, sqlalchemy" >nul 2>&1
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Critical Python packages are not properly installed!
         echo The backend may not function correctly.
         echo.
@@ -735,7 +767,7 @@ if exist "%APP_DIR%\frontend\package.json" (
     
     :: Verify Node.js and npm are functional
     "%RUNTIME_DIR%\nodejs\node.exe" --version >nul 2>&1
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Node.js is not functional!
         cd /d "%~dp0"
         pause
@@ -743,7 +775,7 @@ if exist "%APP_DIR%\frontend\package.json" (
     )
     
     "%RUNTIME_DIR%\nodejs\npm.cmd" --version >nul 2>&1
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: npm is not functional!
         cd /d "%~dp0"
         pause
@@ -751,7 +783,7 @@ if exist "%APP_DIR%\frontend\package.json" (
     )
     
     "%RUNTIME_DIR%\nodejs\npm.cmd" install
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to install Node.js dependencies!
         echo.
         echo This could be due to:
@@ -767,7 +799,7 @@ if exist "%APP_DIR%\frontend\package.json" (
     
     echo Building frontend...
     "%RUNTIME_DIR%\nodejs\npm.cmd" run build
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Frontend build failed!
         echo.
         echo Please check the error messages above for details.
