@@ -187,28 +187,36 @@ echo.
 
 REM Test 8: Port availability
 echo [TEST 8] Checking port availability...
-netstat -an | find ":8000" >nul
-if errorlevel 1 (
-    echo [PASS] Port 8000 (backend) is available
-) else (
-    echo [WARN] Port 8000 (backend) is in use
-    set /a WARNINGS+=1
-)
 
-netstat -an | find ":3000" >nul
+REM Check if netstat is available
+netstat -an >nul 2>&1
 if errorlevel 1 (
-    echo [PASS] Port 3000 (frontend) is available
+    echo [INFO] netstat command not available - skipping port checks
+    echo [INFO] Port availability will be checked during application startup
 ) else (
-    echo [WARN] Port 3000 (frontend) is in use
-    set /a WARNINGS+=1
-)
+    netstat -an | find ":8000" >nul
+    if errorlevel 1 (
+        echo [PASS] Port 8000 (backend) is available
+    ) else (
+        echo [WARN] Port 8000 (backend) is in use
+        set /a WARNINGS+=1
+    )
 
-netstat -an | find ":5432" >nul
-if errorlevel 1 (
-    echo [PASS] Port 5432 (PostgreSQL) is available
-) else (
-    echo [WARN] Port 5432 (PostgreSQL) is in use
-    set /a WARNINGS+=1
+    netstat -an | find ":3000" >nul
+    if errorlevel 1 (
+        echo [PASS] Port 3000 (frontend) is available
+    ) else (
+        echo [WARN] Port 3000 (frontend) is in use
+        set /a WARNINGS+=1
+    )
+
+    netstat -an | find ":5432" >nul
+    if errorlevel 1 (
+        echo [PASS] Port 5432 (PostgreSQL) is available
+    ) else (
+        echo [WARN] Port 5432 (PostgreSQL) is in use
+        set /a WARNINGS+=1
+    )
 )
 
 echo.

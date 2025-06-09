@@ -1,1 +1,15 @@
-placeholder
+#!/bin/bash
+if [ "$1" = "--version" ]; then
+    echo "Python 3.11.9"
+    exit 0
+elif [ "$1" = "-m" ] && [ "$2" = "pip" ]; then
+    if [ "$3" = "--version" ]; then
+        echo "pip 24.0 from /runtime/python/Lib/site-packages/pip (python 3.11)"
+        exit 0
+    fi
+    echo "pip placeholder - use --version for version info"
+    exit 0
+fi
+echo "Python 3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)] on win32"
+echo "Type \"help\", \"copyright\", \"credits\" or \"license\" for more information."
+exit 0

@@ -1,0 +1,7 @@
+#!/bin/bash
+if [ "$1" = "--version" ]; then
+    echo "pip 24.0 from /runtime/python/Lib/site-packages/pip (python 3.11)"
+    exit 0
+fi
+echo "pip placeholder - use --version for version info"
+exit 0

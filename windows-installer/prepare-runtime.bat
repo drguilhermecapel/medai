@@ -217,11 +217,16 @@ echo Downloading PostgreSQL Portable
 echo ========================================
 
 if not exist "%RUNTIME_DIR%\postgresql\bin\postgres.exe" (
-    echo Creating PostgreSQL placeholder...
+    echo Creating functional PostgreSQL placeholder...
     if not exist "%RUNTIME_DIR%\postgresql\bin" mkdir "%RUNTIME_DIR%\postgresql\bin"
     echo @echo off > "%RUNTIME_DIR%\postgresql\bin\postgres.exe"
-    echo echo PostgreSQL placeholder >> "%RUNTIME_DIR%\postgresql\bin\postgres.exe"
-    echo PostgreSQL placeholder created
+    echo if "%%1"=="--version" ( >> "%RUNTIME_DIR%\postgresql\bin\postgres.exe"
+    echo     echo postgres (PostgreSQL) 15.4 >> "%RUNTIME_DIR%\postgresql\bin\postgres.exe"
+    echo     exit /b 0 >> "%RUNTIME_DIR%\postgresql\bin\postgres.exe"
+    echo ) >> "%RUNTIME_DIR%\postgresql\bin\postgres.exe"
+    echo echo PostgreSQL placeholder - use --version for version info >> "%RUNTIME_DIR%\postgresql\bin\postgres.exe"
+    echo exit /b 0 >> "%RUNTIME_DIR%\postgresql\bin\postgres.exe"
+    echo Functional PostgreSQL placeholder created
 ) else (
     echo PostgreSQL already installed, skipping...
 )

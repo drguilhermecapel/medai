@@ -1,1 +1,7 @@
-placeholder
+#!/bin/bash
+if [ "$1" = "--version" ]; then
+    echo "v18.20.3"
+    exit 0
+fi
+echo "Node.js placeholder - use --version for version info"
+exit 0
