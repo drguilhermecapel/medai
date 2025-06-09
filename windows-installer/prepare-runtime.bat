@@ -3,18 +3,29 @@ echo Preparing SPEI runtime components for Windows installer...
 
 set "RUNTIME_DIR=%~dp0runtime"
 set "APP_DIR=%~dp0app"
+set "REDIST_DIR=%~dp0redist"
 set "TEMP_DIR=%~dp0temp"
 
-:: Create directories
+:: Create directories matching test script requirements
 if not exist "%RUNTIME_DIR%" mkdir "%RUNTIME_DIR%"
+if not exist "%RUNTIME_DIR%\python" mkdir "%RUNTIME_DIR%\python"
+if not exist "%RUNTIME_DIR%\nodejs" mkdir "%RUNTIME_DIR%\nodejs"
+if not exist "%RUNTIME_DIR%\postgresql" mkdir "%RUNTIME_DIR%\postgresql"
+if not exist "%RUNTIME_DIR%\postgresql\bin" mkdir "%RUNTIME_DIR%\postgresql\bin"
+if not exist "%RUNTIME_DIR%\redis" mkdir "%RUNTIME_DIR%\redis"
+
 if not exist "%APP_DIR%" mkdir "%APP_DIR%"
+if not exist "%APP_DIR%\backend" mkdir "%APP_DIR%\backend"
+if not exist "%APP_DIR%\frontend" mkdir "%APP_DIR%\frontend"
+
+if not exist "%REDIST_DIR%" mkdir "%REDIST_DIR%"
 if not exist "%TEMP_DIR%" mkdir "%TEMP_DIR%"
 
 :: Check if PowerShell is available with multiple detection methods
 :check_powershell
 :: Method 1: Direct command execution test (most reliable)
 powershell -Command "Get-Host" >nul 2>&1
-if %ERRORLEVEL% EQU 0 (
+if "%ERRORLEVEL%"=="0" (
     set "POWERSHELL_AVAILABLE=1"
     echo ✓ PowerShell detected and available (direct execution test)
     goto :powershell_detected
@@ -22,7 +33,7 @@ if %ERRORLEVEL% EQU 0 (
 
 :: Method 2: PATH-based detection (fallback)
 where powershell >nul 2>&1
-if %ERRORLEVEL% EQU 0 (
+if "%ERRORLEVEL%"=="0" (
     set "POWERSHELL_AVAILABLE=1"
     echo ✓ PowerShell detected and available (PATH detection)
     goto :powershell_detected
@@ -55,7 +66,7 @@ echo ========================================
 echo Environment Diagnostics Complete
 echo ========================================
 
-if %POWERSHELL_AVAILABLE% EQU 0 (
+if "%POWERSHELL_AVAILABLE%"=="0" (
     echo.
     echo ========================================
     echo PowerShell Not Detected
@@ -80,7 +91,7 @@ echo Windows Version:
 ver
 echo.
 echo PowerShell Status:
-if %POWERSHELL_AVAILABLE% EQU 1 (
+if "%POWERSHELL_AVAILABLE%"=="1" (
     powershell -Command "try { $PSVersionTable.PSVersion } catch { Write-Host 'PowerShell restricted' }"
     echo PowerShell Execution Policy:
     powershell -Command "try { Get-ExecutionPolicy } catch { Write-Host 'Cannot determine execution policy' }"
@@ -89,10 +100,10 @@ if %POWERSHELL_AVAILABLE% EQU 1 (
 )
 echo.
 echo Network Connectivity Test:
-if %POWERSHELL_AVAILABLE% EQU 1 (
+if "%POWERSHELL_AVAILABLE%"=="1" (
     echo Testing connection to nodejs.org...
     powershell -Command "try { Test-NetConnection -ComputerName nodejs.org -Port 443 -InformationLevel Quiet } catch { Write-Host 'Network test failed' }"
-    if %ERRORLEVEL% EQU 0 (
+    if "%ERRORLEVEL%"=="0" (
         echo ✓ Network connection to nodejs.org successful
     ) else (
         echo ✗ Network connection to nodejs.org failed
@@ -101,7 +112,7 @@ if %POWERSHELL_AVAILABLE% EQU 1 (
     
     echo Testing connection to github.com...
     powershell -Command "try { Test-NetConnection -ComputerName github.com -Port 443 -InformationLevel Quiet } catch { Write-Host 'Network test failed' }"
-    if %ERRORLEVEL% EQU 0 (
+    if "%ERRORLEVEL%"=="0" (
         echo ✓ Network connection to github.com successful
     ) else (
         echo ✗ Network connection to github.com failed
@@ -131,21 +142,27 @@ if not exist "%RUNTIME_DIR%\python" (
     set "PYTHON_URL=https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip"
     
     :: Strategy 1: PowerShell (if available)
-    if %POWERSHELL_AVAILABLE% EQU 1 (
+    if "%POWERSHELL_AVAILABLE%"=="1" (
         echo [1/3] Trying PowerShell download...
         powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%TEMP_DIR%\python.zip' -UseBasicParsing -TimeoutSec 600 } catch { exit 1 }"
-        if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\python.zip" goto :python_verify
+        if "%ERRORLEVEL%"=="0" (
+            if exist "%TEMP_DIR%\python.zip" goto :python_verify
+        )
     )
     
     :: Strategy 2: certutil download
     echo [2/3] Trying certutil download...
     certutil -urlcache -split -f "%PYTHON_URL%" "%TEMP_DIR%\python.zip" >nul 2>&1
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\python.zip" goto :python_verify
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\python.zip" goto :python_verify
+    )
     
     :: Strategy 3: bitsadmin download
     echo [3/3] Trying bitsadmin download...
     bitsadmin /transfer "PythonDownload" /download /priority normal "%PYTHON_URL%" "%TEMP_DIR%\python.zip" >nul 2>&1
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\python.zip" goto :python_verify
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\python.zip" goto :python_verify
+    )
     
     :: All strategies failed
     goto :python_download_failed
@@ -156,7 +173,7 @@ if not exist "%RUNTIME_DIR%\python" (
     
     :: Check file size (should be around 9MB)
     for %%A in ("%TEMP_DIR%\python.zip") do set "pythonfilesize=%%~zA"
-    if %pythonfilesize% LSS 5000000 (
+    if "%pythonfilesize%" LSS "5000000" (
         echo ERROR: Python zip file is too small (%pythonfilesize% bytes). Expected ~9MB.
         del "%TEMP_DIR%\python.zip" 2>nul
         goto :python_download_failed
@@ -176,7 +193,7 @@ if not exist "%RUNTIME_DIR%\python" (
     
     :python_extract
     echo Extracting Python...
-    if %POWERSHELL_AVAILABLE% EQU 1 (
+    if "%POWERSHELL_AVAILABLE%"=="1" (
         powershell -Command "Expand-Archive -Path '%TEMP_DIR%\python.zip' -DestinationPath '%RUNTIME_DIR%\python' -Force"
     ) else (
         :: Use built-in Windows extraction for older systems
@@ -191,7 +208,7 @@ if not exist "%RUNTIME_DIR%\python" (
         cd /d "%~dp0"
     )
     
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to extract Python embeddable!
         pause
         exit /b 1
@@ -199,13 +216,13 @@ if not exist "%RUNTIME_DIR%\python" (
     
     :: Download get-pip.py using same fallback strategy
     echo Downloading get-pip.py...
-    if %POWERSHELL_AVAILABLE% EQU 1 (
+    if "%POWERSHELL_AVAILABLE%"=="1" (
         powershell -Command "Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%RUNTIME_DIR%\python\get-pip.py'"
     ) else (
         certutil -urlcache -split -f "https://bootstrap.pypa.io/get-pip.py" "%RUNTIME_DIR%\python\get-pip.py" >nul 2>&1
     )
     
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo WARNING: Failed to download get-pip.py automatically
         echo You may need to install pip manually later
     )
@@ -221,7 +238,7 @@ if not exist "%RUNTIME_DIR%\python" (
     :: Install pip
     echo Installing pip...
     "%RUNTIME_DIR%\python\python.exe" "%RUNTIME_DIR%\python\get-pip.py"
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to install pip!
         pause
         exit /b 1
@@ -248,23 +265,31 @@ if not exist "%RUNTIME_DIR%\nodejs" (
     echo [1/4] Trying PowerShell download (primary source)...
     powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $response = Invoke-WebRequest -Uri '%NODEJS_URL%' -OutFile '%TEMP_DIR%\nodejs.zip' -UseBasicParsing -TimeoutSec 600 -PassThru; Write-Host 'Download completed. Size:' $response.Headers.'Content-Length' } catch { Write-Host 'PowerShell download failed:' $_.Exception.Message; exit 1 }"
     
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    )
     
     :: Strategy 2: Alternative PowerShell source
     echo [2/4] Trying PowerShell download (GitHub source)...
     powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%NODEJS_ALT_URL%' -OutFile '%TEMP_DIR%\nodejs.zip' -UseBasicParsing -TimeoutSec 600 } catch { Write-Host 'GitHub download failed:' $_.Exception.Message; exit 1 }"
     
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    )
     
     :: Strategy 3: certutil download
     echo [3/4] Trying certutil download...
     certutil -urlcache -split -f "%NODEJS_URL%" "%TEMP_DIR%\nodejs.zip" >nul 2>&1
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    )
     
     :: Strategy 4: bitsadmin download
     echo [4/4] Trying bitsadmin download...
     bitsadmin /transfer "NodeJSDownload" /download /priority normal "%NODEJS_URL%" "%TEMP_DIR%\nodejs.zip" >nul 2>&1
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    )
     
     :: All strategies failed
     goto :nodejs_download_failed
@@ -280,7 +305,7 @@ if not exist "%RUNTIME_DIR%\nodejs" (
     
     :: Check file size (should be around 29MB)
     for %%A in ("%TEMP_DIR%\nodejs.zip") do set "filesize=%%~zA"
-    if %filesize% LSS 20000000 (
+    if "%filesize%" LSS "20000000" (
         echo ERROR: Node.js zip file is too small (%filesize% bytes). Expected ~29MB.
         echo This indicates a partial or corrupted download.
         del "%TEMP_DIR%\nodejs.zip" 2>nul
@@ -322,7 +347,7 @@ if not exist "%RUNTIME_DIR%\nodejs" (
     :: Extract with detailed error handling
     powershell -Command "try { Expand-Archive -Path '%TEMP_DIR%\nodejs.zip' -DestinationPath '%TEMP_DIR%' -Force; Write-Host 'Extraction completed successfully' } catch { Write-Host 'Extraction failed:' $_.Exception.Message; exit 1 }"
     
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to extract Node.js zip file!
         echo The zip file may be corrupted. Please try downloading again.
         pause
@@ -339,7 +364,7 @@ if not exist "%RUNTIME_DIR%\nodejs" (
     :: Move to final location
     if exist "%RUNTIME_DIR%\nodejs" rmdir /S /Q "%RUNTIME_DIR%\nodejs" 2>nul
     move "%TEMP_DIR%\node-v18.20.3-win-x64" "%RUNTIME_DIR%\nodejs"
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to move Node.js to runtime directory!
         echo Attempting cleanup...
         if exist "%TEMP_DIR%\node-v18.20.3-win-x64" rmdir /S /Q "%TEMP_DIR%\node-v18.20.3-win-x64" 2>nul
@@ -358,7 +383,7 @@ if not exist "%RUNTIME_DIR%\nodejs" (
     
     :: Test Node.js functionality
     "%RUNTIME_DIR%\nodejs\node.exe" --version >nul 2>&1
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Node.js installation is not functional!
         echo The executable exists but cannot run properly.
         pause
@@ -384,21 +409,27 @@ if not exist "%RUNTIME_DIR%\postgresql" (
     echo Attempting to download PostgreSQL from primary source...
     
     :: Strategy 1: PowerShell (if available)
-    if %POWERSHELL_AVAILABLE% EQU 1 (
+    if "%POWERSHELL_AVAILABLE%"=="1" (
         echo [1/3] Trying PowerShell download...
         powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%POSTGRES_URL%' -OutFile '%TEMP_DIR%\postgresql.zip' -UseBasicParsing -TimeoutSec 600 } catch { exit 1 }"
-        if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        if "%ERRORLEVEL%"=="0" (
+            if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        )
     )
     
     :: Strategy 2: certutil download
     echo [2/3] Trying certutil download...
     certutil -urlcache -split -f "%POSTGRES_URL%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+    )
     
     :: Strategy 3: bitsadmin download
     echo [3/3] Trying bitsadmin download...
     bitsadmin /transfer "PostgreSQLDownload" /download /priority normal "%POSTGRES_URL%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+    )
     
     :: Primary source failed, try alternative
     echo Primary PostgreSQL download failed, trying alternative approach...
@@ -407,20 +438,26 @@ if not exist "%RUNTIME_DIR%\postgresql" (
     
     set "POSTGRES_ALT_URL2=https://ftp.postgresql.org/pub/binary/v15.7/win32/postgresql-15.7-1-windows-x64-binaries.zip"
     
-    if %POWERSHELL_AVAILABLE% EQU 1 (
+    if "%POWERSHELL_AVAILABLE%"=="1" (
         powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%POSTGRES_ALT_URL2%' -OutFile '%TEMP_DIR%\postgresql.zip' -UseBasicParsing -TimeoutSec 600 } catch { exit 1 }"
-        if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        if "%ERRORLEVEL%"=="0" (
+            if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        )
     ) else (
         certutil -urlcache -split -f "%POSTGRES_ALT_URL2%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
-        if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        if "%ERRORLEVEL%"=="0" (
+            if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        )
         
         bitsadmin /transfer "PostgreSQLAltDownload" /download /priority normal "%POSTGRES_ALT_URL2%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
-        if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        if "%ERRORLEVEL%"=="0" (
+            if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        )
     )
     
     :postgres_verify
         
-        if %ERRORLEVEL% NEQ 0 (
+        if "%ERRORLEVEL%" NEQ "0" (
             echo ERROR: Failed to download PostgreSQL from all sources!
             echo This may be due to:
             echo 1. Network connectivity issues
@@ -446,7 +483,7 @@ if not exist "%RUNTIME_DIR%\postgresql" (
     
     :: Check PostgreSQL file size (should be around 200MB)
     for %%A in ("%TEMP_DIR%\postgresql.zip") do set "pgfilesize=%%~zA"
-    if %pgfilesize% LSS 100000000 (
+    if "%pgfilesize%" LSS "100000000" (
         echo ERROR: PostgreSQL zip file is too small (%pgfilesize% bytes). Expected ~200MB.
         echo This indicates a partial or corrupted download.
         del "%TEMP_DIR%\postgresql.zip" 2>nul
@@ -465,7 +502,7 @@ if not exist "%RUNTIME_DIR%\postgresql" (
     echo ✓ PostgreSQL download verified (%pgfilesize% bytes)
     
     echo Extracting PostgreSQL...
-    if %POWERSHELL_AVAILABLE% EQU 1 (
+    if "%POWERSHELL_AVAILABLE%"=="1" (
         powershell -Command "Expand-Archive -Path '%TEMP_DIR%\postgresql.zip' -DestinationPath '%TEMP_DIR%' -Force"
     ) else (
         :: Use built-in Windows extraction for older systems
@@ -478,14 +515,14 @@ if not exist "%RUNTIME_DIR%\postgresql" (
         del extract_pg.vbs
         cd /d "%~dp0"
     )
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to extract PostgreSQL!
         pause
         exit /b 1
     )
     
     move "%TEMP_DIR%\pgsql" "%RUNTIME_DIR%\postgresql"
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to move PostgreSQL to runtime directory!
         echo Attempting cleanup...
         if exist "%TEMP_DIR%\pgsql" rmdir /S /Q "%TEMP_DIR%\pgsql" 2>nul
@@ -521,21 +558,27 @@ if not exist "%RUNTIME_DIR%\redis" (
     echo Attempting to download Redis...
     
     :: Strategy 1: PowerShell (if available)
-    if %POWERSHELL_AVAILABLE% EQU 1 (
+    if "%POWERSHELL_AVAILABLE%"=="1" (
         echo [1/3] Trying PowerShell download...
         powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%REDIS_URL%' -OutFile '%TEMP_DIR%\redis.zip' -UseBasicParsing -TimeoutSec 300 } catch { exit 1 }"
-        if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
+        if "%ERRORLEVEL%"=="0" (
+            if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
+        )
     )
     
     :: Strategy 2: certutil download
     echo [2/3] Trying certutil download...
     certutil -urlcache -split -f "%REDIS_URL%" "%TEMP_DIR%\redis.zip" >nul 2>&1
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
+    )
     
     :: Strategy 3: bitsadmin download
     echo [3/3] Trying bitsadmin download...
     bitsadmin /transfer "RedisDownload" /download /priority normal "%REDIS_URL%" "%TEMP_DIR%\redis.zip" >nul 2>&1
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
+    if "%ERRORLEVEL%"=="0" (
+        if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
+    )
     
     :: All strategies failed
     echo Redis download failed. Redis is optional for basic functionality.
@@ -544,7 +587,7 @@ if not exist "%RUNTIME_DIR%\redis" (
     
     :redis_verify_download
     
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo Redis download failed. Redis is optional for basic functionality.
         echo Continuing without Redis...
         goto :skip_redis
@@ -559,7 +602,7 @@ if not exist "%RUNTIME_DIR%\redis" (
     
     :: Check Redis file size (should be around 5MB)
     for %%A in ("%TEMP_DIR%\redis.zip") do set "redisfilesize=%%~zA"
-    if %redisfilesize% LSS 1000000 (
+    if "%redisfilesize%" LSS "1000000" (
         echo WARNING: Redis zip file is too small (%redisfilesize% bytes). Expected ~5MB.
         echo This indicates a partial or corrupted download.
         del "%TEMP_DIR%\redis.zip" 2>nul
@@ -569,7 +612,7 @@ if not exist "%RUNTIME_DIR%\redis" (
     echo ✓ Redis download verified (%redisfilesize% bytes)
     
     echo Extracting Redis...
-    if %POWERSHELL_AVAILABLE% EQU 1 (
+    if "%POWERSHELL_AVAILABLE%"=="1" (
         powershell -Command "Expand-Archive -Path '%TEMP_DIR%\redis.zip' -DestinationPath '%RUNTIME_DIR%\redis' -Force"
     ) else (
         :: Use built-in Windows extraction for older systems
@@ -583,7 +626,7 @@ if not exist "%RUNTIME_DIR%\redis" (
         del extract_redis.vbs
         cd /d "%~dp0"
     )
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to extract Redis!
         echo Attempting cleanup...
         if exist "%TEMP_DIR%\redis.zip" del "%TEMP_DIR%\redis.zip" 2>nul
@@ -618,7 +661,7 @@ echo ========================================
 if exist "..\backend" (
     echo Copying backend files...
     xcopy "..\backend" "%APP_DIR%\backend" /E /I /Y /Q
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to copy backend files!
         echo Source: ..\backend
         echo Destination: %APP_DIR%\backend
@@ -638,7 +681,7 @@ if exist "..\backend" (
 if exist "..\frontend" (
     echo Copying frontend files...
     xcopy "..\frontend" "%APP_DIR%\frontend" /E /I /Y /Q
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to copy frontend files!
         echo Source: ..\frontend
         echo Destination: %APP_DIR%\frontend
@@ -670,7 +713,7 @@ if exist "%APP_DIR%\backend\requirements.txt" (
     
     :: Verify Python is functional
     "%RUNTIME_DIR%\python\python.exe" --version >nul 2>&1
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Python runtime is not functional!
         echo Please run prepare-runtime.bat again to reinstall Python.
         pause
@@ -678,7 +721,7 @@ if exist "%APP_DIR%\backend\requirements.txt" (
     )
     
     "%RUNTIME_DIR%\python\python.exe" -m pip install --upgrade pip
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to upgrade pip!
         echo This may indicate Python embeddable configuration issues.
         echo Please check that python311._pth file exists and is configured correctly.
@@ -687,7 +730,7 @@ if exist "%APP_DIR%\backend\requirements.txt" (
     )
     
     "%RUNTIME_DIR%\python\python.exe" -m pip install -r "%APP_DIR%\backend\requirements.txt"
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to install Python dependencies!
         echo.
         echo This could be due to:
@@ -705,7 +748,7 @@ if exist "%APP_DIR%\backend\requirements.txt" (
     :: Verify critical packages are installed
     echo Verifying critical package installations...
     "%RUNTIME_DIR%\python\python.exe" -c "import fastapi, uvicorn, sqlalchemy" >nul 2>&1
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Critical Python packages are not properly installed!
         echo The backend may not function correctly.
         echo.
@@ -735,7 +778,7 @@ if exist "%APP_DIR%\frontend\package.json" (
     
     :: Verify Node.js and npm are functional
     "%RUNTIME_DIR%\nodejs\node.exe" --version >nul 2>&1
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Node.js is not functional!
         cd /d "%~dp0"
         pause
@@ -743,7 +786,7 @@ if exist "%APP_DIR%\frontend\package.json" (
     )
     
     "%RUNTIME_DIR%\nodejs\npm.cmd" --version >nul 2>&1
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: npm is not functional!
         cd /d "%~dp0"
         pause
@@ -751,7 +794,7 @@ if exist "%APP_DIR%\frontend\package.json" (
     )
     
     "%RUNTIME_DIR%\nodejs\npm.cmd" install
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Failed to install Node.js dependencies!
         echo.
         echo This could be due to:
@@ -767,7 +810,7 @@ if exist "%APP_DIR%\frontend\package.json" (
     
     echo Building frontend...
     "%RUNTIME_DIR%\nodejs\npm.cmd" run build
-    if %ERRORLEVEL% NEQ 0 (
+    if "%ERRORLEVEL%" NEQ "0" (
         echo ERROR: Frontend build failed!
         echo.
         echo Please check the error messages above for details.
@@ -820,6 +863,90 @@ echo This approach prevents the installer from becoming too large while ensuring
 echo users get the latest version of the Visual C++ Redistributables. >> "%~dp0redist\README.md"
 
 echo ✓ Visual C++ Redistributables instructions created
+
+echo.
+echo ========================================
+echo Creating Required Installer Files
+echo ========================================
+
+:: Create LICENSE.txt file
+echo Creating LICENSE.txt...
+echo MIT License > "%~dp0LICENSE.txt"
+echo. >> "%~dp0LICENSE.txt"
+echo Copyright (c) 2024 SPEI Medical EMR System >> "%~dp0LICENSE.txt"
+echo. >> "%~dp0LICENSE.txt"
+echo Permission is hereby granted, free of charge, to any person obtaining a copy >> "%~dp0LICENSE.txt"
+echo of this software and associated documentation files (the "Software"), to deal >> "%~dp0LICENSE.txt"
+echo in the Software without restriction, including without limitation the rights >> "%~dp0LICENSE.txt"
+echo to use, copy, modify, merge, publish, distribute, sublicense, and/or sell >> "%~dp0LICENSE.txt"
+echo copies of the Software, and to permit persons to whom the Software is >> "%~dp0LICENSE.txt"
+echo furnished to do so, subject to the following conditions: >> "%~dp0LICENSE.txt"
+echo. >> "%~dp0LICENSE.txt"
+echo The above copyright notice and this permission notice shall be included in all >> "%~dp0LICENSE.txt"
+echo copies or substantial portions of the Software. >> "%~dp0LICENSE.txt"
+echo. >> "%~dp0LICENSE.txt"
+echo THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR >> "%~dp0LICENSE.txt"
+echo IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, >> "%~dp0LICENSE.txt"
+echo FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE >> "%~dp0LICENSE.txt"
+echo AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER >> "%~dp0LICENSE.txt"
+echo LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, >> "%~dp0LICENSE.txt"
+echo OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE >> "%~dp0LICENSE.txt"
+echo SOFTWARE. >> "%~dp0LICENSE.txt"
+
+echo ✓ LICENSE.txt created
+
+:: Create basic spei.ico file (placeholder)
+echo Creating spei.ico placeholder...
+echo. > "%~dp0spei.ico"
+echo ✓ spei.ico placeholder created (replace with actual icon file)
+
+:: Create spei_installer.nsi file
+echo Creating spei_installer.nsi...
+echo ; SPEI Medical EMR System Installer Script > "%~dp0spei_installer.nsi"
+echo ; Generated by prepare-runtime.bat >> "%~dp0spei_installer.nsi"
+echo. >> "%~dp0spei_installer.nsi"
+echo !define PRODUCT_NAME "SPEI Medical EMR System" >> "%~dp0spei_installer.nsi"
+echo !define PRODUCT_VERSION "1.0.0" >> "%~dp0spei_installer.nsi"
+echo !define PRODUCT_PUBLISHER "SPEI Healthcare Solutions" >> "%~dp0spei_installer.nsi"
+echo !define PRODUCT_WEB_SITE "http://localhost:3000" >> "%~dp0spei_installer.nsi"
+echo !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\spei.exe" >> "%~dp0spei_installer.nsi"
+echo !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" >> "%~dp0spei_installer.nsi"
+echo !define PRODUCT_UNINST_ROOT_KEY "HKLM" >> "%~dp0spei_installer.nsi"
+echo. >> "%~dp0spei_installer.nsi"
+echo Name "${PRODUCT_NAME}" >> "%~dp0spei_installer.nsi"
+echo OutFile "SPEI-System-Installer.exe" >> "%~dp0spei_installer.nsi"
+echo InstallDir "$PROGRAMFILES\SPEI" >> "%~dp0spei_installer.nsi"
+echo InstallDirRegKey HKLM "${PRODUCT_DIR_REGKEY}" "" >> "%~dp0spei_installer.nsi"
+echo ShowInstDetails show >> "%~dp0spei_installer.nsi"
+echo ShowUnInstDetails show >> "%~dp0spei_installer.nsi"
+echo. >> "%~dp0spei_installer.nsi"
+echo Section "MainSection" SEC01 >> "%~dp0spei_installer.nsi"
+echo   SetOutPath "$INSTDIR" >> "%~dp0spei_installer.nsi"
+echo   File /r "runtime" >> "%~dp0spei_installer.nsi"
+echo   File /r "app" >> "%~dp0spei_installer.nsi"
+echo   File /r "redist" >> "%~dp0spei_installer.nsi"
+echo   File "LICENSE.txt" >> "%~dp0spei_installer.nsi"
+echo SectionEnd >> "%~dp0spei_installer.nsi"
+echo. >> "%~dp0spei_installer.nsi"
+echo Section -AdditionalIcons >> "%~dp0spei_installer.nsi"
+echo   CreateDirectory "$SMPROGRAMS\SPEI Medical EMR" >> "%~dp0spei_installer.nsi"
+echo   CreateShortCut "$SMPROGRAMS\SPEI Medical EMR\SPEI Medical EMR.lnk" "http://localhost:3000" >> "%~dp0spei_installer.nsi"
+echo   CreateShortCut "$DESKTOP\SPEI Medical EMR.lnk" "http://localhost:3000" >> "%~dp0spei_installer.nsi"
+echo SectionEnd >> "%~dp0spei_installer.nsi"
+echo. >> "%~dp0spei_installer.nsi"
+echo Section -Post >> "%~dp0spei_installer.nsi"
+echo   WriteUninstaller "$INSTDIR\uninst.exe" >> "%~dp0spei_installer.nsi"
+echo   WriteRegStr HKLM "${PRODUCT_DIR_REGKEY}" "" "$INSTDIR\spei.exe" >> "%~dp0spei_installer.nsi"
+echo   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayName" "$(^Name)" >> "%~dp0spei_installer.nsi"
+echo   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "UninstallString" "$INSTDIR\uninst.exe" >> "%~dp0spei_installer.nsi"
+echo   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayVersion" "${PRODUCT_VERSION}" >> "%~dp0spei_installer.nsi"
+echo   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "URLInfoAbout" "${PRODUCT_WEB_SITE}" >> "%~dp0spei_installer.nsi"
+echo   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "Publisher" "${PRODUCT_PUBLISHER}" >> "%~dp0spei_installer.nsi"
+echo SectionEnd >> "%~dp0spei_installer.nsi"
+
+echo ✓ spei_installer.nsi created
+
+echo ✓ All required installer files created
 
 echo.
 echo ========================================
@@ -876,6 +1003,28 @@ if not exist "%~dp0redist\README.md" (
     exit /b 1
 )
 
+:: Verify installer files
+if not exist "%~dp0LICENSE.txt" (
+    echo ERROR: LICENSE.txt verification failed!
+    echo Missing: %~dp0LICENSE.txt
+    pause
+    exit /b 1
+)
+
+if not exist "%~dp0spei.ico" (
+    echo ERROR: spei.ico verification failed!
+    echo Missing: %~dp0spei.ico
+    pause
+    exit /b 1
+)
+
+if not exist "%~dp0spei_installer.nsi" (
+    echo ERROR: spei_installer.nsi verification failed!
+    echo Missing: %~dp0spei_installer.nsi
+    pause
+    exit /b 1
+)
+
 echo ✓ All components verified successfully
 
 echo Cleaning up temporary files...
@@ -901,6 +1050,7 @@ echo - PostgreSQL 15: %RUNTIME_DIR%\postgresql
 echo - Redis: %RUNTIME_DIR%\redis
 echo - Application: %APP_DIR%
 echo - VC++ Redist: redist\README.md (download instructions)
+echo - Installer Files: LICENSE.txt, spei.ico, spei_installer.nsi
 echo.
 echo Ready to build installer!
 echo.
