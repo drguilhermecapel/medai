@@ -69,6 +69,34 @@ if not exist "%SCRIPT_PATH%" (
 )
 echo ✓ Setup script found
 
+:: Validate icon files (optional - warn if corrupted but don't fail)
+echo Validating icon files...
+if exist "assets\spei-icon.ico" (
+    for %%A in ("assets\spei-icon.ico") do (
+        if %%~zA LSS 1000 (
+            echo WARNING: spei-icon.ico appears to be corrupted (%%~zA bytes)
+            echo Icon references have been disabled in setup.iss
+        ) else (
+            echo ✓ spei-icon.ico appears valid (%%~zA bytes)
+        )
+    )
+) else (
+    echo INFO: spei-icon.ico not found - using default system icons
+)
+
+if exist "assets\web-icon.ico" (
+    for %%A in ("assets\web-icon.ico") do (
+        if %%~zA LSS 1000 (
+            echo WARNING: web-icon.ico appears to be corrupted (%%~zA bytes)
+            echo Icon references have been disabled in setup.iss
+        ) else (
+            echo ✓ web-icon.ico appears valid (%%~zA bytes)
+        )
+    )
+) else (
+    echo INFO: web-icon.ico not found - using default system icons
+)
+
 :: Validate required utility scripts
 echo Validating required utility scripts...
 

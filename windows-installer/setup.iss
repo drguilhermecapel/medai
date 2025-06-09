@@ -16,7 +16,7 @@ LicenseFile=LICENSE.txt
 InfoBeforeFile=README.txt
 OutputDir=dist
 OutputBaseFilename=SPEI-Setup-v1.0.0
-SetupIconFile=assets\spei-icon.ico
+;SetupIconFile=assets\spei-icon.ico
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -29,7 +29,7 @@ DisableReadyPage=no
 DisableFinishedPage=no
 ShowLanguageDialog=no
 LanguageDetectionMethod=uilanguage
-UninstallDisplayIcon={app}\assets\spei-icon.ico
+;UninstallDisplayIcon={app}\assets\spei-icon.ico
 UninstallDisplayName=SPEI - Sistema de Prontuário Eletrônico Inteligente
 VersionInfoVersion=1.0.0.0
 VersionInfoCompany=SPEI Medical Systems
@@ -86,7 +86,7 @@ Source: "samples\*"; DestDir: "{app}\samples"; Flags: ignoreversion recursesubdi
 
 [Icons]
 Name: "{group}\SPEI"; Filename: "{app}\utils\SPEI.exe.bat"; WorkingDir: "{app}"
-Name: "{group}\SPEI Web Interface"; Filename: "http://localhost:3000"; IconFilename: "{app}\assets\web-icon.ico"
+Name: "{group}\SPEI Web Interface"; Filename: "http://localhost:3000"
 Name: "{group}\Documentação"; Filename: "{app}\docs\index.html"
 Name: "{group}\{cm:UninstallProgram,SPEI}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\SPEI"; Filename: "{app}\utils\SPEI.exe.bat"; WorkingDir: "{app}"; Tasks: desktopicon
