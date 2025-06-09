@@ -73,7 +73,7 @@ echo ✓ Setup script found
 echo Validating icon files...
 if exist "assets\spei-icon.ico" (
     for %%A in ("assets\spei-icon.ico") do (
-        if %%~zA LSS 1000 (
+        if "%%~zA" LSS "1000" (
             echo WARNING: spei-icon.ico appears to be corrupted (%%~zA bytes)
             echo Icon references have been disabled in setup.iss
         ) else (
@@ -86,7 +86,7 @@ if exist "assets\spei-icon.ico" (
 
 if exist "assets\web-icon.ico" (
     for %%A in ("assets\web-icon.ico") do (
-        if %%~zA LSS 1000 (
+        if "%%~zA" LSS "1000" (
             echo WARNING: web-icon.ico appears to be corrupted (%%~zA bytes)
             echo Icon references have been disabled in setup.iss
         ) else (
@@ -288,7 +288,7 @@ echo ✓ Installer file created successfully
 
 :: Check installer file size (should be reasonable for self-contained installer)
 for %%A in ("%INSTALLER_PATH%") do set "installer_size=%%~zA"
-if %installer_size% LSS 5000000 (
+if "%installer_size%" LSS "5000000" (
     echo WARNING: Installer file is smaller than expected (%installer_size% bytes).
     echo Expected minimum size: ~5MB
     echo This may indicate missing application files or incomplete build.
