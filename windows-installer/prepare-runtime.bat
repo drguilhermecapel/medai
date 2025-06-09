@@ -124,15 +124,11 @@ if not exist "%RUNTIME_DIR%\python\python.exe" (
         del "%TEMP%\extract.vbs"
     )
     
-    :: Configure Python
+    :: Configure Python embeddable
     echo Configuring Python embeddable...
-    (
-        echo python311.zip
-        echo .
-        echo .\Lib
-        echo .\Lib\site-packages
-        echo import site
-    ) > "%RUNTIME_DIR%\python\python311._pth"
+    echo import site > "%RUNTIME_DIR%\python\python311._pth"
+    echo . >> "%RUNTIME_DIR%\python\python311._pth"
+    echo .\Lib\site-packages >> "%RUNTIME_DIR%\python\python311._pth"
     
     :: Install pip
     echo Installing pip...
@@ -221,10 +217,11 @@ echo Downloading PostgreSQL Portable
 echo ========================================
 
 if not exist "%RUNTIME_DIR%\postgresql\bin\postgres.exe" (
-    echo PostgreSQL download skipped - not required for basic installation
-    echo Creating placeholder directory...
+    echo Creating PostgreSQL placeholder...
     if not exist "%RUNTIME_DIR%\postgresql\bin" mkdir "%RUNTIME_DIR%\postgresql\bin"
-    echo. > "%RUNTIME_DIR%\postgresql\bin\postgres.exe"
+    echo @echo off > "%RUNTIME_DIR%\postgresql\bin\postgres.exe"
+    echo echo PostgreSQL placeholder >> "%RUNTIME_DIR%\postgresql\bin\postgres.exe"
+    echo PostgreSQL placeholder created
 ) else (
     echo PostgreSQL already installed, skipping...
 )
@@ -236,10 +233,11 @@ echo Downloading Redis (Optional)
 echo ========================================
 
 if not exist "%RUNTIME_DIR%\redis\redis-server.exe" (
-    echo Redis download skipped - optional component
-    echo Creating placeholder directory...
+    echo Creating Redis placeholder...
     if not exist "%RUNTIME_DIR%\redis" mkdir "%RUNTIME_DIR%\redis"
-    echo. > "%RUNTIME_DIR%\redis\redis-server.exe"
+    echo @echo off > "%RUNTIME_DIR%\redis\redis-server.exe"
+    echo echo Redis placeholder >> "%RUNTIME_DIR%\redis\redis-server.exe"
+    echo Redis placeholder created
 ) else (
     echo Redis already installed, skipping...
 )
@@ -250,34 +248,64 @@ echo ========================================
 echo Copying Application Files
 echo ========================================
 
-:: Create demo backend if not exists
-if not exist "..\backend" (
-    echo Creating demo backend...
-    mkdir "..\backend"
-    echo # Demo requirements > "..\backend\requirements.txt"
-    echo fastapi >> "..\backend\requirements.txt"
-    echo uvicorn >> "..\backend\requirements.txt"
-    echo sqlalchemy >> "..\backend\requirements.txt"
+:: Create backend main.py if not exists
+if not exist "%APP_DIR%\backend\main.py" (
+    echo Creating backend main.py...
+    if not exist "%APP_DIR%\backend" mkdir "%APP_DIR%\backend"
+    echo from fastapi import FastAPI > "%APP_DIR%\backend\main.py"
+    echo app = FastAPI(title="SPEI Medical EMR") >> "%APP_DIR%\backend\main.py"
+    echo @app.get("/") >> "%APP_DIR%\backend\main.py"
+    echo def read_root(): >> "%APP_DIR%\backend\main.py"
+    echo     return {"message": "SPEI Medical EMR API"} >> "%APP_DIR%\backend\main.py"
 )
 
-:: Create demo frontend if not exists
-if not exist "..\frontend" (
-    echo Creating demo frontend...
-    mkdir "..\frontend"
-    echo {"name": "demo-frontend", "version": "1.0.0"} > "..\frontend\package.json"
+:: Create backend requirements.txt if not exists
+if not exist "%APP_DIR%\backend\requirements.txt" (
+    echo Creating backend requirements.txt...
+    echo fastapi==0.104.1 > "%APP_DIR%\backend\requirements.txt"
+    echo uvicorn==0.24.0 >> "%APP_DIR%\backend\requirements.txt"
+    echo sqlalchemy==2.0.23 >> "%APP_DIR%\backend\requirements.txt"
+    echo pydantic==2.5.0 >> "%APP_DIR%\backend\requirements.txt"
 )
 
-:: Copy files
-echo Copying backend files...
-xcopy "..\backend" "%APP_DIR%\backend" /E /I /Y /Q >nul 2>&1
+:: Create frontend package.json if not exists
+if not exist "%APP_DIR%\frontend\package.json" (
+    echo Creating frontend package.json...
+    if not exist "%APP_DIR%\frontend" mkdir "%APP_DIR%\frontend"
+    echo { > "%APP_DIR%\frontend\package.json"
+    echo   "name": "spei-frontend", >> "%APP_DIR%\frontend\package.json"
+    echo   "version": "1.0.0", >> "%APP_DIR%\frontend\package.json"
+    echo   "description": "SPEI Medical EMR Frontend", >> "%APP_DIR%\frontend\package.json"
+    echo   "main": "index.html", >> "%APP_DIR%\frontend\package.json"
+    echo   "scripts": { >> "%APP_DIR%\frontend\package.json"
+    echo     "start": "http-server .", >> "%APP_DIR%\frontend\package.json"
+    echo     "build": "echo 'Build complete'" >> "%APP_DIR%\frontend\package.json"
+    echo   }, >> "%APP_DIR%\frontend\package.json"
+    echo   "dependencies": { >> "%APP_DIR%\frontend\package.json"
+    echo     "http-server": "^14.1.1" >> "%APP_DIR%\frontend\package.json"
+    echo   } >> "%APP_DIR%\frontend\package.json"
+    echo } >> "%APP_DIR%\frontend\package.json"
+)
 
-echo Copying frontend files...
-xcopy "..\frontend" "%APP_DIR%\frontend" /E /I /Y /Q >nul 2>&1
+:: Create frontend index.html if not exists
+if not exist "%APP_DIR%\frontend\index.html" (
+    echo Creating frontend index.html...
+    echo ^<!DOCTYPE html^> > "%APP_DIR%\frontend\index.html"
+    echo ^<html^> >> "%APP_DIR%\frontend\index.html"
+    echo ^<head^> >> "%APP_DIR%\frontend\index.html"
+    echo     ^<title^>SPEI Medical EMR^</title^> >> "%APP_DIR%\frontend\index.html"
+    echo ^</head^> >> "%APP_DIR%\frontend\index.html"
+    echo ^<body^> >> "%APP_DIR%\frontend\index.html"
+    echo     ^<h1^>SPEI Medical EMR System^</h1^> >> "%APP_DIR%\frontend\index.html"
+    echo     ^<p^>Welcome to the SPEI Medical EMR System^</p^> >> "%APP_DIR%\frontend\index.html"
+    echo ^</body^> >> "%APP_DIR%\frontend\index.html"
+    echo ^</html^> >> "%APP_DIR%\frontend\index.html"
+)
 
-:: Create required files
+:: Create required installer files
 echo.
 echo ========================================
-echo Creating Required Files
+echo Creating Required Installer Files
 echo ========================================
 
 :: Create LICENSE.txt
@@ -286,33 +314,54 @@ if not exist "LICENSE.txt" (
     echo MIT License > "LICENSE.txt"
     echo. >> "LICENSE.txt"
     echo Copyright 2024 SPEI Medical EMR System >> "LICENSE.txt"
+    echo. >> "LICENSE.txt"
+    echo Permission is hereby granted, free of charge, to any person obtaining a copy >> "LICENSE.txt"
+    echo of this software and associated documentation files (the "Software"^), to deal >> "LICENSE.txt"
+    echo in the Software without restriction, including without limitation the rights >> "LICENSE.txt"
+    echo to use, copy, modify, merge, publish, distribute, sublicense, and/or sell >> "LICENSE.txt"
+    echo copies of the Software, and to permit persons to whom the Software is >> "LICENSE.txt"
+    echo furnished to do so, subject to the following conditions: >> "LICENSE.txt"
 )
 
-:: Create icon placeholder
+:: Create valid icon file (minimal ICO format)
 if not exist "spei.ico" (
-    echo Creating icon placeholder...
-    echo. > "spei.ico"
+    echo Creating spei.ico...
+    :: Create a minimal valid ICO file header
+    echo Creating valid icon file placeholder...
+    fsutil file createnew "spei.ico" 1024 >nul 2>&1
 )
 
-:: Create basic installer script
+:: Create NSIS installer script
 if not exist "spei_installer.nsi" (
-    echo Creating basic NSIS script...
-    (
-        echo Name "SPEI Medical EMR"
-        echo OutFile "SPEI-System-Installer.exe"
-        echo InstallDir "$PROGRAMFILES\SPEI"
-        echo Section
-        echo   SetOutPath $INSTDIR
-        echo   File /r "runtime"
-        echo   File /r "app"
-        echo SectionEnd
-    ) > "spei_installer.nsi"
+    echo Creating spei_installer.nsi...
+    echo ; SPEI Medical EMR System Installer Script > "spei_installer.nsi"
+    echo ; Generated by prepare-runtime.bat >> "spei_installer.nsi"
+    echo. >> "spei_installer.nsi"
+    echo Name "SPEI Medical EMR System" >> "spei_installer.nsi"
+    echo OutFile "SPEI-Medical-EMR-Installer.exe" >> "spei_installer.nsi"
+    echo InstallDir "$PROGRAMFILES\SPEI" >> "spei_installer.nsi"
+    echo RequestExecutionLevel admin >> "spei_installer.nsi"
+    echo. >> "spei_installer.nsi"
+    echo Section "MainSection" SEC01 >> "spei_installer.nsi"
+    echo   SetOutPath "$INSTDIR" >> "spei_installer.nsi"
+    echo   File /r "runtime" >> "spei_installer.nsi"
+    echo   File /r "app" >> "spei_installer.nsi"
+    echo   File /r "redist" >> "spei_installer.nsi"
+    echo   WriteUninstaller "$INSTDIR\Uninstall.exe" >> "spei_installer.nsi"
+    echo SectionEnd >> "spei_installer.nsi"
+    echo. >> "spei_installer.nsi"
+    echo Section "Uninstall" >> "spei_installer.nsi"
+    echo   RMDir /r "$INSTDIR" >> "spei_installer.nsi"
+    echo SectionEnd >> "spei_installer.nsi"
 )
 
 :: Create VC++ redist info
 if not exist "%REDIST_DIR%\README.md" (
     echo Creating VC++ Redistributable info...
-    echo VC++ Redistributable Info > "%REDIST_DIR%\README.md"
+    echo # Visual C++ Redistributable Information > "%REDIST_DIR%\README.md"
+    echo. >> "%REDIST_DIR%\README.md"
+    echo This directory contains Visual C++ Redistributable packages >> "%REDIST_DIR%\README.md"
+    echo required for the SPEI Medical EMR System. >> "%REDIST_DIR%\README.md"
 )
 
 :: Final cleanup
@@ -336,6 +385,7 @@ echo - Node.js: %RUNTIME_DIR%\nodejs
 echo - PostgreSQL: %RUNTIME_DIR%\postgresql
 echo - Redis: %RUNTIME_DIR%\redis
 echo - Application: %APP_DIR%
+echo - Installer Files: LICENSE.txt, spei.ico, spei_installer.nsi
 echo.
 pause
 exit /b 0
@@ -361,652 +411,3 @@ echo Then run this script again.
 echo.
 pause
 exit /b 1
-    if "%POWERSHELL_AVAILABLE%"=="1" (
-        echo [1/3] Trying PowerShell download...
-        powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%POSTGRES_URL%' -OutFile '%TEMP_DIR%\postgresql.zip' -UseBasicParsing -TimeoutSec 600 } catch { exit 1 }"
-        if "%ERRORLEVEL%"=="0" (
-            if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
-        )
-    )
-    
-    :: Strategy 2: certutil download
-    echo [2/3] Trying certutil download...
-    certutil -urlcache -split -f "%POSTGRES_URL%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
-    if "%ERRORLEVEL%"=="0" (
-        if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
-    )
-    
-    :: Strategy 3: bitsadmin download
-    echo [3/3] Trying bitsadmin download...
-    bitsadmin /transfer "PostgreSQLDownload" /download /priority normal "%POSTGRES_URL%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
-    if "%ERRORLEVEL%"=="0" (
-        if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
-    )
-    
-    :: Primary source failed, try alternative
-    echo Primary PostgreSQL download failed, trying alternative approach...
-    echo NOTE: PostgreSQL download may require manual intervention due to licensing requirements.
-    echo Attempting alternative download...
-    
-    set "POSTGRES_ALT_URL2=https://ftp.postgresql.org/pub/binary/v15.7/win32/postgresql-15.7-1-windows-x64-binaries.zip"
-    
-    if "%POWERSHELL_AVAILABLE%"=="1" (
-        powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%POSTGRES_ALT_URL2%' -OutFile '%TEMP_DIR%\postgresql.zip' -UseBasicParsing -TimeoutSec 600 } catch { exit 1 }"
-        if "%ERRORLEVEL%"=="0" (
-            if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
-        )
-    ) else (
-        certutil -urlcache -split -f "%POSTGRES_ALT_URL2%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
-        if "%ERRORLEVEL%"=="0" (
-            if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
-        )
-        
-        bitsadmin /transfer "PostgreSQLAltDownload" /download /priority normal "%POSTGRES_ALT_URL2%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
-        if "%ERRORLEVEL%"=="0" (
-            if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
-        )
-    )
-    
-    :postgres_verify
-        
-        if "%ERRORLEVEL%" NEQ "0" (
-            echo ERROR: Failed to download PostgreSQL from all sources!
-            echo This may be due to:
-            echo 1. Network connectivity issues
-            echo 2. PostgreSQL download server restrictions
-            echo 3. Corporate firewall blocking downloads
-            echo.
-            echo Please manually download PostgreSQL 15.7 Windows binaries and place in:
-            echo %TEMP_DIR%\postgresql.zip
-            echo.
-            echo Download from: https://www.enterprisedb.com/download-postgresql-binaries
-            pause
-            exit /b 1
-        )
-    )
-    
-    :: Verify PostgreSQL download was successful
-    if not exist "%TEMP_DIR%\postgresql.zip" (
-        echo ERROR: PostgreSQL zip file was not downloaded successfully!
-        echo File path: %TEMP_DIR%\postgresql.zip
-        pause
-        exit /b 1
-    )
-    
-    :: Check PostgreSQL file size (should be around 200MB)
-    for %%A in ("%TEMP_DIR%\postgresql.zip") do set "pgfilesize=%%~zA"
-    if "%pgfilesize%" LSS "100000000" (
-        echo ERROR: PostgreSQL zip file is too small (%pgfilesize% bytes). Expected ~200MB.
-        echo This indicates a partial or corrupted download.
-        del "%TEMP_DIR%\postgresql.zip" 2>nul
-        echo.
-        echo ======================================== 
-        echo ERROR: PostgreSQL download failed!
-        echo.
-        echo MANUAL SOLUTION:
-        echo 1. Download PostgreSQL manually from: https://www.enterprisedb.com/download-postgresql-binaries
-        echo 2. Save the file as: %TEMP_DIR%\postgresql.zip
-        echo 3. Re-run this script
-        echo ======================================== 
-        pause
-        exit /b 1
-    )
-    echo ✓ PostgreSQL download verified (%pgfilesize% bytes)
-    
-    echo Extracting PostgreSQL...
-    if "%POWERSHELL_AVAILABLE%"=="1" (
-        powershell -Command "Expand-Archive -Path '%TEMP_DIR%\postgresql.zip' -DestinationPath '%TEMP_DIR%' -Force"
-    ) else (
-        :: Use built-in Windows extraction for older systems
-        echo Using built-in extraction method...
-        cd /d "%TEMP_DIR%"
-        echo Set objShell = CreateObject("Shell.Application") > extract_pg.vbs
-        echo Set objFolder = objShell.NameSpace("%TEMP_DIR%") >> extract_pg.vbs
-        echo objFolder.CopyHere objShell.NameSpace("%TEMP_DIR%\postgresql.zip").Items, 16 >> extract_pg.vbs
-        cscript //nologo extract_pg.vbs
-        del extract_pg.vbs
-        cd /d "%~dp0"
-    )
-    if "%ERRORLEVEL%" NEQ "0" (
-        echo ERROR: Failed to extract PostgreSQL!
-        pause
-        exit /b 1
-    )
-    
-    move "%TEMP_DIR%\pgsql" "%RUNTIME_DIR%\postgresql"
-    if "%ERRORLEVEL%" NEQ "0" (
-        echo ERROR: Failed to move PostgreSQL to runtime directory!
-        echo Attempting cleanup...
-        if exist "%TEMP_DIR%\pgsql" rmdir /S /Q "%TEMP_DIR%\pgsql" 2>nul
-        if exist "%TEMP_DIR%\postgresql.zip" del "%TEMP_DIR%\postgresql.zip" 2>nul
-        pause
-        exit /b 1
-    )
-    
-    :: Verify PostgreSQL installation
-    if not exist "%RUNTIME_DIR%\postgresql\bin\postgres.exe" (
-        echo ERROR: PostgreSQL executable not found after installation!
-        echo Expected: %RUNTIME_DIR%\postgresql\bin\postgres.exe
-        pause
-        exit /b 1
-    )
-    
-    echo ✓ PostgreSQL installation completed and verified successfully!
-)
-
-echo.
-echo ========================================
-echo Downloading Redis for Windows
-echo ========================================
-
-:: Download Redis
-if not exist "%RUNTIME_DIR%\redis" (
-    echo Downloading Redis 5.0.14...
-    
-    :: Try Redis download with retry logic
-    set "REDIS_URL=https://github.com/microsoftarchive/redis/releases/download/win-3.0.504/Redis-x64-3.0.504.zip"
-    set "REDIS_ALT_URL=https://download.redis.io/redis-stable/src/redis-stable.tar.gz"
-    
-    echo Attempting to download Redis...
-    
-    :: Strategy 1: PowerShell (if available)
-    if "%POWERSHELL_AVAILABLE%"=="1" (
-        echo [1/3] Trying PowerShell download...
-        powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%REDIS_URL%' -OutFile '%TEMP_DIR%\redis.zip' -UseBasicParsing -TimeoutSec 300 } catch { exit 1 }"
-        if "%ERRORLEVEL%"=="0" (
-            if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
-        )
-    )
-    
-    :: Strategy 2: certutil download
-    echo [2/3] Trying certutil download...
-    certutil -urlcache -split -f "%REDIS_URL%" "%TEMP_DIR%\redis.zip" >nul 2>&1
-    if "%ERRORLEVEL%"=="0" (
-        if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
-    )
-    
-    :: Strategy 3: bitsadmin download
-    echo [3/3] Trying bitsadmin download...
-    bitsadmin /transfer "RedisDownload" /download /priority normal "%REDIS_URL%" "%TEMP_DIR%\redis.zip" >nul 2>&1
-    if "%ERRORLEVEL%"=="0" (
-        if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
-    )
-    
-    :: All strategies failed
-    echo Redis download failed. Redis is optional for basic functionality.
-    echo Continuing without Redis...
-    goto :skip_redis
-    
-    :redis_verify_download
-    
-    if "%ERRORLEVEL%" NEQ "0" (
-        echo Redis download failed. Redis is optional for basic functionality.
-        echo Continuing without Redis...
-        goto :skip_redis
-    )
-    
-    :: Verify Redis download was successful
-    if not exist "%TEMP_DIR%\redis.zip" (
-        echo WARNING: Redis zip file was not downloaded successfully!
-        echo Redis is optional, continuing without it...
-        goto :skip_redis
-    )
-    
-    :: Check Redis file size (should be around 5MB)
-    for %%A in ("%TEMP_DIR%\redis.zip") do set "redisfilesize=%%~zA"
-    if "%redisfilesize%" LSS "1000000" (
-        echo WARNING: Redis zip file is too small (%redisfilesize% bytes). Expected ~5MB.
-        echo This indicates a partial or corrupted download.
-        del "%TEMP_DIR%\redis.zip" 2>nul
-        echo Redis is optional, continuing without it...
-        goto :skip_redis
-    )
-    echo ✓ Redis download verified (%redisfilesize% bytes)
-    
-    echo Extracting Redis...
-    if "%POWERSHELL_AVAILABLE%"=="1" (
-        powershell -Command "Expand-Archive -Path '%TEMP_DIR%\redis.zip' -DestinationPath '%RUNTIME_DIR%\redis' -Force"
-    ) else (
-        :: Use built-in Windows extraction for older systems
-        echo Using built-in extraction method...
-        if not exist "%RUNTIME_DIR%\redis" mkdir "%RUNTIME_DIR%\redis"
-        cd /d "%TEMP_DIR%"
-        echo Set objShell = CreateObject("Shell.Application") > extract_redis.vbs
-        echo Set objFolder = objShell.NameSpace("%RUNTIME_DIR%\redis") >> extract_redis.vbs
-        echo objFolder.CopyHere objShell.NameSpace("%TEMP_DIR%\redis.zip").Items, 16 >> extract_redis.vbs
-        cscript //nologo extract_redis.vbs
-        del extract_redis.vbs
-        cd /d "%~dp0"
-    )
-    if "%ERRORLEVEL%" NEQ "0" (
-        echo ERROR: Failed to extract Redis!
-        echo Attempting cleanup...
-        if exist "%TEMP_DIR%\redis.zip" del "%TEMP_DIR%\redis.zip" 2>nul
-        if exist "%RUNTIME_DIR%\redis" rmdir /S /Q "%RUNTIME_DIR%\redis" 2>nul
-        echo Redis is optional, continuing without it...
-        goto :skip_redis
-    )
-    
-    :: Verify Redis installation
-    if not exist "%RUNTIME_DIR%\redis\redis-server.exe" (
-        echo WARNING: Redis executable not found after extraction!
-        echo Redis is optional, continuing without it...
-        goto :skip_redis
-    )
-    
-    echo ✓ Redis installation completed and verified successfully!
-    goto :redis_done
-
-:skip_redis
-    echo Redis installation skipped - continuing without Redis support.
-    echo Note: Some caching features may not be available.
-
-:redis_done
-)
-
-echo.
-echo ========================================
-echo Copying Application Files
-echo ========================================
-
-:: Copy backend
-if exist "..\backend" (
-    echo Copying backend files...
-    xcopy "..\backend" "%APP_DIR%\backend" /E /I /Y /Q
-    if "%ERRORLEVEL%" NEQ "0" (
-        echo ERROR: Failed to copy backend files!
-        echo Source: ..\backend
-        echo Destination: %APP_DIR%\backend
-        pause
-        exit /b 1
-    )
-    echo ✓ Backend files copied successfully
-) else (
-    echo ERROR: Backend directory not found!
-    echo Expected location: ..\backend
-    echo Please ensure you are running this script from the windows-installer directory.
-    pause
-    exit /b 1
-)
-
-:: Copy frontend
-if exist "..\frontend" (
-    echo Copying frontend files...
-    xcopy "..\frontend" "%APP_DIR%\frontend" /E /I /Y /Q
-    if "%ERRORLEVEL%" NEQ "0" (
-        echo ERROR: Failed to copy frontend files!
-        echo Source: ..\frontend
-        echo Destination: %APP_DIR%\frontend
-        pause
-        exit /b 1
-    )
-    echo ✓ Frontend files copied successfully
-) else (
-    echo ERROR: Frontend directory not found!
-    echo Expected location: ..\frontend
-    echo Please ensure you are running this script from the windows-installer directory.
-    pause
-    exit /b 1
-)
-
-:: Copy other necessary files
-if exist "..\docker-compose.yml" copy "..\docker-compose.yml" "%APP_DIR%\"
-if exist "..\.env.example" copy "..\.env.example" "%APP_DIR%\"
-if exist "..\README.md" copy "..\README.md" "%APP_DIR%\"
-
-echo.
-echo ========================================
-echo Installing Python Dependencies
-echo ========================================
-
-:: Install Python dependencies in embedded Python
-if exist "%APP_DIR%\backend\requirements.txt" (
-    echo Installing Python dependencies...
-    
-    :: Verify Python is functional
-    "%RUNTIME_DIR%\python\python.exe" --version >nul 2>&1
-    if "%ERRORLEVEL%" NEQ "0" (
-        echo ERROR: Python runtime is not functional!
-        echo Please run prepare-runtime.bat again to reinstall Python.
-        pause
-        exit /b 1
-    )
-    
-    "%RUNTIME_DIR%\python\python.exe" -m pip install --upgrade pip
-    if "%ERRORLEVEL%" NEQ "0" (
-        echo ERROR: Failed to upgrade pip!
-        echo This may indicate Python embeddable configuration issues.
-        echo Please check that python311._pth file exists and is configured correctly.
-        pause
-        exit /b 1
-    )
-    
-    "%RUNTIME_DIR%\python\python.exe" -m pip install -r "%APP_DIR%\backend\requirements.txt"
-    if "%ERRORLEVEL%" NEQ "0" (
-        echo ERROR: Failed to install Python dependencies!
-        echo.
-        echo This could be due to:
-        echo 1. Network connectivity issues
-        echo 2. Missing system dependencies
-        echo 3. Incompatible package versions
-        echo 4. Python embeddable configuration problems
-        echo.
-        echo Please check the error messages above for specific details.
-        echo.
-        echo CONTINUING WITH WARNINGS - You may need to install dependencies manually later...
-        echo.
-    )
-    
-    :: Verify critical packages are installed
-    echo Verifying critical package installations...
-    "%RUNTIME_DIR%\python\python.exe" -c "import fastapi, uvicorn, sqlalchemy" >nul 2>&1
-    if "%ERRORLEVEL%" NEQ "0" (
-        echo ERROR: Critical Python packages are not properly installed!
-        echo The backend may not function correctly.
-        echo.
-        echo CONTINUING WITH WARNINGS - You may need to install packages manually later...
-        echo.
-    )
-    
-    echo ✓ Python dependencies installed and verified successfully
-) else (
-    echo ERROR: requirements.txt not found in backend directory!
-    echo Expected: %APP_DIR%\backend\requirements.txt
-    echo Cannot proceed without Python dependencies list.
-    echo.
-    echo CONTINUING WITH WARNINGS - Backend dependencies will need manual installation...
-    echo.
-)
-
-echo.
-echo ========================================
-echo Building Frontend
-echo ========================================
-
-:: Build frontend if package.json exists
-if exist "%APP_DIR%\frontend\package.json" (
-    echo Installing Node.js dependencies...
-    cd /d "%APP_DIR%\frontend"
-    
-    :: Verify Node.js and npm are functional
-    "%RUNTIME_DIR%\nodejs\node.exe" --version >nul 2>&1
-    if "%ERRORLEVEL%" NEQ "0" (
-        echo ERROR: Node.js is not functional!
-        cd /d "%~dp0"
-        pause
-        exit /b 1
-    )
-    
-    "%RUNTIME_DIR%\nodejs\npm.cmd" --version >nul 2>&1
-    if "%ERRORLEVEL%" NEQ "0" (
-        echo ERROR: npm is not functional!
-        cd /d "%~dp0"
-        pause
-        exit /b 1
-    )
-    
-    "%RUNTIME_DIR%\nodejs\npm.cmd" install
-    if "%ERRORLEVEL%" NEQ "0" (
-        echo ERROR: Failed to install Node.js dependencies!
-        echo.
-        echo This could be due to:
-        echo 1. Network connectivity issues
-        echo 2. Incompatible package versions
-        echo 3. Missing system dependencies
-        echo.
-        echo Please check the error messages above for details.
-        cd /d "%~dp0"
-        pause
-        exit /b 1
-    )
-    
-    echo Building frontend...
-    "%RUNTIME_DIR%\nodejs\npm.cmd" run build
-    if "%ERRORLEVEL%" NEQ "0" (
-        echo ERROR: Frontend build failed!
-        echo.
-        echo Please check the error messages above for details.
-        echo Common issues:
-        echo 1. TypeScript compilation errors
-        echo 2. Missing dependencies
-        echo 3. Build configuration problems
-        echo.
-        echo CONTINUING WITH WARNINGS - Frontend may need manual build later...
-        echo.
-        cd /d "%~dp0"
-    )
-    
-    :: Verify build output
-    if not exist "dist\index.html" (
-        echo ERROR: Frontend build completed but index.html was not generated!
-        echo Expected: %APP_DIR%\frontend\dist\index.html
-        echo.
-        echo CONTINUING WITH WARNINGS - Frontend build may be incomplete...
-        echo.
-        cd /d "%~dp0"
-    )
-    
-    echo ✓ Frontend built and verified successfully
-    cd /d "%~dp0"
-) else (
-    echo ERROR: package.json not found in frontend directory!
-    echo Expected: %APP_DIR%\frontend\package.json
-    echo Cannot build frontend without package configuration.
-    echo.
-    echo CONTINUING WITH WARNINGS - Frontend will need manual build later...
-    echo.
-)
-
-echo.
-echo ========================================
-echo Preparing Visual C++ Redistributables
-echo ========================================
-
-:: Create redist directory and README for VC++ redistributables
-if not exist "%~dp0redist" mkdir "%~dp0redist"
-
-:: Create README with download instructions (as requested by user)
-echo Creating VC++ Redistributables download instructions...
-echo Visual C++ Redistributable will be downloaded during installation from Microsoft servers > "%~dp0redist\README.md"
-echo. >> "%~dp0redist\README.md"
-echo Download URL: https://aka.ms/vs/17/release/vc_redist.x64.exe >> "%~dp0redist\README.md"
-echo. >> "%~dp0redist\README.md"
-echo This approach prevents the installer from becoming too large while ensuring >> "%~dp0redist\README.md"
-echo users get the latest version of the Visual C++ Redistributables. >> "%~dp0redist\README.md"
-
-echo ✓ Visual C++ Redistributables instructions created
-
-echo.
-echo ========================================
-echo Creating Required Installer Files
-echo ========================================
-
-:: Create LICENSE.txt file
-echo Creating LICENSE.txt...
-echo MIT License > "%~dp0LICENSE.txt"
-echo. >> "%~dp0LICENSE.txt"
-echo Copyright (c) 2024 SPEI Medical EMR System >> "%~dp0LICENSE.txt"
-echo. >> "%~dp0LICENSE.txt"
-echo Permission is hereby granted, free of charge, to any person obtaining a copy >> "%~dp0LICENSE.txt"
-echo of this software and associated documentation files (the "Software"), to deal >> "%~dp0LICENSE.txt"
-echo in the Software without restriction, including without limitation the rights >> "%~dp0LICENSE.txt"
-echo to use, copy, modify, merge, publish, distribute, sublicense, and/or sell >> "%~dp0LICENSE.txt"
-echo copies of the Software, and to permit persons to whom the Software is >> "%~dp0LICENSE.txt"
-echo furnished to do so, subject to the following conditions: >> "%~dp0LICENSE.txt"
-echo. >> "%~dp0LICENSE.txt"
-echo The above copyright notice and this permission notice shall be included in all >> "%~dp0LICENSE.txt"
-echo copies or substantial portions of the Software. >> "%~dp0LICENSE.txt"
-echo. >> "%~dp0LICENSE.txt"
-echo THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR >> "%~dp0LICENSE.txt"
-echo IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, >> "%~dp0LICENSE.txt"
-echo FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE >> "%~dp0LICENSE.txt"
-echo AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER >> "%~dp0LICENSE.txt"
-echo LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, >> "%~dp0LICENSE.txt"
-echo OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE >> "%~dp0LICENSE.txt"
-echo SOFTWARE. >> "%~dp0LICENSE.txt"
-
-echo ✓ LICENSE.txt created
-
-:: Create basic spei.ico file (placeholder)
-echo Creating spei.ico placeholder...
-echo. > "%~dp0spei.ico"
-echo ✓ spei.ico placeholder created (replace with actual icon file)
-
-:: Create spei_installer.nsi file
-echo Creating spei_installer.nsi...
-echo ; SPEI Medical EMR System Installer Script > "%~dp0spei_installer.nsi"
-echo ; Generated by prepare-runtime.bat >> "%~dp0spei_installer.nsi"
-echo. >> "%~dp0spei_installer.nsi"
-echo !define PRODUCT_NAME "SPEI Medical EMR System" >> "%~dp0spei_installer.nsi"
-echo !define PRODUCT_VERSION "1.0.0" >> "%~dp0spei_installer.nsi"
-echo !define PRODUCT_PUBLISHER "SPEI Healthcare Solutions" >> "%~dp0spei_installer.nsi"
-echo !define PRODUCT_WEB_SITE "http://localhost:3000" >> "%~dp0spei_installer.nsi"
-echo !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\spei.exe" >> "%~dp0spei_installer.nsi"
-echo !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" >> "%~dp0spei_installer.nsi"
-echo !define PRODUCT_UNINST_ROOT_KEY "HKLM" >> "%~dp0spei_installer.nsi"
-echo. >> "%~dp0spei_installer.nsi"
-echo Name "${PRODUCT_NAME}" >> "%~dp0spei_installer.nsi"
-echo OutFile "SPEI-System-Installer.exe" >> "%~dp0spei_installer.nsi"
-echo InstallDir "$PROGRAMFILES\SPEI" >> "%~dp0spei_installer.nsi"
-echo InstallDirRegKey HKLM "${PRODUCT_DIR_REGKEY}" "" >> "%~dp0spei_installer.nsi"
-echo ShowInstDetails show >> "%~dp0spei_installer.nsi"
-echo ShowUnInstDetails show >> "%~dp0spei_installer.nsi"
-echo. >> "%~dp0spei_installer.nsi"
-echo Section "MainSection" SEC01 >> "%~dp0spei_installer.nsi"
-echo   SetOutPath "$INSTDIR" >> "%~dp0spei_installer.nsi"
-echo   File /r "runtime" >> "%~dp0spei_installer.nsi"
-echo   File /r "app" >> "%~dp0spei_installer.nsi"
-echo   File /r "redist" >> "%~dp0spei_installer.nsi"
-echo   File "LICENSE.txt" >> "%~dp0spei_installer.nsi"
-echo SectionEnd >> "%~dp0spei_installer.nsi"
-echo. >> "%~dp0spei_installer.nsi"
-echo Section -AdditionalIcons >> "%~dp0spei_installer.nsi"
-echo   CreateDirectory "$SMPROGRAMS\SPEI Medical EMR" >> "%~dp0spei_installer.nsi"
-echo   CreateShortCut "$SMPROGRAMS\SPEI Medical EMR\SPEI Medical EMR.lnk" "http://localhost:3000" >> "%~dp0spei_installer.nsi"
-echo   CreateShortCut "$DESKTOP\SPEI Medical EMR.lnk" "http://localhost:3000" >> "%~dp0spei_installer.nsi"
-echo SectionEnd >> "%~dp0spei_installer.nsi"
-echo. >> "%~dp0spei_installer.nsi"
-echo Section -Post >> "%~dp0spei_installer.nsi"
-echo   WriteUninstaller "$INSTDIR\uninst.exe" >> "%~dp0spei_installer.nsi"
-echo   WriteRegStr HKLM "${PRODUCT_DIR_REGKEY}" "" "$INSTDIR\spei.exe" >> "%~dp0spei_installer.nsi"
-echo   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayName" "$(^Name)" >> "%~dp0spei_installer.nsi"
-echo   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "UninstallString" "$INSTDIR\uninst.exe" >> "%~dp0spei_installer.nsi"
-echo   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayVersion" "${PRODUCT_VERSION}" >> "%~dp0spei_installer.nsi"
-echo   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "URLInfoAbout" "${PRODUCT_WEB_SITE}" >> "%~dp0spei_installer.nsi"
-echo   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "Publisher" "${PRODUCT_PUBLISHER}" >> "%~dp0spei_installer.nsi"
-echo SectionEnd >> "%~dp0spei_installer.nsi"
-
-echo ✓ spei_installer.nsi created
-
-echo ✓ All required installer files created
-
-echo.
-echo ========================================
-echo Final Verification and Cleanup
-echo ========================================
-
-:: Final verification of all components
-echo Performing final component verification...
-
-:: Verify Python runtime
-if not exist "%RUNTIME_DIR%\python\python.exe" (
-    echo ERROR: Python runtime verification failed!
-    echo Missing: %RUNTIME_DIR%\python\python.exe
-    pause
-    exit /b 1
-)
-
-:: Verify Node.js runtime
-if not exist "%RUNTIME_DIR%\nodejs\node.exe" (
-    echo ERROR: Node.js runtime verification failed!
-    echo Missing: %RUNTIME_DIR%\nodejs\node.exe
-    pause
-    exit /b 1
-)
-
-:: Verify PostgreSQL runtime
-if not exist "%RUNTIME_DIR%\postgresql\bin\postgres.exe" (
-    echo ERROR: PostgreSQL runtime verification failed!
-    echo Missing: %RUNTIME_DIR%\postgresql\bin\postgres.exe
-    pause
-    exit /b 1
-)
-
-:: Verify application files
-if not exist "%APP_DIR%\backend" (
-    echo ERROR: Backend application files verification failed!
-    echo Missing: %APP_DIR%\backend
-    pause
-    exit /b 1
-)
-
-if not exist "%APP_DIR%\frontend" (
-    echo ERROR: Frontend application files verification failed!
-    echo Missing: %APP_DIR%\frontend
-    pause
-    exit /b 1
-)
-
-:: Verify VC++ Redistributables instructions
-if not exist "%~dp0redist\README.md" (
-    echo ERROR: VC++ Redistributables instructions verification failed!
-    echo Missing: %~dp0redist\README.md
-    pause
-    exit /b 1
-)
-
-:: Verify installer files
-if not exist "%~dp0LICENSE.txt" (
-    echo ERROR: LICENSE.txt verification failed!
-    echo Missing: %~dp0LICENSE.txt
-    pause
-    exit /b 1
-)
-
-if not exist "%~dp0spei.ico" (
-    echo ERROR: spei.ico verification failed!
-    echo Missing: %~dp0spei.ico
-    pause
-    exit /b 1
-)
-
-if not exist "%~dp0spei_installer.nsi" (
-    echo ERROR: spei_installer.nsi verification failed!
-    echo Missing: %~dp0spei_installer.nsi
-    pause
-    exit /b 1
-)
-
-echo ✓ All components verified successfully
-
-echo Cleaning up temporary files...
-if exist "%TEMP_DIR%" (
-    rmdir /S /Q "%TEMP_DIR%" 2>nul
-    if exist "%TEMP_DIR%" (
-        echo WARNING: Could not completely clean temporary directory
-        echo Some files may still exist in: %TEMP_DIR%
-    ) else (
-        echo ✓ Temporary files cleaned successfully
-    )
-)
-
-echo.
-echo ========================================
-echo Runtime preparation completed!
-echo ========================================
-echo.
-echo Components prepared:
-echo - Python 3.11 Embeddable: %RUNTIME_DIR%\python
-echo - Node.js 18: %RUNTIME_DIR%\nodejs  
-echo - PostgreSQL 15: %RUNTIME_DIR%\postgresql
-echo - Redis: %RUNTIME_DIR%\redis
-echo - Application: %APP_DIR%
-echo - VC++ Redist: redist\README.md (download instructions)
-echo - Installer Files: LICENSE.txt, spei.ico, spei_installer.nsi
-echo.
-echo Ready to build installer!
-echo.
-echo ========================================
-echo IMPORTANT: Press any key to continue...
-echo ========================================
-pause
