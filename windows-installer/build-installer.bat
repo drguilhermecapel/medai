@@ -16,6 +16,7 @@ set "CONFIG_DIR=%SCRIPT_DIR%config"
 set "MODELS_DIR=%SCRIPT_DIR%models"
 set "SAMPLES_DIR=%SCRIPT_DIR%samples"
 set "INNO_SETUP=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+set "INNO_SETUP_ALT=C:\Program Files\Inno Setup 6\ISCC.exe"
 set "SCRIPT_PATH=%SCRIPT_DIR%setup.iss"
 
 echo Build Environment:
@@ -33,18 +34,29 @@ echo ========================================
 echo Checking Inno Setup installation...
 echo Looking for: "%INNO_SETUP%"
 if not exist "%INNO_SETUP%" (
-    echo ERROR: Inno Setup 6 not found!
-    echo Expected location: "%INNO_SETUP%"
-    echo.
-    echo SOLUTION:
-    echo 1. Download Inno Setup 6 from: https://jrsoftware.org/isinfo.php
-    echo 2. Install with default settings
-    echo 3. Re-run this script
-    echo.
-    pause
-    exit /b 1
+    echo Primary location not found, checking alternative location...
+    echo Looking for: "%INNO_SETUP_ALT%"
+    if not exist "%INNO_SETUP_ALT%" (
+        echo ERROR: Inno Setup 6 not found!
+        echo Checked locations:
+        echo - "%INNO_SETUP%"
+        echo - "%INNO_SETUP_ALT%"
+        echo.
+        echo SOLUTION:
+        echo 1. Download Inno Setup 6 from: https://jrsoftware.org/isinfo.php
+        echo 2. Install with default settings
+        echo 3. Re-run this script
+        echo.
+        pause
+        exit /b 1
+    ) else (
+        set "INNO_SETUP=%INNO_SETUP_ALT%"
+        echo ✓ Inno Setup 6 found at alternative location
+    )
+) else (
+    echo ✓ Inno Setup 6 found at primary location
 )
-echo ✓ Inno Setup 6 found
+
 
 :: Check for setup.iss script
 echo Checking setup script...
@@ -56,6 +68,34 @@ if not exist "%SCRIPT_PATH%" (
     exit /b 1
 )
 echo ✓ Setup script found
+
+:: Validate icon files (optional - warn if corrupted but don't fail)
+echo Validating icon files...
+if exist "assets\spei-icon.ico" (
+    for %%A in ("assets\spei-icon.ico") do (
+        if %%~zA LSS 1000 (
+            echo WARNING: spei-icon.ico appears to be corrupted (%%~zA bytes)
+            echo Icon references have been disabled in setup.iss
+        ) else (
+            echo ✓ spei-icon.ico appears valid (%%~zA bytes)
+        )
+    )
+) else (
+    echo INFO: spei-icon.ico not found - using default system icons
+)
+
+if exist "assets\web-icon.ico" (
+    for %%A in ("assets\web-icon.ico") do (
+        if %%~zA LSS 1000 (
+            echo WARNING: web-icon.ico appears to be corrupted (%%~zA bytes)
+            echo Icon references have been disabled in setup.iss
+        ) else (
+            echo ✓ web-icon.ico appears valid (%%~zA bytes)
+        )
+    )
+) else (
+    echo INFO: web-icon.ico not found - using default system icons
+)
 
 :: Validate required utility scripts
 echo Validating required utility scripts...
@@ -152,13 +192,13 @@ echo ✓ Output directory ready
 
 echo.
 echo ========================================
-echo Portable Installer Configuration
+echo Installer Configuration
 echo ========================================
 
-echo ✓ Portable installer mode enabled
-echo ✓ Runtime components downloaded automatically during installation
-echo ✓ No manual preparation or pre-installation steps required
-echo ✓ Creates fully self-contained SPEI medical EMR system
+echo ✓ Self-contained installer mode enabled
+echo ✓ Runtime components configured for automatic installation
+echo ✓ Automated setup process for end users
+echo ✓ Creates fully functional SPEI medical EMR system
 
 :: Check for source application files (will be copied during installation)
 echo Validating source application files...
@@ -207,6 +247,10 @@ echo ========================================
 
 echo Running Inno Setup compiler...
 echo Command: "%INNO_SETUP%" "%SCRIPT_PATH%"
+echo.
+echo Compiling installer... This may take several minutes.
+echo Please wait while the installer is being built...
+echo.
 "%INNO_SETUP%" "%SCRIPT_PATH%"
 
 if !ERRORLEVEL! NEQ 0 (
@@ -242,19 +286,18 @@ if not exist "%INSTALLER_PATH%" (
 )
 echo ✓ Installer file created successfully
 
-:: Check installer file size (should be reasonable for portable installer)
+:: Check installer file size (should be reasonable for self-contained installer)
 for %%A in ("%INSTALLER_PATH%") do set "installer_size=%%~zA"
-if %installer_size% LSS 10000000 (
+if %installer_size% LSS 5000000 (
     echo WARNING: Installer file is smaller than expected (%installer_size% bytes).
-    echo Expected size: ~50MB base installer
+    echo Expected minimum size: ~5MB
     echo This may indicate missing application files or incomplete build.
     echo.
-    echo Note: Runtime components (~295MB total) are downloaded during installation:
-    echo - Python 3.11 Embeddable (~15MB)
-    echo - Node.js 18.20.3 (~50MB)
-    echo - PostgreSQL 15.7 Portable (~200MB)
-    echo - Redis for Windows (~5MB)
-    echo - Visual C++ Redistributables (~25MB)
+    echo The installer should contain:
+    echo - Application source files
+    echo - Configuration files
+    echo - Utility scripts
+    echo - Installation wizard
     echo.
     pause
 )
@@ -267,7 +310,8 @@ echo ========================================
 echo.
 echo Installer Details:
 echo - File: %INSTALLER_PATH%
-echo - Size: %installer_size% bytes (~!installer_size:~0,-6! MB)
+set /a "installer_mb=%installer_size% / 1048576"
+echo - Size: %installer_size% bytes (~%installer_mb% MB)
 echo - Created: %DATE% %TIME%
 echo.
 
@@ -277,23 +321,23 @@ dir "%DIST_DIR%" /B
 
 echo.
 echo ========================================
-echo Portable Installer Ready!
+echo SPEI Installer Ready!
 echo ========================================
 echo.
-echo Your portable SPEI installer is ready for distribution:
+echo Your SPEI installer is ready for distribution:
 echo - Double-click to install on any Windows 10/11 system
-echo - No technical knowledge required from end users
-echo - Automatically downloads and configures all components
+echo - User-friendly installation wizard
+echo - Automatically configures all components
 echo - Creates fully functional medical EMR system
 echo.
 echo Testing checklist:
 echo 1. Test installer on clean Windows system
-echo 2. Verify automatic component downloads work
+echo 2. Verify all components install correctly
 echo 3. Confirm application launches after installation
 echo 4. Test medical record functionality
 echo 5. Validate compliance and security features
 echo.
-echo The portable installer is ready for distribution!
+echo The installer is ready for distribution!
 echo.
 
 pause
