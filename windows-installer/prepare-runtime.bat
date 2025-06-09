@@ -14,7 +14,7 @@ if not exist "%TEMP_DIR%" mkdir "%TEMP_DIR%"
 :check_powershell
 :: Method 1: Direct command execution test (most reliable)
 powershell -Command "Get-Host" >nul 2>&1
-if %ERRORLEVEL% EQU 0 (
+if "%ERRORLEVEL%"=="0" (
     set "POWERSHELL_AVAILABLE=1"
     echo ✓ PowerShell detected and available (direct execution test)
     goto :powershell_detected
@@ -22,7 +22,7 @@ if %ERRORLEVEL% EQU 0 (
 
 :: Method 2: PATH-based detection (fallback)
 where powershell >nul 2>&1
-if %ERRORLEVEL% EQU 0 (
+if "%ERRORLEVEL%"=="0" (
     set "POWERSHELL_AVAILABLE=1"
     echo ✓ PowerShell detected and available (PATH detection)
     goto :powershell_detected
@@ -55,7 +55,7 @@ echo ========================================
 echo Environment Diagnostics Complete
 echo ========================================
 
-if %POWERSHELL_AVAILABLE% EQU 0 (
+if "%POWERSHELL_AVAILABLE%"=="0" (
     echo.
     echo ========================================
     echo PowerShell Not Detected
@@ -80,7 +80,7 @@ echo Windows Version:
 ver
 echo.
 echo PowerShell Status:
-if %POWERSHELL_AVAILABLE% EQU 1 (
+if "%POWERSHELL_AVAILABLE%"=="1" (
     powershell -Command "try { $PSVersionTable.PSVersion } catch { Write-Host 'PowerShell restricted' }"
     echo PowerShell Execution Policy:
     powershell -Command "try { Get-ExecutionPolicy } catch { Write-Host 'Cannot determine execution policy' }"
@@ -89,10 +89,10 @@ if %POWERSHELL_AVAILABLE% EQU 1 (
 )
 echo.
 echo Network Connectivity Test:
-if %POWERSHELL_AVAILABLE% EQU 1 (
+if "%POWERSHELL_AVAILABLE%"=="1" (
     echo Testing connection to nodejs.org...
     powershell -Command "try { Test-NetConnection -ComputerName nodejs.org -Port 443 -InformationLevel Quiet } catch { Write-Host 'Network test failed' }"
-    if %ERRORLEVEL% EQU 0 (
+    if "%ERRORLEVEL%"=="0" (
         echo ✓ Network connection to nodejs.org successful
     ) else (
         echo ✗ Network connection to nodejs.org failed
@@ -101,7 +101,7 @@ if %POWERSHELL_AVAILABLE% EQU 1 (
     
     echo Testing connection to github.com...
     powershell -Command "try { Test-NetConnection -ComputerName github.com -Port 443 -InformationLevel Quiet } catch { Write-Host 'Network test failed' }"
-    if %ERRORLEVEL% EQU 0 (
+    if "%ERRORLEVEL%"=="0" (
         echo ✓ Network connection to github.com successful
     ) else (
         echo ✗ Network connection to github.com failed
@@ -131,21 +131,21 @@ if not exist "%RUNTIME_DIR%\python" (
     set "PYTHON_URL=https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip"
     
     :: Strategy 1: PowerShell (if available)
-    if %POWERSHELL_AVAILABLE% EQU 1 (
+    if "%POWERSHELL_AVAILABLE%"=="1" (
         echo [1/3] Trying PowerShell download...
         powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%TEMP_DIR%\python.zip' -UseBasicParsing -TimeoutSec 600 } catch { exit 1 }"
-        if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\python.zip" goto :python_verify
+        if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\python.zip" goto :python_verify
     )
     
     :: Strategy 2: certutil download
     echo [2/3] Trying certutil download...
     certutil -urlcache -split -f "%PYTHON_URL%" "%TEMP_DIR%\python.zip" >nul 2>&1
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\python.zip" goto :python_verify
+    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\python.zip" goto :python_verify
     
     :: Strategy 3: bitsadmin download
     echo [3/3] Trying bitsadmin download...
     bitsadmin /transfer "PythonDownload" /download /priority normal "%PYTHON_URL%" "%TEMP_DIR%\python.zip" >nul 2>&1
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\python.zip" goto :python_verify
+    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\python.zip" goto :python_verify
     
     :: All strategies failed
     goto :python_download_failed
@@ -156,7 +156,7 @@ if not exist "%RUNTIME_DIR%\python" (
     
     :: Check file size (should be around 9MB)
     for %%A in ("%TEMP_DIR%\python.zip") do set "pythonfilesize=%%~zA"
-    if %pythonfilesize% LSS 5000000 (
+    if "%pythonfilesize%" LSS "5000000" (
         echo ERROR: Python zip file is too small (%pythonfilesize% bytes). Expected ~9MB.
         del "%TEMP_DIR%\python.zip" 2>nul
         goto :python_download_failed
@@ -176,7 +176,7 @@ if not exist "%RUNTIME_DIR%\python" (
     
     :python_extract
     echo Extracting Python...
-    if %POWERSHELL_AVAILABLE% EQU 1 (
+    if "%POWERSHELL_AVAILABLE%"=="1" (
         powershell -Command "Expand-Archive -Path '%TEMP_DIR%\python.zip' -DestinationPath '%RUNTIME_DIR%\python' -Force"
     ) else (
         :: Use built-in Windows extraction for older systems
@@ -199,7 +199,7 @@ if not exist "%RUNTIME_DIR%\python" (
     
     :: Download get-pip.py using same fallback strategy
     echo Downloading get-pip.py...
-    if %POWERSHELL_AVAILABLE% EQU 1 (
+    if "%POWERSHELL_AVAILABLE%"=="1" (
         powershell -Command "Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%RUNTIME_DIR%\python\get-pip.py'"
     ) else (
         certutil -urlcache -split -f "https://bootstrap.pypa.io/get-pip.py" "%RUNTIME_DIR%\python\get-pip.py" >nul 2>&1
@@ -248,23 +248,23 @@ if not exist "%RUNTIME_DIR%\nodejs" (
     echo [1/4] Trying PowerShell download (primary source)...
     powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $response = Invoke-WebRequest -Uri '%NODEJS_URL%' -OutFile '%TEMP_DIR%\nodejs.zip' -UseBasicParsing -TimeoutSec 600 -PassThru; Write-Host 'Download completed. Size:' $response.Headers.'Content-Length' } catch { Write-Host 'PowerShell download failed:' $_.Exception.Message; exit 1 }"
     
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
     
     :: Strategy 2: Alternative PowerShell source
     echo [2/4] Trying PowerShell download (GitHub source)...
     powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%NODEJS_ALT_URL%' -OutFile '%TEMP_DIR%\nodejs.zip' -UseBasicParsing -TimeoutSec 600 } catch { Write-Host 'GitHub download failed:' $_.Exception.Message; exit 1 }"
     
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
     
     :: Strategy 3: certutil download
     echo [3/4] Trying certutil download...
     certutil -urlcache -split -f "%NODEJS_URL%" "%TEMP_DIR%\nodejs.zip" >nul 2>&1
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
     
     :: Strategy 4: bitsadmin download
     echo [4/4] Trying bitsadmin download...
     bitsadmin /transfer "NodeJSDownload" /download /priority normal "%NODEJS_URL%" "%TEMP_DIR%\nodejs.zip" >nul 2>&1
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
+    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\nodejs.zip" goto :nodejs_verify
     
     :: All strategies failed
     goto :nodejs_download_failed
@@ -280,7 +280,7 @@ if not exist "%RUNTIME_DIR%\nodejs" (
     
     :: Check file size (should be around 29MB)
     for %%A in ("%TEMP_DIR%\nodejs.zip") do set "filesize=%%~zA"
-    if %filesize% LSS 20000000 (
+    if "%filesize%" LSS "20000000" (
         echo ERROR: Node.js zip file is too small (%filesize% bytes). Expected ~29MB.
         echo This indicates a partial or corrupted download.
         del "%TEMP_DIR%\nodejs.zip" 2>nul
@@ -384,21 +384,21 @@ if not exist "%RUNTIME_DIR%\postgresql" (
     echo Attempting to download PostgreSQL from primary source...
     
     :: Strategy 1: PowerShell (if available)
-    if %POWERSHELL_AVAILABLE% EQU 1 (
+    if "%POWERSHELL_AVAILABLE%"=="1" (
         echo [1/3] Trying PowerShell download...
         powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%POSTGRES_URL%' -OutFile '%TEMP_DIR%\postgresql.zip' -UseBasicParsing -TimeoutSec 600 } catch { exit 1 }"
-        if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
     )
     
     :: Strategy 2: certutil download
     echo [2/3] Trying certutil download...
     certutil -urlcache -split -f "%POSTGRES_URL%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
     
     :: Strategy 3: bitsadmin download
     echo [3/3] Trying bitsadmin download...
     bitsadmin /transfer "PostgreSQLDownload" /download /priority normal "%POSTGRES_URL%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
     
     :: Primary source failed, try alternative
     echo Primary PostgreSQL download failed, trying alternative approach...
@@ -407,15 +407,15 @@ if not exist "%RUNTIME_DIR%\postgresql" (
     
     set "POSTGRES_ALT_URL2=https://ftp.postgresql.org/pub/binary/v15.7/win32/postgresql-15.7-1-windows-x64-binaries.zip"
     
-    if %POWERSHELL_AVAILABLE% EQU 1 (
+    if "%POWERSHELL_AVAILABLE%"=="1" (
         powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%POSTGRES_ALT_URL2%' -OutFile '%TEMP_DIR%\postgresql.zip' -UseBasicParsing -TimeoutSec 600 } catch { exit 1 }"
-        if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
     ) else (
         certutil -urlcache -split -f "%POSTGRES_ALT_URL2%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
-        if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
         
         bitsadmin /transfer "PostgreSQLAltDownload" /download /priority normal "%POSTGRES_ALT_URL2%" "%TEMP_DIR%\postgresql.zip" >nul 2>&1
-        if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
+        if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\postgresql.zip" goto :postgres_verify
     )
     
     :postgres_verify
@@ -446,7 +446,7 @@ if not exist "%RUNTIME_DIR%\postgresql" (
     
     :: Check PostgreSQL file size (should be around 200MB)
     for %%A in ("%TEMP_DIR%\postgresql.zip") do set "pgfilesize=%%~zA"
-    if %pgfilesize% LSS 100000000 (
+    if "%pgfilesize%" LSS "100000000" (
         echo ERROR: PostgreSQL zip file is too small (%pgfilesize% bytes). Expected ~200MB.
         echo This indicates a partial or corrupted download.
         del "%TEMP_DIR%\postgresql.zip" 2>nul
@@ -465,7 +465,7 @@ if not exist "%RUNTIME_DIR%\postgresql" (
     echo ✓ PostgreSQL download verified (%pgfilesize% bytes)
     
     echo Extracting PostgreSQL...
-    if %POWERSHELL_AVAILABLE% EQU 1 (
+    if "%POWERSHELL_AVAILABLE%"=="1" (
         powershell -Command "Expand-Archive -Path '%TEMP_DIR%\postgresql.zip' -DestinationPath '%TEMP_DIR%' -Force"
     ) else (
         :: Use built-in Windows extraction for older systems
@@ -521,21 +521,21 @@ if not exist "%RUNTIME_DIR%\redis" (
     echo Attempting to download Redis...
     
     :: Strategy 1: PowerShell (if available)
-    if %POWERSHELL_AVAILABLE% EQU 1 (
+    if "%POWERSHELL_AVAILABLE%"=="1" (
         echo [1/3] Trying PowerShell download...
         powershell -ExecutionPolicy Bypass -Command "try { $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%REDIS_URL%' -OutFile '%TEMP_DIR%\redis.zip' -UseBasicParsing -TimeoutSec 300 } catch { exit 1 }"
-        if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
+        if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
     )
     
     :: Strategy 2: certutil download
     echo [2/3] Trying certutil download...
     certutil -urlcache -split -f "%REDIS_URL%" "%TEMP_DIR%\redis.zip" >nul 2>&1
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
+    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
     
     :: Strategy 3: bitsadmin download
     echo [3/3] Trying bitsadmin download...
     bitsadmin /transfer "RedisDownload" /download /priority normal "%REDIS_URL%" "%TEMP_DIR%\redis.zip" >nul 2>&1
-    if %ERRORLEVEL% EQU 0 if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
+    if "%ERRORLEVEL%"=="0" if exist "%TEMP_DIR%\redis.zip" goto :redis_verify_download
     
     :: All strategies failed
     echo Redis download failed. Redis is optional for basic functionality.
@@ -559,7 +559,7 @@ if not exist "%RUNTIME_DIR%\redis" (
     
     :: Check Redis file size (should be around 5MB)
     for %%A in ("%TEMP_DIR%\redis.zip") do set "redisfilesize=%%~zA"
-    if %redisfilesize% LSS 1000000 (
+    if "%redisfilesize%" LSS "1000000" (
         echo WARNING: Redis zip file is too small (%redisfilesize% bytes). Expected ~5MB.
         echo This indicates a partial or corrupted download.
         del "%TEMP_DIR%\redis.zip" 2>nul
@@ -569,7 +569,7 @@ if not exist "%RUNTIME_DIR%\redis" (
     echo ✓ Redis download verified (%redisfilesize% bytes)
     
     echo Extracting Redis...
-    if %POWERSHELL_AVAILABLE% EQU 1 (
+    if "%POWERSHELL_AVAILABLE%"=="1" (
         powershell -Command "Expand-Archive -Path '%TEMP_DIR%\redis.zip' -DestinationPath '%RUNTIME_DIR%\redis' -Force"
     ) else (
         :: Use built-in Windows extraction for older systems
