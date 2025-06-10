@@ -7,11 +7,12 @@ echo ========================================
 
 set "SPEI_HOME=%~dp0.."
 set "PYTHON_HOME=%SPEI_HOME%\runtime\python"
+set "NODE_HOME=%SPEI_HOME%\runtime\nodejs"
 set "POSTGRES_HOME=%SPEI_HOME%\runtime\postgresql"
 set "PGDATA=%SPEI_HOME%\data\postgres"
 
 :: Set PATH
-set "PATH=%PYTHON_HOME%;%PYTHON_HOME%\Scripts;%POSTGRES_HOME%\bin;%PATH%"
+set "PATH=%PYTHON_HOME%;%PYTHON_HOME%\Scripts;%NODE_HOME%;%POSTGRES_HOME%\bin;%PATH%"
 
 :: Initialize PostgreSQL database
 echo Initializing PostgreSQL database...
@@ -29,6 +30,17 @@ echo Creating SPEI database...
 "%POSTGRES_HOME%\bin\createdb.exe" -U postgres spei_db
 "%POSTGRES_HOME%\bin\psql.exe" -U postgres -d spei_db -c "CREATE USER spei WITH PASSWORD 'spei_password';"
 "%POSTGRES_HOME%\bin\psql.exe" -U postgres -d spei_db -c "GRANT ALL PRIVILEGES ON DATABASE spei_db TO spei;"
+
+:: Install Node.js global packages
+echo Installing Node.js global packages...
+"%NODE_HOME%\npm.cmd" install -g serve
+if %ERRORLEVEL% NEQ 0 (
+    echo ERROR: Failed to install serve package!
+    call :show_error_dialog "Node.js Package Error" "Failed to install serve package globally. Please check Node.js installation."
+    pause
+    exit /b 1
+)
+echo Node.js serve package installed successfully
 
 :: Install Python dependencies
 echo Installing Python dependencies...
@@ -84,14 +96,41 @@ async def create_admin():
 asyncio.run(create_admin())
 "
 
-:: Build frontend
+:: Build frontend properly
 if exist "%SPEI_HOME%\frontend\package.json" (
     echo Building frontend...
     cd /d "%SPEI_HOME%\frontend"
-    npm install
-    npm run build
+    "%NODE_HOME%\npm.cmd" install
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Frontend npm install failed!
+        call :show_error_dialog "Frontend Build Error" "Failed to install frontend dependencies. Please check the logs."
+        pause
+        exit /b 1
+    )
+    "%NODE_HOME%\npm.cmd" run build
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Frontend build failed!
+        call :show_error_dialog "Frontend Build Error" "Failed to build frontend. Please check the logs."
+        pause
+        exit /b 1
+    )
+    echo Frontend built successfully
+
+:: GUI Error Dialog Function
+:show_error_dialog
+set "title=%~1"
+set "message=%~2"
+powershell -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('%message%', '%title%', 'OK', 'Error')" >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    echo %title%: %message%
+)
+goto :eof
+
 ) else (
-    echo Frontend package.json not found, skipping build...
+    echo ERROR: Frontend package.json not found!
+    call :show_error_dialog "Frontend Configuration Error" "Frontend package.json not found at %SPEI_HOME%\frontend\package.json"
+    pause
+    exit /b 1
 )
 
 :: Stop temporary PostgreSQL
