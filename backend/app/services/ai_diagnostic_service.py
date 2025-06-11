@@ -101,7 +101,7 @@ class AIDiagnosticService:
     ) -> dict[str, Any]:
         """Generate AI-powered diagnostic suggestions."""
         try:
-            diagnostic_result = {
+            diagnostic_result: dict[str, Any] = {
                 "patient_id": patient_data.get("patient_id"),
                 "analysis_timestamp": datetime.utcnow().isoformat(),
                 "primary_suggestions": [],
@@ -130,7 +130,8 @@ class AIDiagnosticService:
                 )
 
                 if category_suggestions:
-                    diagnostic_result["differential_diagnoses"].extend(category_suggestions)
+                    differential_diagnoses: list[dict[str, Any]] = diagnostic_result["differential_diagnoses"]
+                    differential_diagnoses.extend(category_suggestions)
 
             for pattern_name, pattern_data in pattern_matches.items():
                 if pattern_data["match_score"] > 0.6:
@@ -138,14 +139,16 @@ class AIDiagnosticService:
                         diagnostic_result, pattern_name, pattern_data
                     )
 
-            diagnostic_result["differential_diagnoses"].sort(
+            differential_diagnoses_list: list[dict[str, Any]] = diagnostic_result["differential_diagnoses"]
+            differential_diagnoses_list.sort(
                 key=lambda x: x.get("confidence", 0), reverse=True
             )
 
-            diagnostic_result["primary_suggestions"] = diagnostic_result["differential_diagnoses"][:3]
+            diagnostic_result["primary_suggestions"] = differential_diagnoses_list[:3]
 
+            primary_suggestions: list[dict[str, Any]] = diagnostic_result["primary_suggestions"]
             diagnostic_result["recommended_tests"] = await self._generate_test_recommendations(
-                diagnostic_result["primary_suggestions"], clinical_presentation
+                primary_suggestions, clinical_presentation
             )
 
             diagnostic_result["red_flags"] = await self._identify_red_flags(
@@ -153,7 +156,7 @@ class AIDiagnosticService:
             )
 
             diagnostic_result["confidence_summary"] = await self._calculate_confidence_summary(
-                diagnostic_result["differential_diagnoses"]
+                differential_diagnoses_list
             )
 
             logger.info(f"Generated diagnostic suggestions for patient {patient_data.get('patient_id')}")

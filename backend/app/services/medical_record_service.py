@@ -6,7 +6,7 @@ Optimized version based on MedIA Pro medical record capabilities.
 import logging
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -89,34 +89,37 @@ class MedicalRecordService:
         validation_result = {"valid": True, "errors": []}
 
         try:
+            errors_list = cast(list[str], validation_result["errors"])
+
             if record_type == RecordType.CONSULTATION:
                 required_fields = ["chief_complaint", "history_present_illness", "assessment", "plan"]
                 for field in required_fields:
                     if field not in record_data or not record_data[field]:
-                        validation_result["errors"].append(f"Missing required field: {field}")
+                        errors_list.append(f"Missing required field: {field}")
 
             elif record_type == RecordType.PRESCRIPTION:
                 required_fields = ["medications"]
                 for field in required_fields:
                     if field not in record_data or not record_data[field]:
-                        validation_result["errors"].append(f"Missing required field: {field}")
+                        errors_list.append(f"Missing required field: {field}")
 
                 medications = record_data.get("medications", [])
                 for i, med in enumerate(medications):
                     if not isinstance(med, dict):
-                        validation_result["errors"].append(f"Medication {i+1} must be an object")
+                        errors_list.append(f"Medication {i+1} must be an object")
                         continue
 
                     med_required = ["name", "dosage", "frequency", "duration"]
                     for field in med_required:
                         if field not in med or not med[field]:
-                            validation_result["errors"].append(f"Medication {i+1} missing {field}")
+                            errors_list.append(f"Medication {i+1} missing {field}")
 
-            validation_result["valid"] = len(validation_result["errors"]) == 0
+            validation_result["valid"] = len(errors_list) == 0
 
         except Exception as e:
             validation_result["valid"] = False
-            validation_result["errors"].append(f"Validation error: {str(e)}")
+            errors_list = cast(list[str], validation_result["errors"])
+            errors_list.append(f"Validation error: {str(e)}")
 
         return validation_result
 
