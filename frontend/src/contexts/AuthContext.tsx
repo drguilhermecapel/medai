@@ -20,10 +20,10 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }): JS
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL
-      
+
       let baseUrl = apiUrl
       let authHeader = ''
-      
+
       if (apiUrl.includes('@')) {
         const urlParts = apiUrl.split('://')
         const protocol = urlParts[0]
@@ -31,7 +31,7 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }): JS
         const atIndex = rest.indexOf('@')
         const credentials = rest.substring(0, atIndex)
         const domain = rest.substring(atIndex + 1)
-        
+
         baseUrl = `${protocol}://${domain}`
         authHeader = `Basic ${btoa(credentials)}`
       }
@@ -43,7 +43,7 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }): JS
       const headers: Record<string, string> = {
         'Content-Type': 'application/x-www-form-urlencoded',
       }
-      
+
       if (authHeader) {
         headers['Authorization'] = authHeader
       }
