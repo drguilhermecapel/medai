@@ -5,8 +5,8 @@ Optimized version based on MedIA Pro diagnostic AI capabilities.
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
 from enum import Enum
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,7 +44,7 @@ class AIDiagnosticService:
         self.diagnostic_models = self._initialize_diagnostic_models()
         self.symptom_patterns = self._initialize_symptom_patterns()
 
-    def _initialize_diagnostic_models(self) -> Dict[str, Dict[str, Any]]:
+    def _initialize_diagnostic_models(self) -> dict[str, dict[str, Any]]:
         """Initialize diagnostic AI models configuration."""
         return {
             "cardiovascular": {
@@ -67,7 +67,7 @@ class AIDiagnosticService:
             }
         }
 
-    def _initialize_symptom_patterns(self) -> Dict[str, Dict[str, Any]]:
+    def _initialize_symptom_patterns(self) -> dict[str, dict[str, Any]]:
         """Initialize symptom pattern recognition."""
         return {
             "acute_coronary_syndrome": {
@@ -95,10 +95,10 @@ class AIDiagnosticService:
 
     async def generate_diagnostic_suggestions(
         self,
-        patient_data: Dict[str, Any],
-        clinical_presentation: Dict[str, Any],
-        additional_context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        patient_data: dict[str, Any],
+        clinical_presentation: dict[str, Any],
+        additional_context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Generate AI-powered diagnostic suggestions."""
         try:
             diagnostic_result = {
@@ -128,7 +128,7 @@ class AIDiagnosticService:
                 category_suggestions = await self._generate_category_suggestions(
                     category, model_config, symptoms, patient_data, clinical_presentation
                 )
-                
+
                 if category_suggestions:
                     diagnostic_result["differential_diagnoses"].extend(category_suggestions)
 
@@ -168,10 +168,10 @@ class AIDiagnosticService:
 
     async def _analyze_symptom_patterns(
         self,
-        symptoms: List[str],
-        patient_data: Dict[str, Any],
-        clinical_presentation: Dict[str, Any]
-    ) -> Dict[str, Dict[str, Any]]:
+        symptoms: list[str],
+        patient_data: dict[str, Any],
+        clinical_presentation: dict[str, Any]
+    ) -> dict[str, dict[str, Any]]:
         """Analyze symptoms against known patterns."""
         pattern_matches = {}
 
@@ -221,26 +221,26 @@ class AIDiagnosticService:
     async def _generate_category_suggestions(
         self,
         category: str,
-        model_config: Dict[str, Any],
-        symptoms: List[str],
-        patient_data: Dict[str, Any],
-        clinical_presentation: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        model_config: dict[str, Any],
+        symptoms: list[str],
+        patient_data: dict[str, Any],
+        clinical_presentation: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Generate diagnostic suggestions for a specific category."""
         suggestions = []
 
         relevant_features = [f for f in model_config["features"] if f in symptoms]
-        
+
         if len(relevant_features) >= 1:  # At least one relevant feature
             for diagnosis in model_config["common_diagnoses"]:
                 base_confidence = len(relevant_features) / len(model_config["features"])
-                
+
                 age_factor = 1.0
                 if patient_data.get("age", 0) > 65:
                     age_factor = 1.1  # Slightly higher confidence for older patients
-                
+
                 final_confidence = min(base_confidence * age_factor, 1.0)
-                
+
                 if final_confidence >= model_config["confidence_threshold"]:
                     suggestion = {
                         "diagnosis": diagnosis,
@@ -256,13 +256,13 @@ class AIDiagnosticService:
 
     async def _apply_pattern_boost(
         self,
-        diagnostic_result: Dict[str, Any],
+        diagnostic_result: dict[str, Any],
         pattern_name: str,
-        pattern_data: Dict[str, Any]
+        pattern_data: dict[str, Any]
     ) -> None:
         """Apply confidence boost for pattern matches."""
         boost = pattern_data["confidence_boost"]
-        
+
         for suggestion in diagnostic_result["differential_diagnoses"]:
             if pattern_name.replace("_", " ") in suggestion["diagnosis"].lower():
                 suggestion["confidence"] = min(suggestion["confidence"] + boost, 1.0)
@@ -270,9 +270,9 @@ class AIDiagnosticService:
 
     async def _generate_test_recommendations(
         self,
-        primary_suggestions: List[Dict[str, Any]],
-        clinical_presentation: Dict[str, Any]
-    ) -> List[str]:
+        primary_suggestions: list[dict[str, Any]],
+        clinical_presentation: dict[str, Any]
+    ) -> list[str]:
         """Generate recommended diagnostic tests."""
         recommendations = []
 
@@ -298,22 +298,22 @@ class AIDiagnosticService:
 
     async def _identify_red_flags(
         self,
-        symptoms: List[str],
-        vital_signs: Dict[str, Any],
-        physical_exam: Dict[str, Any]
-    ) -> List[str]:
+        symptoms: list[str],
+        vital_signs: dict[str, Any],
+        physical_exam: dict[str, Any]
+    ) -> list[str]:
         """Identify clinical red flags requiring immediate attention."""
         red_flags = []
 
         if vital_signs.get("systolic_blood_pressure", 0) < 90:
             red_flags.append("Severe hypotension")
-        
+
         if vital_signs.get("heart_rate", 0) > 120:
             red_flags.append("Severe tachycardia")
-        
+
         if vital_signs.get("respiratory_rate", 0) > 30:
             red_flags.append("Severe tachypnea")
-        
+
         if vital_signs.get("oxygen_saturation", 100) < 90:
             red_flags.append("Severe hypoxemia")
 
@@ -321,7 +321,7 @@ class AIDiagnosticService:
             "chest_pain", "shortness_of_breath", "altered_mental_status",
             "severe_headache", "focal_neurological_deficit"
         ]
-        
+
         for symptom in symptoms:
             if symptom in critical_symptoms:
                 red_flags.append(f"Critical symptom: {symptom.replace('_', ' ')}")
@@ -330,8 +330,8 @@ class AIDiagnosticService:
 
     async def _calculate_confidence_summary(
         self,
-        differential_diagnoses: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        differential_diagnoses: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Calculate overall confidence summary."""
         if not differential_diagnoses:
             return {
@@ -381,7 +381,7 @@ class AIDiagnosticService:
         critical_diagnoses = [
             "myocardial_infarction", "stroke", "sepsis", "pulmonary_embolism"
         ]
-        
+
         if diagnosis in critical_diagnoses and confidence > 0.7:
             return "critical"
         elif confidence > 0.8:

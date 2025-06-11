@@ -3,16 +3,13 @@ Medical Record Service - Comprehensive medical record management.
 Optimized version based on MedIA Pro medical record capabilities.
 """
 
-import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 from enum import Enum
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
 
-from app.models.patient import Patient
 from app.repositories.patient_repository import PatientRepository
 
 logger = logging.getLogger(__name__)
@@ -50,9 +47,9 @@ class MedicalRecordService:
         self,
         patient_id: str,
         record_type: RecordType,
-        record_data: Dict[str, Any],
+        record_data: dict[str, Any],
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create a new medical record."""
         try:
             patient = await self.patient_repository.get_patient_by_patient_id(patient_id)
@@ -86,8 +83,8 @@ class MedicalRecordService:
     async def _validate_record_data(
         self,
         record_type: RecordType,
-        record_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        record_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Validate record data based on type."""
         validation_result = {"valid": True, "errors": []}
 
@@ -103,13 +100,13 @@ class MedicalRecordService:
                 for field in required_fields:
                     if field not in record_data or not record_data[field]:
                         validation_result["errors"].append(f"Missing required field: {field}")
-                
+
                 medications = record_data.get("medications", [])
                 for i, med in enumerate(medications):
                     if not isinstance(med, dict):
                         validation_result["errors"].append(f"Medication {i+1} must be an object")
                         continue
-                    
+
                     med_required = ["name", "dosage", "frequency", "duration"]
                     for field in med_required:
                         if field not in med or not med[field]:
@@ -125,9 +122,9 @@ class MedicalRecordService:
 
     async def _process_record_by_type(
         self,
-        record: Dict[str, Any],
+        record: dict[str, Any],
         record_type: RecordType
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Apply record-specific processing."""
         try:
             if record_type == RecordType.CONSULTATION:
@@ -141,10 +138,10 @@ class MedicalRecordService:
             logger.error(f"Error processing record: {str(e)}")
             return record
 
-    async def _process_consultation_record(self, record: Dict[str, Any]) -> Dict[str, Any]:
+    async def _process_consultation_record(self, record: dict[str, Any]) -> dict[str, Any]:
         """Process consultation record with clinical decision support."""
         data = record["data"]
-        
+
         clinical_summary = {
             "chief_complaint": data.get("chief_complaint"),
             "vital_signs": data.get("vital_signs", {}),
@@ -157,7 +154,7 @@ class MedicalRecordService:
         record["clinical_summary"] = clinical_summary
         return record
 
-    async def _process_prescription_record(self, record: Dict[str, Any]) -> Dict[str, Any]:
+    async def _process_prescription_record(self, record: dict[str, Any]) -> dict[str, Any]:
         """Process prescription record with drug interaction checking."""
         data = record["data"]
         medications = data.get("medications", [])
@@ -179,9 +176,9 @@ class MedicalRecordService:
     async def get_patient_medical_history(
         self,
         patient_id: str,
-        record_types: Optional[List[RecordType]] = None,
+        record_types: list[RecordType] | None = None,
         limit: int = 100
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get comprehensive medical history for a patient."""
         try:
             patient = await self.patient_repository.get_patient_by_patient_id(patient_id)

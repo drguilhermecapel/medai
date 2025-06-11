@@ -5,8 +5,8 @@ Optimized version based on MedIA Pro clinical protocols module.
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
 from enum import Enum
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,7 +40,7 @@ class ClinicalProtocolsService:
         self.db = db
         self.protocol_definitions = self._initialize_protocols()
 
-    def _initialize_protocols(self) -> Dict[str, Dict[str, Any]]:
+    def _initialize_protocols(self) -> dict[str, dict[str, Any]]:
         """Initialize clinical protocol definitions."""
         return {
             ProtocolType.SEPSIS: {
@@ -83,9 +83,9 @@ class ClinicalProtocolsService:
     async def assess_protocol(
         self,
         protocol_type: ProtocolType,
-        patient_data: Dict[str, Any],
-        clinical_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        patient_data: dict[str, Any],
+        clinical_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Assess a specific clinical protocol for a patient."""
         try:
             protocol_def = self.protocol_definitions.get(protocol_type)
@@ -125,10 +125,10 @@ class ClinicalProtocolsService:
 
     async def _assess_sepsis_protocol(
         self,
-        patient_data: Dict[str, Any],
-        clinical_data: Dict[str, Any],
-        assessment: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        patient_data: dict[str, Any],
+        clinical_data: dict[str, Any],
+        assessment: dict[str, Any]
+    ) -> dict[str, Any]:
         """Assess sepsis protocol using qSOFA criteria."""
         qsofa_score = 0
         criteria_met = {}
@@ -192,9 +192,9 @@ class ClinicalProtocolsService:
 
     async def get_applicable_protocols(
         self,
-        patient_data: Dict[str, Any],
-        clinical_data: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        patient_data: dict[str, Any],
+        clinical_data: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Get all applicable protocols for a patient."""
         applicable_protocols = []
 

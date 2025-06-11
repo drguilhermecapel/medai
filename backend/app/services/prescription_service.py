@@ -5,8 +5,8 @@ Optimized version based on MedIA Pro prescription capabilities.
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
 from enum import Enum
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,7 +38,7 @@ class PrescriptionService:
         self.drug_database = self._initialize_drug_database()
         self.interaction_rules = self._initialize_interaction_rules()
 
-    def _initialize_drug_database(self) -> Dict[str, Dict[str, Any]]:
+    def _initialize_drug_database(self) -> dict[str, dict[str, Any]]:
         """Initialize drug database with common medications."""
         return {
             "metformin": {
@@ -67,7 +67,7 @@ class PrescriptionService:
             }
         }
 
-    def _initialize_interaction_rules(self) -> Dict[str, List[Dict[str, Any]]]:
+    def _initialize_interaction_rules(self) -> dict[str, list[dict[str, Any]]]:
         """Initialize drug interaction rules."""
         return {
             "warfarin": [
@@ -98,15 +98,15 @@ class PrescriptionService:
         self,
         patient_id: str,
         prescriber_id: int,
-        medications: List[Dict[str, Any]],
-        diagnosis_codes: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        medications: list[dict[str, Any]],
+        diagnosis_codes: list[str] | None = None
+    ) -> dict[str, Any]:
         """Create a new prescription with AI validation."""
         try:
             prescription_id = f"RX_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{patient_id}"
 
             validation_results = await self._validate_medications(medications, patient_id)
-            
+
             interaction_results = await self._check_drug_interactions(medications)
 
             prescription = {
@@ -138,9 +138,9 @@ class PrescriptionService:
 
     async def _validate_medications(
         self,
-        medications: List[Dict[str, Any]],
+        medications: list[dict[str, Any]],
         patient_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Validate medications against patient profile and drug database."""
         validation_results = {
             "valid": True,
@@ -177,7 +177,7 @@ class PrescriptionService:
 
             if not med_validation["valid"]:
                 validation_results["valid"] = False
-            
+
             validation_results["warnings"].extend(med_validation["warnings"])
             validation_results["errors"].extend(med_validation["errors"])
 
@@ -185,8 +185,8 @@ class PrescriptionService:
 
     async def _check_drug_interactions(
         self,
-        medications: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        medications: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Check for drug-drug interactions."""
         interaction_results = {
             "has_interactions": False,
@@ -201,12 +201,12 @@ class PrescriptionService:
 
         for i, med1 in enumerate(medications):
             med1_name = med1.get("name", "").lower()
-            
+
             if med1_name in self.interaction_rules:
                 for j, med2 in enumerate(medications):
                     if i != j:
                         med2_name = med2.get("name", "").lower()
-                        
+
                         for rule in self.interaction_rules[med1_name]:
                             if rule["interacting_drug"] == med2_name:
                                 interaction = {
@@ -216,7 +216,7 @@ class PrescriptionService:
                                     "mechanism": rule["mechanism"],
                                     "recommendation": rule["recommendation"]
                                 }
-                                
+
                                 interaction_results["interactions"].append(interaction)
                                 interaction_results["has_interactions"] = True
                                 interaction_results["severity_summary"][rule["severity"]] += 1
@@ -225,10 +225,10 @@ class PrescriptionService:
 
     async def _generate_ai_recommendations(
         self,
-        medications: List[Dict[str, Any]],
-        validation_results: Dict[str, Any],
-        interaction_results: Dict[str, Any]
-    ) -> List[str]:
+        medications: list[dict[str, Any]],
+        validation_results: dict[str, Any],
+        interaction_results: dict[str, Any]
+    ) -> list[str]:
         """Generate AI-powered recommendations for the prescription."""
         recommendations = []
 
@@ -238,7 +238,7 @@ class PrescriptionService:
         if interaction_results["has_interactions"]:
             major_interactions = interaction_results["severity_summary"]["major"]
             contraindicated = interaction_results["severity_summary"]["contraindicated"]
-            
+
             if contraindicated > 0:
                 recommendations.append("CRITICAL: Contraindicated drug combinations detected - do not dispense")
             elif major_interactions > 0:
@@ -259,7 +259,7 @@ class PrescriptionService:
 
         return recommendations
 
-    async def get_prescription_by_id(self, prescription_id: str) -> Optional[Dict[str, Any]]:
+    async def get_prescription_by_id(self, prescription_id: str) -> dict[str, Any] | None:
         """Get prescription by ID."""
         logger.info(f"Retrieved prescription: {prescription_id}")
         return None
@@ -269,7 +269,7 @@ class PrescriptionService:
         prescription_id: str,
         status: PrescriptionStatus,
         updated_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Update prescription status."""
         try:
             update_result = {
@@ -290,9 +290,9 @@ class PrescriptionService:
     async def get_patient_prescriptions(
         self,
         patient_id: str,
-        status_filter: Optional[PrescriptionStatus] = None,
+        status_filter: PrescriptionStatus | None = None,
         limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get prescriptions for a patient."""
         try:
             prescriptions = []
@@ -307,7 +307,7 @@ class PrescriptionService:
     async def check_prescription_adherence(
         self,
         prescription_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Check prescription adherence and generate alerts."""
         try:
             adherence_report = {

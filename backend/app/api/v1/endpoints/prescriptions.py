@@ -4,15 +4,15 @@ Enhanced with AI validation and drug interaction checking.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.models.user import User
-from app.services.user_service import UserService
 from app.services.prescription_service import PrescriptionService, PrescriptionStatus
+from app.services.user_service import UserService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -21,8 +21,8 @@ router = APIRouter()
 @router.post("/")
 async def create_prescription(
     patient_id: str,
-    medications: List[Dict[str, Any]],
-    diagnosis_codes: Optional[List[str]] = None,
+    medications: list[dict[str, Any]],
+    diagnosis_codes: list[str] | None = None,
     current_user: User = Depends(UserService.get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
@@ -39,13 +39,13 @@ async def create_prescription(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
-        )
+        ) from e
     except Exception as e:
         logger.error(f"Error creating prescription: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error creating prescription"
-        )
+        ) from e
 
 
 @router.get("/{prescription_id}")
@@ -88,13 +88,13 @@ async def update_prescription_status(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error updating prescription status"
-        )
+        ) from e
 
 
 @router.get("/patient/{patient_id}")
 async def get_patient_prescriptions(
     patient_id: str,
-    status_filter: Optional[PrescriptionStatus] = None,
+    status_filter: PrescriptionStatus | None = None,
     limit: int = 50,
     current_user: User = Depends(UserService.get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -117,7 +117,7 @@ async def get_patient_prescriptions(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error retrieving prescriptions"
-        )
+        ) from e
 
 
 @router.get("/{prescription_id}/adherence")
@@ -140,4 +140,4 @@ async def check_prescription_adherence(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error checking adherence"
-        )
+        ) from e
