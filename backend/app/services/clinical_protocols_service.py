@@ -190,6 +190,112 @@ class ClinicalProtocolsService:
 
         return assessment
 
+    async def _assess_chest_pain_protocol(
+        self,
+        patient_data: dict[str, Any],
+        clinical_data: dict[str, Any],
+        assessment: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Assess chest pain protocol using HEART score."""
+        heart_score = 0
+        criteria_met = {}
+
+        age = patient_data.get("age", 0)
+        if age >= 65:
+            heart_score += 2
+            criteria_met["high_risk_age"] = True
+        elif age >= 45:
+            heart_score += 1
+            criteria_met["moderate_risk_age"] = True
+
+        risk_factors = patient_data.get("risk_factors", [])
+        risk_factor_count = len([rf for rf in risk_factors if rf in ["diabetes", "hypertension", "smoking", "hyperlipidemia"]])
+        if risk_factor_count >= 3:
+            heart_score += 2
+            criteria_met["multiple_risk_factors"] = True
+        elif risk_factor_count >= 1:
+            heart_score += 1
+            criteria_met["some_risk_factors"] = True
+
+        ecg_findings = clinical_data.get("ecg_findings", {})
+        if ecg_findings.get("st_elevation"):
+            heart_score += 2
+            criteria_met["st_elevation"] = True
+        elif ecg_findings.get("st_depression") or ecg_findings.get("t_wave_changes"):
+            heart_score += 1
+            criteria_met["ecg_changes"] = True
+
+        assessment["score"] = heart_score
+        assessment["criteria_met"] = criteria_met
+        assessment["applicable"] = heart_score >= 4
+
+        if heart_score >= 7:
+            assessment["risk_level"] = RiskLevel.HIGH
+            assessment["recommendations"].extend([
+                "Immediate cardiology consultation",
+                "Serial troponins",
+                "Consider cardiac catheterization"
+            ])
+        elif heart_score >= 4:
+            assessment["risk_level"] = RiskLevel.MODERATE
+            assessment["recommendations"].extend([
+                "Observation and serial ECGs",
+                "Troponin monitoring",
+                "Stress testing if stable"
+            ])
+
+        return assessment
+
+    async def _assess_stroke_protocol(
+        self,
+        patient_data: dict[str, Any],
+        clinical_data: dict[str, Any],
+        assessment: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Assess stroke protocol using NIHSS criteria."""
+        nihss_score = 0
+        criteria_met = {}
+
+        neurological = clinical_data.get("neurological", {})
+
+        if neurological.get("facial_droop"):
+            nihss_score += 2
+            criteria_met["facial_droop"] = True
+
+        if neurological.get("arm_weakness"):
+            nihss_score += 2
+            criteria_met["arm_weakness"] = True
+
+        if neurological.get("speech_difficulty"):
+            nihss_score += 2
+            criteria_met["speech_difficulty"] = True
+
+        timing = clinical_data.get("timing", {})
+        symptom_onset = timing.get("symptom_onset")
+        if symptom_onset and symptom_onset <= 4.5:
+            criteria_met["within_window"] = True
+
+        assessment["score"] = nihss_score
+        assessment["criteria_met"] = criteria_met
+        assessment["applicable"] = nihss_score >= 2
+
+        if nihss_score >= 4 and criteria_met.get("within_window"):
+            assessment["risk_level"] = RiskLevel.HIGH
+            assessment["recommendations"].extend([
+                "Immediate stroke team activation",
+                "CT/MRI imaging",
+                "Consider thrombolytic therapy"
+            ])
+        elif nihss_score >= 2:
+            assessment["risk_level"] = RiskLevel.MODERATE
+            assessment["recommendations"].extend([
+                "Neurological monitoring",
+                "Imaging studies",
+                "Stroke workup"
+            ])
+
+        return assessment
+
     async def get_applicable_protocols(
         self,
         patient_data: dict[str, Any],

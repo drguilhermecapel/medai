@@ -124,7 +124,8 @@ class PrescriptionService:
                 )
             }
 
-            for med in prescription["medications"]:
+            medications_list = prescription["medications"]
+            for med in medications_list:
                 if "duration_days" in med:
                     expiry_date = datetime.utcnow() + timedelta(days=med["duration_days"])
                     med["expires_at"] = expiry_date.isoformat()
@@ -178,8 +179,10 @@ class PrescriptionService:
             if not med_validation["valid"]:
                 validation_results["valid"] = False
 
-            validation_results["warnings"].extend(med_validation["warnings"])
-            validation_results["errors"].extend(med_validation["errors"])
+            warnings_list = validation_results["warnings"]
+            errors_list = validation_results["errors"]
+            warnings_list.extend(med_validation["warnings"])
+            errors_list.extend(med_validation["errors"])
 
         return validation_results
 
@@ -217,9 +220,11 @@ class PrescriptionService:
                                     "recommendation": rule["recommendation"]
                                 }
 
-                                interaction_results["interactions"].append(interaction)
+                                interactions_list = interaction_results["interactions"]
+                                interactions_list.append(interaction)
                                 interaction_results["has_interactions"] = True
-                                interaction_results["severity_summary"][rule["severity"]] += 1
+                                severity_summary = interaction_results["severity_summary"]
+                                severity_summary[rule["severity"]] += 1
 
         return interaction_results
 
@@ -295,7 +300,7 @@ class PrescriptionService:
     ) -> list[dict[str, Any]]:
         """Get prescriptions for a patient."""
         try:
-            prescriptions = []
+            prescriptions: list[dict[str, Any]] = []
 
             logger.info(f"Retrieved {len(prescriptions)} prescriptions for patient {patient_id}")
             return prescriptions
@@ -320,11 +325,12 @@ class PrescriptionService:
                 "alerts": []
             }
 
+            alerts_list = adherence_report["alerts"]
             if adherence_report["adherence_score"] < 0.8:
-                adherence_report["alerts"].append("Low medication adherence detected")
+                alerts_list.append("Low medication adherence detected")
 
             if adherence_report["missed_doses"] > 5:
-                adherence_report["alerts"].append("Multiple missed doses - patient counseling recommended")
+                alerts_list.append("Multiple missed doses - patient counseling recommended")
 
             logger.info(f"Checked adherence for prescription: {prescription_id}")
             return adherence_report
