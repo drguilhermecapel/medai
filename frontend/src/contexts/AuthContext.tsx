@@ -21,12 +21,37 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }): JS
     try {
       const apiUrl = import.meta.env.VITE_API_URL
 
-      const response = await fetch(`${apiUrl}/auth/login`, {
+      let baseUrl = apiUrl
+      let authHeader = ''
+
+      if (apiUrl.includes('@')) {
+        const urlParts = apiUrl.split('://')
+        const protocol = urlParts[0]
+        const rest = urlParts[1]
+        const atIndex = rest.indexOf('@')
+        const credentials = rest.substring(0, atIndex)
+        const domain = rest.substring(atIndex + 1)
+
+        baseUrl = `${protocol}://${domain}`
+        authHeader = `Basic ${btoa(credentials)}`
+      }
+
+      const formData = new URLSearchParams()
+      formData.append('username', username)
+      formData.append('password', password)
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      }
+
+      if (authHeader) {
+        headers['Authorization'] = authHeader
+      }
+
+      const response = await fetch(`${baseUrl}/auth/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
+        headers,
+        body: formData.toString(),
       })
 
       if (response.ok) {
