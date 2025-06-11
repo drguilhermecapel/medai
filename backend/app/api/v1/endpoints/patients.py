@@ -4,7 +4,7 @@ Enhanced with clinical protocols and medical record management.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,10 +18,13 @@ from app.schemas.patient import (
     PatientSearch,
     PatientUpdate,
 )
+from app.services.clinical_protocols_service import (
+    ClinicalProtocolsService,
+    ProtocolType,
+)
+from app.services.medical_record_service import MedicalRecordService, RecordType
 from app.services.patient_service import PatientService
 from app.services.user_service import UserService
-from app.services.clinical_protocols_service import ClinicalProtocolsService, ProtocolType
-from app.services.medical_record_service import MedicalRecordService, RecordType
 
 logger = logging.getLogger(__name__)
 
@@ -138,8 +141,8 @@ async def search_patients(
 @router.post("/{patient_id}/clinical-protocols")
 async def assess_clinical_protocols(
     patient_id: str,
-    clinical_data: Dict[str, Any],
-    protocol_types: Optional[List[ProtocolType]] = None,
+    clinical_data: dict[str, Any],
+    protocol_types: list[ProtocolType] | None = None,
     current_user: User = Depends(UserService.get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
@@ -186,14 +189,14 @@ async def assess_clinical_protocols(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error assessing clinical protocols"
-        )
+        ) from e
 
 
 @router.post("/{patient_id}/medical-records")
 async def create_medical_record(
     patient_id: str,
     record_type: RecordType,
-    record_data: Dict[str, Any],
+    record_data: dict[str, Any],
     current_user: User = Depends(UserService.get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
@@ -218,19 +221,19 @@ async def create_medical_record(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
-        )
+        ) from e
     except Exception as e:
         logger.error(f"Error creating medical record: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error creating medical record"
-        )
+        ) from e
 
 
 @router.get("/{patient_id}/medical-history")
 async def get_medical_history(
     patient_id: str,
-    record_types: Optional[List[RecordType]] = None,
+    record_types: list[RecordType] | None = None,
     limit: int = 100,
     current_user: User = Depends(UserService.get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -257,4 +260,4 @@ async def get_medical_history(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error retrieving medical history"
-        )
+        ) from e
