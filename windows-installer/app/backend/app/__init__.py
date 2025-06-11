@@ -1,1 +1,0 @@
-"""CardioAI Pro Backend Application."""

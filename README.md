@@ -52,47 +52,10 @@ O SPEI é um sistema completo de prontuário eletrônico desenvolvido com tecnol
 
 ## 📦 Instalação e Configuração
 
-### 🖥️ Instalação Windows (Recomendada para Usuários Finais)
+### 🖥️ Instalação Windows
 
-**Instalador Windows - Duplo Clique para Instalar**
-
-1. **Baixe o Instalador**
-   - Baixe `SPEI-Setup-v1.0.0.exe` da página de releases
-   - Instalador completo que configura todos os componentes automaticamente
-   - Não requer Docker, Python ou configurações manuais
-
-2. **Execute o Instalador**
-   ```cmd
-   # Simplesmente dê duplo clique no arquivo ou execute:
-   SPEI-Setup-v1.0.0.exe
-   ```
-   - Siga o assistente de instalação intuitivo
-   - Configure senha do banco de dados e usuário administrador
-   - Escolha componentes (Sistema Principal, Banco de Dados, Modelos IA, Dados de Exemplo)
-   - O instalador configura automaticamente todos os componentes necessários
-
-3. **Acesse o SPEI**
-   - Interface Web: http://localhost:3000
-   - Documentação API: http://localhost:8000/docs
-   - O instalador cria atalhos na área de trabalho para fácil acesso
-
-#### 🛠️ Criando o Instalador (Para Desenvolvedores)
-
-1. **Pré-requisitos**
-   - Windows 10/11
-   - Inno Setup 6 (baixe de: https://jrsoftware.org/isinfo.php)
-   - Código fonte completo do SPEI
-
-2. **Criar Instalador**
-   ```cmd
-   cd windows-installer
-   build-installer.bat
-   ```
-
-3. **Resultado**
-   - Arquivo: `dist/SPEI-Setup-v1.0.0.exe`
-   - Instalador completo e funcional
-   - Pronto para distribuição aos usuários finais
+O antigo instalador para Windows foi descontinuado e removido deste repositório.
+Recomenda-se utilizar a instalação via Docker ou seguir o guia de instalação manual.
 
 ### 🐳 Instalação com Docker (Para Desenvolvedores)
 
