@@ -6,7 +6,7 @@ Optimized version based on MedIA Pro prescription capabilities.
 import logging
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -124,7 +124,7 @@ class PrescriptionService:
                 )
             }
 
-            medications_list = prescription["medications"]
+            medications_list = cast(list[dict[str, Any]], prescription["medications"])
             for med in medications_list:
                 if "duration_days" in med:
                     expiry_date = datetime.utcnow() + timedelta(days=med["duration_days"])
@@ -174,13 +174,14 @@ class PrescriptionService:
             if drug_info and "contraindications" in drug_info:
                 pass
 
-            validation_results["medication_validations"].append(med_validation)
+            medication_validations = cast(list[dict[str, Any]], validation_results["medication_validations"])
+            medication_validations.append(med_validation)
 
             if not med_validation["valid"]:
                 validation_results["valid"] = False
 
-            warnings_list = validation_results["warnings"]
-            errors_list = validation_results["errors"]
+            warnings_list = cast(list[str], validation_results["warnings"])
+            errors_list = cast(list[str], validation_results["errors"])
             warnings_list.extend(med_validation["warnings"])
             errors_list.extend(med_validation["errors"])
 
@@ -220,10 +221,10 @@ class PrescriptionService:
                                     "recommendation": rule["recommendation"]
                                 }
 
-                                interactions_list = interaction_results["interactions"]
+                                interactions_list = cast(list[dict[str, Any]], interaction_results["interactions"])
                                 interactions_list.append(interaction)
                                 interaction_results["has_interactions"] = True
-                                severity_summary = interaction_results["severity_summary"]
+                                severity_summary = cast(dict[str, int], interaction_results["severity_summary"])
                                 severity_summary[rule["severity"]] += 1
 
         return interaction_results
@@ -325,11 +326,14 @@ class PrescriptionService:
                 "alerts": []
             }
 
-            alerts_list = adherence_report["alerts"]
-            if adherence_report["adherence_score"] < 0.8:
+            alerts_list = cast(list[str], adherence_report["alerts"])
+            adherence_score = cast(float, adherence_report["adherence_score"])
+            missed_doses = cast(int, adherence_report["missed_doses"])
+
+            if adherence_score < 0.8:
                 alerts_list.append("Low medication adherence detected")
 
-            if adherence_report["missed_doses"] > 5:
+            if missed_doses > 5:
                 alerts_list.append("Multiple missed doses - patient counseling recommended")
 
             logger.info(f"Checked adherence for prescription: {prescription_id}")

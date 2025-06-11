@@ -158,7 +158,7 @@ async def assess_clinical_protocols(
         )
 
     try:
-        patient_data = {
+        patient_data: dict[str, Any] = {
             "age": getattr(patient, 'age', None),
             "gender": patient.gender,
             "medical_history": patient.medical_history,
