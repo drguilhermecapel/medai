@@ -4,13 +4,17 @@ Sistema completo para geração de receitas, atestados, relatórios e outros doc
 """
 
 import logging
-from datetime import datetime, timedelta
-from enum import Enum
-from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.services.medical_guidelines_engine import MotorDiretrizesMedicasIA, ValidadorConformidadeDiretrizes
+
+from app.services.medical_guidelines_engine import (
+    MotorDiretrizesMedicasIA,
+    ValidadorConformidadeDiretrizes,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,25 +35,25 @@ class DocumentTemplate:
     """Template para documentos médicos"""
     document_type: DocumentType
     template_name: str
-    required_fields: List[str]
-    optional_fields: List[str]
-    validation_rules: Dict[str, Any]
-    formatting_rules: Dict[str, Any]
+    required_fields: list[str]
+    optional_fields: list[str]
+    validation_rules: dict[str, Any]
+    formatting_rules: dict[str, Any]
 
 
 class MedicalDocumentGenerator:
     """Gerador de documentos médicos seguindo diretrizes atualizadas"""
-    
+
     def __init__(self, db: AsyncSession):
         self.db = db
         self.guidelines_engine = MotorDiretrizesMedicasIA()
         self.validator = ValidadorConformidadeDiretrizes()
         self.templates = self._initialize_templates()
-    
-    def _initialize_templates(self) -> Dict[str, DocumentTemplate]:
+
+    def _initialize_templates(self) -> dict[str, DocumentTemplate]:
         """Inicializa templates de documentos médicos"""
         templates = {}
-        
+
         prescription_template = DocumentTemplate(
             document_type=DocumentType.PRESCRIPTION,
             template_name="receita_medica_padrao",
@@ -72,7 +76,7 @@ class MedicalDocumentGenerator:
                 "signature_space": "3cm_bottom"
             }
         )
-        
+
         certificate_template = DocumentTemplate(
             document_type=DocumentType.MEDICAL_CERTIFICATE,
             template_name="atestado_medico_padrao",
@@ -93,7 +97,7 @@ class MedicalDocumentGenerator:
                 "margins": "2cm_all_sides"
             }
         )
-        
+
         exam_request_template = DocumentTemplate(
             document_type=DocumentType.EXAM_REQUEST,
             template_name="solicitacao_exames_padrao",
@@ -114,20 +118,20 @@ class MedicalDocumentGenerator:
                 "margins": "2cm_all_sides"
             }
         )
-        
+
         templates["receita_medica"] = prescription_template
         templates["atestado_medico"] = certificate_template
         templates["solicitacao_exames"] = exam_request_template
-        
+
         return templates
-    
+
     async def generate_prescription_document(
         self,
-        patient_data: Dict[str, Any],
-        physician_data: Dict[str, Any],
-        prescription_data: Dict[str, Any],
+        patient_data: dict[str, Any],
+        physician_data: dict[str, Any],
+        prescription_data: dict[str, Any],
         diagnosis: str = ""
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Gera receita médica formatada seguindo diretrizes"""
         try:
             guidelines_validation = await self.validator.validar_acao_medica(
@@ -135,7 +139,7 @@ class MedicalDocumentGenerator:
                 tipo_acao="prescricao",
                 diagnostico=diagnosis
             )
-            
+
             document = {
                 "document_type": DocumentType.PRESCRIPTION,
                 "document_id": f"RX_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}",
@@ -164,23 +168,23 @@ class MedicalDocumentGenerator:
                 ),
                 "validation_status": "approved" if guidelines_validation.get("conformidade", 0) >= 70 else "review_required"
             }
-            
+
             logger.info(f"Generated prescription document: {document['document_id']}")
             return document
-            
+
         except Exception as e:
             logger.error(f"Error generating prescription document: {str(e)}")
             raise
-    
+
     def _format_prescription_content(
         self,
-        patient_data: Dict[str, Any],
-        physician_data: Dict[str, Any],
-        prescription_data: Dict[str, Any],
+        patient_data: dict[str, Any],
+        physician_data: dict[str, Any],
+        prescription_data: dict[str, Any],
         diagnosis: str
     ) -> str:
         """Formata conteúdo da receita médica"""
-        
+
         content = f"""
 RECEITA MÉDICA
 
@@ -198,7 +202,7 @@ Diagnóstico: {diagnosis}
 
 PRESCRIÇÃO:
 """
-        
+
         medications = prescription_data.get("medications", [])
         for i, med in enumerate(medications, 1):
             content += f"""
@@ -207,28 +211,28 @@ PRESCRIÇÃO:
    Frequência: {med.get('frequency', '')}
    Duração: {med.get('duration', '')}
 """
-        
+
         if prescription_data.get("instructions"):
             content += f"\nInstruções: {prescription_data.get('instructions')}"
-        
+
         if prescription_data.get("return_date"):
             content += f"\nRetorno: {prescription_data.get('return_date')}"
-        
+
         content += f"""
 
 _________________________________
 Dr(a). {physician_data.get('name', '')}
 CRM: {physician_data.get('crm', '')}
 """
-        
+
         return content
-    
+
     async def generate_medical_certificate(
         self,
-        patient_data: Dict[str, Any],
-        physician_data: Dict[str, Any],
-        certificate_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        patient_data: dict[str, Any],
+        physician_data: dict[str, Any],
+        certificate_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Gera atestado médico"""
         try:
             document = {
@@ -256,22 +260,22 @@ CRM: {physician_data.get('crm', '')}
                     patient_data, physician_data, certificate_data
                 )
             }
-            
+
             logger.info(f"Generated medical certificate: {document['document_id']}")
             return document
-            
+
         except Exception as e:
             logger.error(f"Error generating medical certificate: {str(e)}")
             raise
-    
+
     def _format_certificate_content(
         self,
-        patient_data: Dict[str, Any],
-        physician_data: Dict[str, Any],
-        certificate_data: Dict[str, Any]
+        patient_data: dict[str, Any],
+        physician_data: dict[str, Any],
+        certificate_data: dict[str, Any]
     ) -> str:
         """Formata conteúdo do atestado médico"""
-        
+
         content = f"""
 ATESTADO MÉDICO
 
@@ -279,8 +283,8 @@ ATESTADO MÉDICO
 Dr(a). {physician_data.get('name', '')} - CRM: {physician_data.get('crm', '')}
 {physician_data.get('specialty', '')}
 
-Atesto para os devidos fins que o(a) paciente {patient_data.get('name', '')}, 
-portador(a) do documento de identidade nº {patient_data.get('patient_id', '')}, 
+Atesto para os devidos fins que o(a) paciente {patient_data.get('name', '')},
+portador(a) do documento de identidade nº {patient_data.get('patient_id', '')},
 encontra-se sob meus cuidados médicos.
 
 Diagnóstico: {certificate_data.get('condition', '')}
@@ -298,16 +302,16 @@ _________________________________
 Dr(a). {physician_data.get('name', '')}
 CRM: {physician_data.get('crm', '')}
 """
-        
+
         return content
-    
+
     async def generate_exam_request_document(
         self,
-        patient_data: Dict[str, Any],
-        physician_data: Dict[str, Any],
-        exam_request_data: Dict[str, Any],
+        patient_data: dict[str, Any],
+        physician_data: dict[str, Any],
+        exam_request_data: dict[str, Any],
         diagnosis: str = ""
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Gera solicitação de exames baseada em diretrizes"""
         try:
             exams_validation = []
@@ -316,7 +320,7 @@ CRM: {physician_data.get('crm', '')}
                     exam.get("name", ""), diagnosis
                 )
                 exams_validation.append(validation)
-            
+
             document = {
                 "document_type": DocumentType.EXAM_REQUEST,
                 "document_id": f"EX_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}",
@@ -342,19 +346,19 @@ CRM: {physician_data.get('crm', '')}
                     patient_data, physician_data, exam_request_data, diagnosis
                 )
             }
-            
+
             logger.info(f"Generated exam request document: {document['document_id']}")
             return document
-            
+
         except Exception as e:
             logger.error(f"Error generating exam request document: {str(e)}")
             raise
-    
+
     async def _validate_exam_appropriateness(
         self,
         exam_name: str,
         diagnosis: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Valida apropriação de exame específico"""
         return {
             "exam_name": exam_name,
@@ -362,16 +366,16 @@ CRM: {physician_data.get('crm', '')}
             "evidence_level": "clinical_judgment",
             "justification": "Exame solicitado conforme avaliação clínica"
         }
-    
+
     def _format_exam_request_content(
         self,
-        patient_data: Dict[str, Any],
-        physician_data: Dict[str, Any],
-        exam_request_data: Dict[str, Any],
+        patient_data: dict[str, Any],
+        physician_data: dict[str, Any],
+        exam_request_data: dict[str, Any],
         diagnosis: str
     ) -> str:
         """Formata conteúdo da solicitação de exames"""
-        
+
         content = f"""
 SOLICITAÇÃO DE EXAMES
 
@@ -390,25 +394,25 @@ Indicação Clínica: {exam_request_data.get('clinical_indication', '')}
 
 EXAMES SOLICITADOS:
 """
-        
+
         exams = exam_request_data.get("exams", [])
         for i, exam in enumerate(exams, 1):
             content += f"{i}. {exam.get('name', '')}\n"
             if exam.get('justification'):
                 content += f"   Justificativa: {exam.get('justification')}\n"
-        
+
         urgency = exam_request_data.get("urgency")
         if urgency and urgency != "routine":
             content += f"\nUrgência: {str(urgency).upper()}"
-        
+
         if exam_request_data.get("clinical_history"):
             content += f"\nHistória Clínica: {exam_request_data.get('clinical_history')}"
-        
+
         content += f"""
 
 _________________________________
 Dr(a). {physician_data.get('name', '')}
 CRM: {physician_data.get('crm', '')}
 """
-        
+
         return content

@@ -2,28 +2,27 @@
 Medical Guidelines API endpoints - Endpoints para sistema de diretrizes médicas
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.services.medical_guidelines_engine import (
-    MotorDiretrizesMedicasIA, 
-    SolicitacaoExamesBaseadaDiretrizes,
-    ValidadorConformidadeDiretrizes
-)
 from app.services.exam_request_service import ExamRequestService
-from app.services.medical_document_generator import MedicalDocumentGenerator
+from app.services.medical_guidelines_engine import (
+    MotorDiretrizesMedicasIA,
+    ValidadorConformidadeDiretrizes,
+)
 
 router = APIRouter()
 
 
 @router.post("/validate-prescription")
 async def validate_prescription_guidelines(
-    prescription_data: Dict[str, Any],
+    prescription_data: dict[str, Any],
     diagnosis: str,
     db: AsyncSession = Depends(get_db)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Valida prescrição contra diretrizes médicas"""
     try:
         validator = ValidadorConformidadeDiretrizes()
@@ -34,15 +33,15 @@ async def validate_prescription_guidelines(
         )
         return {"success": True, "validation_result": result}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/suggest-exams")
 async def suggest_exams_by_diagnosis(
     diagnosis: str,
-    clinical_context: Optional[Dict[str, Any]] = None,
+    clinical_context: dict[str, Any] | None = None,
     db: AsyncSession = Depends(get_db)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Sugere exames baseados em diretrizes para um diagnóstico"""
     try:
         exam_service = ExamRequestService(db)
@@ -52,7 +51,7 @@ async def suggest_exams_by_diagnosis(
         )
         return {"success": True, "suggestions": suggestions}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/create-exam-request")
@@ -60,10 +59,10 @@ async def create_exam_request_with_guidelines(
     patient_id: str,
     requesting_physician_id: int,
     primary_diagnosis: str,
-    clinical_context: Dict[str, Any],
-    custom_exams: Optional[List[Dict[str, Any]]] = None,
+    clinical_context: dict[str, Any],
+    custom_exams: list[dict[str, Any]] | None = None,
     db: AsyncSession = Depends(get_db)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Cria solicitação de exames baseada em diretrizes"""
     try:
         exam_service = ExamRequestService(db)
@@ -76,14 +75,14 @@ async def create_exam_request_with_guidelines(
         )
         return {"success": True, "exam_request": request}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/guidelines/{condition}")
 async def get_guidelines_for_condition(
     condition: str,
     db: AsyncSession = Depends(get_db)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Obtém diretrizes para uma condição específica"""
     try:
         guidelines_engine = MotorDiretrizesMedicasIA()
@@ -91,7 +90,7 @@ async def get_guidelines_for_condition(
             condicao=condition,
             contexto_paciente={}
         )
-        
+
         if guideline:
             return {
                 "success": True,
@@ -108,16 +107,16 @@ async def get_guidelines_for_condition(
         else:
             return {"success": False, "message": f"Nenhuma diretriz encontrada para {condition}"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/validate-exam-appropriateness")
 async def validate_exam_appropriateness(
     exam_name: str,
     diagnosis: str,
-    clinical_context: Dict[str, Any],
+    clinical_context: dict[str, Any],
     db: AsyncSession = Depends(get_db)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Valida apropriação de um exame específico"""
     try:
         exam_service = ExamRequestService(db)
@@ -128,4 +127,4 @@ async def validate_exam_appropriateness(
         )
         return {"success": True, "validation": validation}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

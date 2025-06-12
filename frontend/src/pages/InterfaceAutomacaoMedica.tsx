@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { 
   Activity, 
   FileText, 
@@ -59,13 +59,13 @@ interface ResultadosIA {
   };
 }
 
-const InterfaceAutomacaoMedica = () => {
+const InterfaceAutomacaoMedica = (): React.ReactElement => {
   const [resultadosIA, setResultadosIA] = useState<ResultadosIA | null>(null);
   const [processando, setProcessando] = useState(false);
   const [etapaProcessamento, setEtapaProcessamento] = useState('');
   const [tabAtiva, setTabAtiva] = useState('diagnosticos');
 
-  const processarConsulta = async () => {
+  const processarConsulta = async (): Promise<void> => {
     setProcessando(true);
     
     const etapas = [
@@ -168,7 +168,7 @@ const InterfaceAutomacaoMedica = () => {
     setEtapaProcessamento('');
   };
 
-  const ConsultaForm = () => (
+  const ConsultaForm = (): React.ReactElement => (
     <div className="bg-white rounded-lg shadow-md p-6">
       <h3 className="text-lg font-semibold mb-4 flex items-center">
         <User className="w-5 h-5 mr-2 text-blue-600" />
@@ -242,7 +242,7 @@ const InterfaceAutomacaoMedica = () => {
     </div>
   );
 
-  const ResultadosIA = () => {
+  const ResultadosIA = (): React.ReactElement | null => {
     if (!resultadosIA) return null;
     
     return (

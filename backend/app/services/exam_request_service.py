@@ -6,9 +6,10 @@ Integrado com protocolos atualizados e critérios de apropriação
 import logging
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.services.medical_guidelines_engine import SolicitacaoExamesBaseadaDiretrizes
 
 logger = logging.getLogger(__name__)
@@ -33,30 +34,30 @@ class ExamStatus(str, Enum):
 
 class ExamRequestService:
     """Serviço para solicitação de exames baseado em diretrizes"""
-    
+
     def __init__(self, db: AsyncSession):
         self.db = db
         self.guidelines_engine = SolicitacaoExamesBaseadaDiretrizes()
-    
+
     async def create_exam_request(
         self,
         patient_id: str,
         requesting_physician_id: int,
         primary_diagnosis: str,
-        clinical_context: Dict[str, Any],
-        custom_exams: Optional[List[Dict[str, Any]]] = None
-    ) -> Dict[str, Any]:
+        clinical_context: dict[str, Any],
+        custom_exams: list[dict[str, Any]] | None = None
+    ) -> dict[str, Any]:
         """Cria solicitação de exames baseada em diretrizes"""
         try:
             request_id = f"EX_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{patient_id}"
-            
+
             guidelines_suggestions = await self.guidelines_engine.sugerir_exames(
                 diagnostico=primary_diagnosis,
                 contexto_clinico=clinical_context
             )
-            
+
             all_exams = []
-            
+
             for exam in guidelines_suggestions.get("exames_essenciais", []):
                 exam_item = {
                     "name": exam["nome"],
@@ -68,7 +69,7 @@ class ExamRequestService:
                     "guideline_based": True
                 }
                 all_exams.append(exam_item)
-            
+
             for exam in guidelines_suggestions.get("exames_complementares", []):
                 exam_item = {
                     "name": exam["nome"],
@@ -80,7 +81,7 @@ class ExamRequestService:
                     "guideline_based": True
                 }
                 all_exams.append(exam_item)
-            
+
             if custom_exams:
                 for exam in custom_exams:
                     exam_item = {
@@ -92,7 +93,7 @@ class ExamRequestService:
                         "guideline_based": False
                     }
                     all_exams.append(exam_item)
-            
+
             exam_request = {
                 "request_id": request_id,
                 "patient_id": patient_id,
@@ -112,65 +113,65 @@ class ExamRequestService:
                 "complementary_exams_count": len([e for e in all_exams if e["type"] == "complementary"]),
                 "custom_exams_count": len([e for e in all_exams if e["type"] == "custom"])
             }
-            
+
             logger.info(f"Created exam request: {request_id} for patient {patient_id}")
             return exam_request
-            
+
         except Exception as e:
             logger.error(f"Error creating exam request: {str(e)}")
             raise
-    
+
     async def get_exam_suggestions_by_diagnosis(
         self,
         diagnosis: str,
-        clinical_context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        clinical_context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Obtém sugestões de exames baseadas apenas no diagnóstico"""
         try:
             if not clinical_context:
                 clinical_context = {}
-            
+
             suggestions = await self.guidelines_engine.sugerir_exames(
                 diagnostico=diagnosis,
                 contexto_clinico=clinical_context
             )
-            
+
             return {
                 "diagnosis": diagnosis,
                 "suggestions": suggestions,
                 "generated_at": datetime.utcnow().isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting exam suggestions: {str(e)}")
             raise
-    
+
     async def validate_exam_appropriateness(
         self,
         exam_name: str,
         diagnosis: str,
-        clinical_context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        clinical_context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Valida a apropriação de um exame específico"""
         try:
             suggestions = await self.guidelines_engine.sugerir_exames(
                 diagnostico=diagnosis,
                 contexto_clinico=clinical_context
             )
-            
+
             all_suggested_exams = []
             all_suggested_exams.extend(suggestions.get("exames_essenciais", []))
             all_suggested_exams.extend(suggestions.get("exames_complementares", []))
-            
+
             exam_found = False
             exam_details = None
-            
+
             for suggested_exam in all_suggested_exams:
                 if exam_name.lower() in suggested_exam["nome"].lower():
                     exam_found = True
                     exam_details = suggested_exam
                     break
-            
+
             if exam_found and exam_details:
                 return {
                     "appropriate": True,
@@ -186,7 +187,7 @@ class ExamRequestService:
                     "justification": "Exame não encontrado nas diretrizes padrão - avaliação clínica necessária",
                     "evidence_level": "clinical"
                 }
-                
+
         except Exception as e:
             logger.error(f"Error validating exam appropriateness: {str(e)}")
             return {
@@ -195,17 +196,17 @@ class ExamRequestService:
                 "justification": f"Erro na validação: {str(e)}",
                 "evidence_level": "unknown"
             }
-    
-    async def get_exam_request_by_id(self, request_id: str) -> Optional[Dict[str, Any]]:
+
+    async def get_exam_request_by_id(self, request_id: str) -> dict[str, Any] | None:
         """Obtém solicitação de exame por ID"""
         try:
             logger.info(f"Retrieved exam request: {request_id}")
             return None
-            
+
         except Exception as e:
             logger.error(f"Error retrieving exam request: {str(e)}")
             raise
-    
+
     async def update_exam_status(
         self,
         request_id: str,
@@ -213,7 +214,7 @@ class ExamRequestService:
         new_status: ExamStatus,
         updated_by: int,
         notes: str = ""
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Atualiza status de um exame específico"""
         try:
             update_result = {
@@ -225,10 +226,10 @@ class ExamRequestService:
                 "updated_at": datetime.utcnow().isoformat(),
                 "notes": notes
             }
-            
+
             logger.info(f"Updated exam status: {request_id}/{exam_name} -> {new_status}")
             return update_result
-            
+
         except Exception as e:
             logger.error(f"Error updating exam status: {str(e)}")
             raise

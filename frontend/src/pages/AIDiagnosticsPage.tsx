@@ -1,7 +1,8 @@
 
+import React from 'react';
 import { Brain, Activity, Zap } from 'lucide-react';
 
-const AIDiagnosticsPage = () => {
+const AIDiagnosticsPage = (): React.ReactElement => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
