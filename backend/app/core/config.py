@@ -88,13 +88,17 @@ class Settings(BaseSettings):
 
     @field_validator("ALLOWED_HOSTS", mode="before")
     @classmethod
-    def assemble_cors_origins(cls, v: str | list[str]) -> list[str] | str:
-        """Assemble CORS origins."""
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
-        elif isinstance(v, list | str):
+    def parse_allowed_hosts(cls, v: str | list[str]) -> list[str]:
+        """Parse ALLOWED_HOSTS from environment variable."""
+        if isinstance(v, list):
             return v
-        raise ValueError(v)
+        if isinstance(v, str):
+            if not v or v.strip() == "":
+                return ["*"]
+            return [host.strip() for host in v.split(",") if host.strip()]
+        return ["*"]
+
+
 
     UPLOAD_DIR: str = "/app/uploads"
     MAX_FILE_SIZE: int = 100 * 1024 * 1024  # 100MB

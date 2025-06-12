@@ -48,20 +48,24 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }): JS
         headers['Authorization'] = authHeader
       }
 
-      const response = await fetch(`${baseUrl}/auth/login`, {
+      const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
         method: 'POST',
         headers,
         body: formData.toString(),
       })
 
+      console.log('Auth response status:', response.status)
       if (response.ok) {
         const data = await response.json()
+        console.log('Auth response data:', data)
         const userData = { username, token: data.access_token }
         setUser(userData)
         localStorage.setItem('token', data.access_token)
         localStorage.setItem('username', username)
+        console.log('Login successful, user set:', userData)
         return true
       }
+      console.log('Auth response not ok:', response.status, response.statusText)
       return false
     } catch (error) {
       console.error('Login error:', error)
