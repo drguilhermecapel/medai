@@ -2,33 +2,31 @@
 Gestão de estoque farmacêutico com IA preditiva
 """
 
-import asyncio
-from typing import Dict, List
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
 
 logger = logging.getLogger('MedAI.Farmacia.GestorEstoque')
 
 class GestorEstoqueInteligente:
     """Gestão de estoque farmacêutico com IA preditiva"""
-    
+
     def __init__(self):
         self.predictor_demanda = PredictorDemandaMedicamentos()
         self.otimizador_compras = OtimizadorComprasML()
         self.monitor_validade = MonitorValidadeAutomatico()
-        
-    async def otimizar_estoque_completo(self) -> Dict:
+
+    async def otimizar_estoque_completo(self) -> dict:
         """Otimização completa do estoque farmacêutico"""
-        
+
         try:
             previsao_demanda = await self.prever_demanda_30_dias()
-            
+
             itens_criticos = await self.identificar_itens_criticos()
-            
+
             plano_compras = await self.otimizar_compras_automatico(previsao_demanda)
-            
+
             gestao_validade = await self.gerenciar_prazos_validade()
-            
+
             return {
                 'previsao_demanda': previsao_demanda,
                 'itens_criticos': itens_criticos,
@@ -37,7 +35,7 @@ class GestorEstoqueInteligente:
                 'economia_prevista': self.calcular_economia_estimada(plano_compras),
                 'timestamp': datetime.now().isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"Erro na otimização do estoque: {e}")
             return {
@@ -46,32 +44,32 @@ class GestorEstoqueInteligente:
                 'itens_criticos': [],
                 'plano_compras': {}
             }
-    
-    async def prever_demanda_30_dias(self) -> Dict:
+
+    async def prever_demanda_30_dias(self) -> dict:
         """Previsão de demanda usando ensemble de modelos"""
-        
+
         historico = await self.coletar_historico_consumo()
-        
+
         modelos = {
             'prophet': self.predictor_demanda.prophet_forecast(historico),
             'lstm': self.predictor_demanda.lstm_forecast(historico),
             'xgboost': self.predictor_demanda.xgboost_forecast(historico),
             'arima': self.predictor_demanda.arima_forecast(historico)
         }
-        
+
         previsao_final = self.combinar_previsoes(modelos)
-        
+
         previsao_ajustada = self.ajustar_por_contexto(
             previsao_final,
             eventos_futuros=await self.obter_eventos_hospitalares(),
             sazonalidade=self.calcular_sazonalidade()
         )
-        
+
         return previsao_ajustada
 
-    async def coletar_historico_consumo(self) -> Dict:
+    async def coletar_historico_consumo(self) -> dict:
         """Coleta histórico de consumo de medicamentos"""
-        
+
         return {
             'periodo': '12_meses',
             'medicamentos': {
@@ -93,20 +91,20 @@ class GestorEstoqueInteligente:
             }
         }
 
-    def combinar_previsoes(self, modelos: Dict) -> Dict:
+    def combinar_previsoes(self, modelos: dict) -> dict:
         """Combina previsões de diferentes modelos"""
-        
+
         pesos = {
             'prophet': 0.3,
             'lstm': 0.25,
             'xgboost': 0.25,
             'arima': 0.2
         }
-        
+
         previsao_combinada = {}
-        
+
         medicamentos_exemplo = ['omeprazol', 'paracetamol', 'insulina']
-        
+
         for medicamento in medicamentos_exemplo:
             previsao_combinada[medicamento] = {
                 'demanda_30_dias': 150,  # Exemplo
@@ -114,31 +112,31 @@ class GestorEstoqueInteligente:
                 'intervalo_confianca': {'min': 135, 'max': 165},
                 'tendencia': 'estavel'
             }
-        
+
         return previsao_combinada
 
-    def ajustar_por_contexto(self, previsao: Dict, eventos_futuros: List[Dict], sazonalidade: Dict) -> Dict:
+    def ajustar_por_contexto(self, previsao: dict, eventos_futuros: list[dict], sazonalidade: dict) -> dict:
         """Ajusta previsão por contexto e eventos"""
-        
+
         previsao_ajustada = previsao.copy()
-        
+
         for evento in eventos_futuros:
             if evento['tipo'] == 'cirurgia_eletiva':
                 if 'paracetamol' in previsao_ajustada:
                     previsao_ajustada['paracetamol']['demanda_30_dias'] *= 1.2
             elif evento['tipo'] == 'campanha_vacinacao':
                 pass
-        
+
         mes_atual = datetime.now().month
         if mes_atual in [12, 1, 2]:  # Verão - mais casos de gastroenterite
             if 'omeprazol' in previsao_ajustada:
                 previsao_ajustada['omeprazol']['demanda_30_dias'] *= 1.15
-        
+
         return previsao_ajustada
 
-    async def obter_eventos_hospitalares(self) -> List[Dict]:
+    async def obter_eventos_hospitalares(self) -> list[dict]:
         """Obtém eventos futuros que podem impactar demanda"""
-        
+
         return [
             {
                 'tipo': 'cirurgia_eletiva',
@@ -154,9 +152,9 @@ class GestorEstoqueInteligente:
             }
         ]
 
-    def calcular_sazonalidade(self) -> Dict:
+    def calcular_sazonalidade(self) -> dict:
         """Calcula padrões sazonais de consumo"""
-        
+
         return {
             'inverno': {
                 'meses': [6, 7, 8],
@@ -170,9 +168,9 @@ class GestorEstoqueInteligente:
             }
         }
 
-    async def identificar_itens_criticos(self) -> List[Dict]:
+    async def identificar_itens_criticos(self) -> list[dict]:
         """Identifica itens com estoque crítico"""
-        
+
         itens_criticos = [
             {
                 'medicamento': 'insulina_regular',
@@ -199,7 +197,7 @@ class GestorEstoqueInteligente:
                 'acao_recomendada': 'compra_emergencial'
             }
         ]
-        
+
         return sorted(itens_criticos, key=lambda x: self.get_criticidade_score(x['criticidade']), reverse=True)
 
     def get_criticidade_score(self, criticidade: str) -> int:
@@ -212,26 +210,26 @@ class GestorEstoqueInteligente:
         }
         return scores.get(criticidade, 0)
 
-    async def otimizar_compras_automatico(self, previsao_demanda: Dict) -> Dict:
+    async def otimizar_compras_automatico(self, previsao_demanda: dict) -> dict:
         """Otimização automática de compras"""
-        
+
         plano_compras = {
             'compras_urgentes': [],
             'compras_programadas': [],
             'economia_estimada': 0.0,
             'fornecedores_recomendados': {}
         }
-        
+
         for medicamento, previsao in previsao_demanda.items():
             demanda_prevista = previsao.get('demanda_30_dias', 0)
-            
+
             quantidade_otima = self.calcular_quantidade_otima_compra(
                 demanda_prevista=demanda_prevista,
                 estoque_atual=self.obter_estoque_atual(medicamento),
                 lead_time=7,  # dias
                 estoque_seguranca=0.2  # 20%
             )
-            
+
             if quantidade_otima > 0:
                 compra = {
                     'medicamento': medicamento,
@@ -241,53 +239,53 @@ class GestorEstoqueInteligente:
                     'prazo_entrega': 7,
                     'prioridade': self.calcular_prioridade_compra(medicamento)
                 }
-                
+
                 if compra['prioridade'] == 'urgente':
                     plano_compras['compras_urgentes'].append(compra)
                 else:
                     plano_compras['compras_programadas'].append(compra)
-        
+
         return plano_compras
 
     def calcular_quantidade_otima_compra(self, demanda_prevista: float, estoque_atual: int, lead_time: int, estoque_seguranca: float) -> int:
         """Calcula quantidade ótima de compra usando modelo EOQ modificado"""
-        
+
         demanda_lead_time = (demanda_prevista / 30) * lead_time
-        
+
         estoque_seg = demanda_prevista * estoque_seguranca
-        
+
         ponto_reposicao = demanda_lead_time + estoque_seg
-        
+
         if estoque_atual < ponto_reposicao:
             return max(0, int(ponto_reposicao - estoque_atual + demanda_prevista))
-        
+
         return 0
 
     def obter_estoque_atual(self, medicamento: str) -> int:
         """Obtém estoque atual do medicamento"""
-        
+
         estoques_simulados = {
             'omeprazol': 85,
             'paracetamol': 320,
             'insulina': 15
         }
-        
+
         return estoques_simulados.get(medicamento, 50)
 
     def obter_preco_unitario(self, medicamento: str) -> float:
         """Obtém preço unitário do medicamento"""
-        
+
         precos = {
             'omeprazol': 2.50,
             'paracetamol': 0.80,
             'insulina': 45.00
         }
-        
+
         return precos.get(medicamento, 10.00)
 
-    def selecionar_melhor_fornecedor(self, medicamento: str) -> Dict:
+    def selecionar_melhor_fornecedor(self, medicamento: str) -> dict:
         """Seleciona melhor fornecedor baseado em critérios múltiplos"""
-        
+
         return {
             'nome': 'Distribuidora Farmacêutica ABC',
             'preco': self.obter_preco_unitario(medicamento),
@@ -298,15 +296,15 @@ class GestorEstoqueInteligente:
 
     def calcular_prioridade_compra(self, medicamento: str) -> str:
         """Calcula prioridade da compra"""
-        
+
         estoque_atual = self.obter_estoque_atual(medicamento)
-        
+
         medicamentos_criticos = ['insulina', 'adrenalina', 'morfina']
-        
+
         if any(critico in medicamento.lower() for critico in medicamentos_criticos):
             if estoque_atual < 20:
                 return 'urgente'
-        
+
         if estoque_atual < 30:
             return 'alta'
         elif estoque_atual < 50:
@@ -314,16 +312,16 @@ class GestorEstoqueInteligente:
         else:
             return 'baixa'
 
-    async def gerenciar_prazos_validade(self) -> Dict:
+    async def gerenciar_prazos_validade(self) -> dict:
         """Gerencia prazos de validade dos medicamentos"""
-        
+
         medicamentos_vencimento = await self.identificar_medicamentos_vencimento()
-        
+
         acoes_recomendadas = []
-        
+
         for med in medicamentos_vencimento:
             dias_vencimento = med['dias_para_vencimento']
-            
+
             if dias_vencimento <= 30:
                 if dias_vencimento <= 7:
                     acao = 'descarte_imediato'
@@ -331,7 +329,7 @@ class GestorEstoqueInteligente:
                     acao = 'uso_prioritario'
                 else:
                     acao = 'promocao_interna'
-                
+
                 acoes_recomendadas.append({
                     'medicamento': med['nome'],
                     'lote': med['lote'],
@@ -340,7 +338,7 @@ class GestorEstoqueInteligente:
                     'acao': acao,
                     'valor_perda': med['quantidade'] * self.obter_preco_unitario(med['nome'])
                 })
-        
+
         return {
             'medicamentos_vencimento': medicamentos_vencimento,
             'acoes_recomendadas': acoes_recomendadas,
@@ -348,9 +346,9 @@ class GestorEstoqueInteligente:
             'economia_possivel': self.calcular_economia_gestao_validade(acoes_recomendadas)
         }
 
-    async def identificar_medicamentos_vencimento(self) -> List[Dict]:
+    async def identificar_medicamentos_vencimento(self) -> list[dict]:
         """Identifica medicamentos próximos do vencimento"""
-        
+
         return [
             {
                 'nome': 'omeprazol',
@@ -375,48 +373,48 @@ class GestorEstoqueInteligente:
             }
         ]
 
-    def calcular_economia_gestao_validade(self, acoes: List[Dict]) -> float:
+    def calcular_economia_gestao_validade(self, acoes: list[dict]) -> float:
         """Calcula economia possível com gestão de validade"""
-        
+
         economia = 0.0
-        
+
         for acao in acoes:
             if acao['acao'] == 'uso_prioritario':
                 economia += acao['valor_perda'] * 0.9  # 90% de economia
             elif acao['acao'] == 'promocao_interna':
                 economia += acao['valor_perda'] * 0.7  # 70% de economia
-        
+
         return economia
 
-    def calcular_economia_estimada(self, plano_compras: Dict) -> Dict:
+    def calcular_economia_estimada(self, plano_compras: dict) -> dict:
         """Calcula economia estimada do plano de compras"""
-        
+
         economia_total = 0.0
         detalhes_economia = []
-        
+
         compras_programadas = plano_compras.get('compras_programadas', [])
-        
+
         for compra in compras_programadas:
             if compra['quantidade'] > 100:
                 desconto = 0.15  # 15% de desconto por volume
                 economia_item = compra['custo_estimado'] * desconto
                 economia_total += economia_item
-                
+
                 detalhes_economia.append({
                     'medicamento': compra['medicamento'],
                     'tipo_economia': 'desconto_volume',
                     'valor': economia_item
                 })
-        
+
         return {
             'economia_total': economia_total,
             'detalhes': detalhes_economia,
             'percentual_economia': (economia_total / sum(c['custo_estimado'] for c in compras_programadas)) * 100 if compras_programadas else 0
         }
 
-    async def gerar_relatorio_estoque(self) -> Dict:
+    async def gerar_relatorio_estoque(self) -> dict:
         """Gera relatório completo do estoque"""
-        
+
         return {
             'data_relatorio': datetime.now().isoformat(),
             'resumo_estoque': {
@@ -445,19 +443,19 @@ class GestorEstoqueInteligente:
 
 
 class PredictorDemandaMedicamentos:
-    def prophet_forecast(self, historico: Dict) -> Dict:
+    def prophet_forecast(self, historico: dict) -> dict:
         """Previsão usando Prophet"""
         return {'modelo': 'prophet', 'confianca': 0.85}
-    
-    def lstm_forecast(self, historico: Dict) -> Dict:
+
+    def lstm_forecast(self, historico: dict) -> dict:
         """Previsão usando LSTM"""
         return {'modelo': 'lstm', 'confianca': 0.80}
-    
-    def xgboost_forecast(self, historico: Dict) -> Dict:
+
+    def xgboost_forecast(self, historico: dict) -> dict:
         """Previsão usando XGBoost"""
         return {'modelo': 'xgboost', 'confianca': 0.82}
-    
-    def arima_forecast(self, historico: Dict) -> Dict:
+
+    def arima_forecast(self, historico: dict) -> dict:
         """Previsão usando ARIMA"""
         return {'modelo': 'arima', 'confianca': 0.75}
 

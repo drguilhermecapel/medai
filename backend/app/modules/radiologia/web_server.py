@@ -1,12 +1,10 @@
-from flask import Flask, request, jsonify, render_template, send_file
-from flask_cors import CORS
-import numpy as np
-import tensorflow as tf
-import logging
-import os
 import io
+import logging
+
+import numpy as np
+from flask import Flask, jsonify, request
+from flask_cors import CORS
 from PIL import Image
-import base64
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('MedAI.WebServer')
@@ -64,31 +62,32 @@ def create_radiologia_app():
         """Análise de imagem"""
         if not medai_system:
             return jsonify({'error': 'Sistema não inicializado'}), 500
-            
+
         try:
             if 'image' not in request.files:
                 return jsonify({'error': 'Nenhuma imagem fornecida'}), 400
-                
+
             file = request.files['image']
             if file.filename == '':
                 return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
-                
+
             image_data = file.read()
-            
+
             if file.filename.lower().endswith('.dcm'):
                 try:
-                    import pydicom
                     from io import BytesIO
+
+                    import pydicom
                     dicom_data = pydicom.dcmread(BytesIO(image_data), force=True)
                     image_array = dicom_data.pixel_array
-                    
+
                     if image_array.max() > 255:
-                        image_array = ((image_array - image_array.min()) / 
+                        image_array = ((image_array - image_array.min()) /
                                      (image_array.max() - image_array.min()) * 255).astype(np.uint8)
-                        
+
                     if len(image_array.shape) == 2:
                         image_array = np.stack([image_array] * 3, axis=-1)
-                        
+
                 except Exception as e:
                     return jsonify({'error': f'Erro ao processar DICOM: {str(e)}'}), 400
             else:
@@ -99,9 +98,9 @@ def create_radiologia_app():
                     image_array = np.array(image)
                 except Exception as e:
                     return jsonify({'error': f'Erro ao processar imagem: {str(e)}'}), 400
-            
+
             result = medai_system.analyze_image(image_array)
-            
+
             return jsonify({
                 'success': True,
                 'filename': file.filename,
@@ -109,7 +108,7 @@ def create_radiologia_app():
                 'model_used': 'ensemble_model',
                 'processing_time': '1.5s'
             })
-            
+
         except Exception as e:
             logger.error(f"Erro na análise: {e}")
             return jsonify({'error': str(e)}), 500
@@ -126,5 +125,5 @@ def create_radiologia_app():
         return jsonify({'models': models})
 
     init_medai_system()
-    
+
     return app

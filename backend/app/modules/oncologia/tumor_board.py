@@ -2,31 +2,29 @@
 Gestor de Tumor Board com IA
 """
 
-import asyncio
-from typing import Dict, List
-from datetime import datetime
 import logging
+from datetime import datetime
 
 logger = logging.getLogger('MedAI.Oncologia.TumorBoard')
 
 class GestorTumorBoardIA:
     """Gestor de Tumor Board com IA"""
-    
+
     def __init__(self):
         self.analisador_casos = AnalisadorCasosComplexos()
         self.facilitador_discussao = FacilitadorDiscussaoIA()
         self.gerador_consenso = GeradorConsensoIA()
         self.documentador_decisoes = DocumentadorDecisoes()
         self.monitor_implementacao = MonitorImplementacaoDecisoes()
-        
-    async def coordenar_tumor_boards(self, casos_discussao: List[Dict],
+
+    async def coordenar_tumor_boards(self, casos_discussao: list[dict],
                                      virtual_aumentado: bool = True,
-                                     consenso_ia: bool = True) -> Dict:
+                                     consenso_ia: bool = True) -> dict:
         """Coordenação completa de tumor boards multidisciplinares"""
-        
+
         try:
             resultados_tumor_board = {}
-            
+
             for caso in casos_discussao:
                 analise_pre = await self.analisador_casos.analisar_caso_complexo(
                     caso=caso,
@@ -35,7 +33,7 @@ class GestorTumorBoardIA:
                     guidelines_aplicaveis=True,
                     casos_similares=True
                 )
-                
+
                 if virtual_aumentado:
                     facilitacao = await self.facilitador_discussao.facilitar_discussao_virtual(
                         caso=caso,
@@ -49,7 +47,7 @@ class GestorTumorBoardIA:
                         caso=caso,
                         analise_previa=analise_pre
                     )
-                
+
                 if consenso_ia:
                     consenso = await self.gerador_consenso.gerar_consenso_assistido(
                         discussao=facilitacao,
@@ -62,7 +60,7 @@ class GestorTumorBoardIA:
                     consenso = await self.gerador_consenso.consolidar_consenso_tradicional(
                         discussao=facilitacao
                     )
-                
+
                 documentacao = await self.documentador_decisoes.documentar_decisoes(
                     caso=caso,
                     discussao=facilitacao,
@@ -71,20 +69,20 @@ class GestorTumorBoardIA:
                     evidencias_utilizadas=analise_pre.get('evidencias'),
                     formato_estruturado=True
                 )
-                
+
                 plano_implementacao = await self.criar_plano_implementacao(
                     decisoes=consenso,
                     caso=caso,
                     responsabilidades=await self.definir_responsabilidades(consenso),
                     cronograma=await self.definir_cronograma_implementacao(consenso)
                 )
-                
+
                 monitoramento = await self.monitor_implementacao.definir_monitoramento(
                     plano=plano_implementacao,
                     indicadores_seguimento=await self.definir_indicadores_seguimento(caso),
                     frequencia_revisao='mensal'
                 )
-                
+
                 resultados_tumor_board[caso['paciente_id']] = {
                     'analise_pre_discussao': analise_pre,
                     'facilitacao_discussao': facilitacao,
@@ -99,7 +97,7 @@ class GestorTumorBoardIA:
                         facilitacao
                     )
                 }
-            
+
             return {
                 'casos_discutidos': resultados_tumor_board,
                 'estatisticas_tumor_board': await self.calcular_estatisticas_tumor_board(
@@ -111,7 +109,7 @@ class GestorTumorBoardIA:
                 ),
                 'impacto_ia': await self.avaliar_impacto_ia_tumor_board()
             }
-            
+
         except Exception as e:
             logger.error(f"Erro na coordenação de tumor boards: {e}")
             return {
@@ -119,14 +117,14 @@ class GestorTumorBoardIA:
                 'timestamp': datetime.now().isoformat()
             }
 
-    async def identificar_participantes_necessarios(self, caso: Dict) -> List[Dict]:
+    async def identificar_participantes_necessarios(self, caso: dict) -> list[dict]:
         """Identifica participantes necessários para o caso"""
-        
+
         especialidades_base = ['oncologia_clinica', 'cirurgia_oncologica', 'radioterapia']
         especialidades_caso = caso.get('especialidades_necessarias', [])
-        
+
         participantes = []
-        
+
         for especialidade in set(especialidades_base + especialidades_caso):
             participantes.append({
                 'especialidade': especialidade,
@@ -136,12 +134,12 @@ class GestorTumorBoardIA:
                     especialidade
                 )
             })
-        
+
         return participantes
 
-    async def verificar_disponibilidade_especialista(self, especialidade: str) -> Dict:
+    async def verificar_disponibilidade_especialista(self, especialidade: str) -> dict:
         """Verifica disponibilidade do especialista"""
-        
+
         return {
             'disponivel': True,
             'proxima_disponibilidade': '2024-06-15 14:00',
@@ -149,10 +147,10 @@ class GestorTumorBoardIA:
             'experiencia_anos': 15
         }
 
-    async def criar_plano_implementacao(self, decisoes: Dict, caso: Dict, 
-                                       responsabilidades: Dict, cronograma: Dict) -> Dict:
+    async def criar_plano_implementacao(self, decisoes: dict, caso: dict,
+                                       responsabilidades: dict, cronograma: dict) -> dict:
         """Cria plano de implementação das decisões"""
-        
+
         return {
             'tratamento_recomendado': decisoes.get('tratamento_principal'),
             'sequencia_tratamentos': decisoes.get('sequencia_tratamentos', []),
@@ -164,9 +162,9 @@ class GestorTumorBoardIA:
             'comunicacao_paciente': await self.definir_comunicacao_paciente(decisoes)
         }
 
-    async def definir_responsabilidades(self, consenso: Dict) -> Dict:
+    async def definir_responsabilidades(self, consenso: dict) -> dict:
         """Define responsabilidades dos especialistas"""
-        
+
         return {
             'coordenador': 'Oncologista clínico',
             'especialistas': {
@@ -179,9 +177,9 @@ class GestorTumorBoardIA:
             'farmacia': 'Revisão de medicações'
         }
 
-    async def definir_cronograma_implementacao(self, consenso: Dict) -> Dict:
+    async def definir_cronograma_implementacao(self, consenso: dict) -> dict:
         """Define cronograma de implementação"""
-        
+
         return {
             'inicio_tratamento': '7 dias',
             'marcos_principais': [
@@ -193,9 +191,9 @@ class GestorTumorBoardIA:
             'revisao_plano': '90 dias'
         }
 
-    async def definir_indicadores_seguimento(self, caso: Dict) -> List[Dict]:
+    async def definir_indicadores_seguimento(self, caso: dict) -> list[dict]:
         """Define indicadores de seguimento"""
-        
+
         return [
             {
                 'indicador': 'Resposta ao tratamento',
@@ -214,9 +212,9 @@ class GestorTumorBoardIA:
             }
         ]
 
-    async def definir_comunicacao_paciente(self, decisoes: Dict) -> Dict:
+    async def definir_comunicacao_paciente(self, decisoes: dict) -> dict:
         """Define plano de comunicação com paciente"""
-        
+
         return {
             'responsavel_comunicacao': 'Oncologista coordenador',
             'pontos_principais': [
@@ -230,9 +228,9 @@ class GestorTumorBoardIA:
             'segunda_opiniao': decisoes.get('recomendar_segunda_opiniao', False)
         }
 
-    async def avaliar_qualidade_discussao(self, facilitacao: Dict) -> Dict:
+    async def avaliar_qualidade_discussao(self, facilitacao: dict) -> dict:
         """Avalia qualidade da discussão"""
-        
+
         return {
             'score_qualidade': 0.89,
             'participacao_especialistas': 0.92,
@@ -242,9 +240,9 @@ class GestorTumorBoardIA:
             'areas_melhoria': []
         }
 
-    async def medir_satisfacao_participantes(self, facilitacao: Dict) -> Dict:
+    async def medir_satisfacao_participantes(self, facilitacao: dict) -> dict:
         """Mede satisfação dos participantes"""
-        
+
         return {
             'satisfacao_media': 4.6,  # escala 1-5
             'eficiencia_discussao': 4.4,
@@ -253,9 +251,9 @@ class GestorTumorBoardIA:
             'recomendaria_formato': 0.95
         }
 
-    async def calcular_estatisticas_tumor_board(self, resultados: Dict) -> Dict:
+    async def calcular_estatisticas_tumor_board(self, resultados: dict) -> dict:
         """Calcula estatísticas do tumor board"""
-        
+
         return {
             'casos_discutidos': len(resultados),
             'tempo_medio_discussao': 42,  # minutos
@@ -264,9 +262,9 @@ class GestorTumorBoardIA:
             'satisfacao_geral': 4.5
         }
 
-    async def analisar_eficiencia_discussoes(self) -> Dict:
+    async def analisar_eficiencia_discussoes(self) -> dict:
         """Analisa eficiência das discussões"""
-        
+
         return {
             'reducao_tempo_ia': 0.25,  # 25% redução
             'melhoria_qualidade': 0.18,  # 18% melhoria
@@ -274,9 +272,9 @@ class GestorTumorBoardIA:
             'economia_custos': 15000.00  # R$ por mês
         }
 
-    async def avaliar_qualidade_decisoes(self, resultados: Dict) -> Dict:
+    async def avaliar_qualidade_decisoes(self, resultados: dict) -> dict:
         """Avalia qualidade das decisões"""
-        
+
         return {
             'aderencia_guidelines': 0.94,
             'uso_evidencias_nivel_1': 0.78,
@@ -284,9 +282,9 @@ class GestorTumorBoardIA:
             'viabilidade_implementacao': 0.91
         }
 
-    async def avaliar_impacto_ia_tumor_board(self) -> Dict:
+    async def avaliar_impacto_ia_tumor_board(self) -> dict:
         """Avalia impacto da IA no tumor board"""
-        
+
         return {
             'melhoria_preparacao': 0.35,
             'otimizacao_tempo': 0.28,
@@ -298,10 +296,10 @@ class GestorTumorBoardIA:
 
 class AnalisadorCasosComplexos:
     """Analisador de casos complexos"""
-    
-    async def analisar_caso_complexo(self, **kwargs) -> Dict:
+
+    async def analisar_caso_complexo(self, **kwargs) -> dict:
         """Analisa caso complexo"""
-        
+
         return {
             'complexidade_score': 7.8,
             'especialidades_recomendadas': ['oncologia', 'cirurgia', 'radioterapia'],
@@ -316,10 +314,10 @@ class AnalisadorCasosComplexos:
 
 class FacilitadorDiscussaoIA:
     """Facilitador de discussão com IA"""
-    
-    async def facilitar_discussao_virtual(self, **kwargs) -> Dict:
+
+    async def facilitar_discussao_virtual(self, **kwargs) -> dict:
         """Facilita discussão virtual"""
-        
+
         return {
             'duracao_minutos': 42,
             'participantes': kwargs.get('participantes', []),
@@ -330,19 +328,19 @@ class FacilitadorDiscussaoIA:
             'consenso_emergente': 'Tratamento multimodal',
             'pontos_controversia': []
         }
-    
-    async def facilitar_discussao_presencial(self, **kwargs) -> Dict:
+
+    async def facilitar_discussao_presencial(self, **kwargs) -> dict:
         """Facilita discussão presencial"""
-        
+
         return await self.facilitar_discussao_virtual(**kwargs)
 
 
 class GeradorConsensoIA:
     """Gerador de consenso com IA"""
-    
-    async def gerar_consenso_assistido(self, **kwargs) -> Dict:
+
+    async def gerar_consenso_assistido(self, **kwargs) -> dict:
         """Gera consenso assistido por IA"""
-        
+
         return {
             'consenso_principal': 'Tratamento multimodal',
             'nivel_concordancia': 0.89,
@@ -354,19 +352,19 @@ class GeradorConsensoIA:
             'pontos_divergencia': [],
             'recomendacao_final': 'Iniciar quimioterapia neoadjuvante'
         }
-    
-    async def consolidar_consenso_tradicional(self, **kwargs) -> Dict:
+
+    async def consolidar_consenso_tradicional(self, **kwargs) -> dict:
         """Consolida consenso tradicional"""
-        
+
         return await self.gerar_consenso_assistido(**kwargs)
 
 
 class DocumentadorDecisoes:
     """Documentador de decisões"""
-    
-    async def documentar_decisoes(self, **kwargs) -> Dict:
+
+    async def documentar_decisoes(self, **kwargs) -> dict:
         """Documenta decisões do tumor board"""
-        
+
         return {
             'ata_reuniao': 'Documento estruturado gerado',
             'decisoes_principais': kwargs.get('consenso', {}),
@@ -379,10 +377,10 @@ class DocumentadorDecisoes:
 
 class MonitorImplementacaoDecisoes:
     """Monitor de implementação de decisões"""
-    
-    async def definir_monitoramento(self, **kwargs) -> Dict:
+
+    async def definir_monitoramento(self, **kwargs) -> dict:
         """Define monitoramento da implementação"""
-        
+
         return {
             'indicadores_implementacao': [
                 'Início do tratamento no prazo',

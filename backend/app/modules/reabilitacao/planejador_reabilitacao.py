@@ -2,46 +2,44 @@
 Planejador de Reabilitação com IA
 """
 
-import asyncio
-from typing import Dict, List
-from datetime import datetime
 import logging
+from datetime import datetime
 
 logger = logging.getLogger('MedAI.Reabilitacao.PlanejadorReabilitacao')
 
 class PlanejadorReabilitacaoIA:
     """Planejamento inteligente de reabilitação"""
-    
+
     def __init__(self):
         self.gerador_exercicios = GeradorExerciciosIA()
         self.otimizador_progressao = OtimizadorProgressaoML()
         self.personalizador = PersonalizadorTerapiaIA()
-        
-    async def criar_plano_reabilitacao(self, avaliacao: Dict, objetivos: List[str]) -> Dict:
+
+    async def criar_plano_reabilitacao(self, avaliacao: dict, objetivos: list[str]) -> dict:
         """Criação de plano de reabilitação personalizado com IA"""
-        
+
         try:
             objetivos_smart = self.definir_objetivos_smart(avaliacao, objetivos)
-            
+
             exercicios = await self.selecionar_exercicios_otimos(
                 condicao=avaliacao.get('diagnostico', ''),
                 limitacoes=avaliacao.get('limitacoes', []),
                 objetivos=objetivos_smart,
                 preferencias=avaliacao.get('preferencias', {})
             )
-            
+
             progressao = self.otimizador_progressao.criar_progressao(
                 exercicios=exercicios,
                 nivel_inicial=avaliacao.get('score_global', 0.5),
                 velocidade_progressao='adaptativa'
             )
-            
+
             plano_personalizado = self.personalizador.personalizar_plano(
                 plano_base=progressao,
                 perfil_paciente=avaliacao.get('perfil', {}),
                 fatores_psicossociais=avaliacao.get('psicossocial', {})
             )
-            
+
             return {
                 'objetivos': objetivos_smart,
                 'fases': plano_personalizado.get('fases', []),
@@ -51,7 +49,7 @@ class PlanejadorReabilitacaoIA:
                 'marcos_avaliacao': self.definir_marcos_reavaliacao(),
                 'timestamp': datetime.now().isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"Erro na criação do plano de reabilitação: {e}")
             return {
@@ -59,42 +57,42 @@ class PlanejadorReabilitacaoIA:
                 'objetivos': [],
                 'exercicios': []
             }
-    
-    async def selecionar_exercicios_otimos(self, **kwargs) -> List[Dict]:
+
+    async def selecionar_exercicios_otimos(self, **kwargs) -> list[dict]:
         """Seleção de exercícios baseada em evidências e IA"""
-        
+
         try:
             exercicios_disponiveis = await self.carregar_base_exercicios()
-            
+
             exercicios_filtrados = self.filtrar_por_seguranca(
                 exercicios_disponiveis,
                 condicao=kwargs.get('condicao', ''),
                 limitacoes=kwargs.get('limitacoes', [])
             )
-            
+
             exercicios_rankeados = self.rankear_por_eficacia(
                 exercicios_filtrados,
                 objetivos=kwargs.get('objetivos', []),
                 nivel_evidencia_minimo='B'
             )
-            
+
             combinacao_otima = self.otimizar_combinacao_exercicios(
                 exercicios_rankeados,
                 tempo_sessao=kwargs.get('tempo_sessao', 60),
                 frequencia_semanal=kwargs.get('frequencia', 3)
             )
-            
+
             return combinacao_otima
-            
+
         except Exception as e:
             logger.error(f"Erro na seleção de exercícios: {e}")
             return []
 
-    def definir_objetivos_smart(self, avaliacao: Dict, objetivos_gerais: List[str]) -> List[Dict]:
+    def definir_objetivos_smart(self, avaliacao: dict, objetivos_gerais: list[str]) -> list[dict]:
         """Define objetivos SMART baseados na avaliação"""
-        
+
         objetivos_smart = []
-        
+
         for objetivo in objetivos_gerais:
             if 'mobilidade' in objetivo.lower():
                 objetivos_smart.append({
@@ -123,12 +121,12 @@ class PlanejadorReabilitacaoIA:
                     'temporal': '4 semanas',
                     'prioridade': 'Moderada'
                 })
-        
+
         return objetivos_smart
 
-    async def carregar_base_exercicios(self) -> List[Dict]:
+    async def carregar_base_exercicios(self) -> list[dict]:
         """Carrega base de dados de exercícios"""
-        
+
         return [
             {
                 'nome': 'Fortalecimento de quadríceps',
@@ -172,101 +170,101 @@ class PlanejadorReabilitacaoIA:
             }
         ]
 
-    def filtrar_por_seguranca(self, exercicios: List[Dict], condicao: str, limitacoes: List[str]) -> List[Dict]:
+    def filtrar_por_seguranca(self, exercicios: list[dict], condicao: str, limitacoes: list[str]) -> list[dict]:
         """Filtra exercícios por segurança"""
-        
+
         exercicios_seguros = []
-        
+
         for exercicio in exercicios:
             contraindicado = False
             for contraindicacao in exercicio.get('contraindicacoes', []):
                 if any(limitacao.lower() in contraindicacao.lower() for limitacao in limitacoes):
                     contraindicado = True
                     break
-            
+
             if not contraindicado:
                 exercicios_seguros.append(exercicio)
-        
+
         return exercicios_seguros
 
-    def rankear_por_eficacia(self, exercicios: List[Dict], objetivos: List[Dict], nivel_evidencia_minimo: str) -> List[Dict]:
+    def rankear_por_eficacia(self, exercicios: list[dict], objetivos: list[dict], nivel_evidencia_minimo: str) -> list[dict]:
         """Rankeia exercícios por eficácia"""
-        
+
         niveis_evidencia = {'A': 3, 'B': 2, 'C': 1}
         minimo = niveis_evidencia.get(nivel_evidencia_minimo, 1)
-        
+
         exercicios_rankeados = []
-        
+
         for exercicio in exercicios:
             nivel = niveis_evidencia.get(exercicio.get('nivel_evidencia', 'C'), 1)
-            
+
             if nivel >= minimo:
                 score_relevancia = self.calcular_relevancia_exercicio(exercicio, objetivos)
                 exercicio['score_total'] = nivel + score_relevancia
                 exercicios_rankeados.append(exercicio)
-        
+
         exercicios_rankeados.sort(key=lambda x: x['score_total'], reverse=True)
-        
+
         return exercicios_rankeados
 
-    def calcular_relevancia_exercicio(self, exercicio: Dict, objetivos: List[Dict]) -> float:
+    def calcular_relevancia_exercicio(self, exercicio: dict, objetivos: list[dict]) -> float:
         """Calcula relevância do exercício para os objetivos"""
-        
+
         score = 0
-        
+
         for objetivo in objetivos:
             if exercicio['tipo'].lower() in objetivo.get('especifico', '').lower():
                 score += 2
-            
-            if any(indicacao.lower() in objetivo.get('especifico', '').lower() 
+
+            if any(indicacao.lower() in objetivo.get('especifico', '').lower()
                    for indicacao in exercicio.get('indicacoes', [])):
                 score += 1
-        
+
         return score
 
-    def otimizar_combinacao_exercicios(self, exercicios: List[Dict], tempo_sessao: int, frequencia_semanal: int) -> List[Dict]:
+    def otimizar_combinacao_exercicios(self, exercicios: list[dict], tempo_sessao: int, frequencia_semanal: int) -> list[dict]:
         """Otimiza combinação de exercícios"""
-        
+
         combinacao_otima = []
         tempo_total = 0
         tipos_incluidos = set()
-        
+
         for exercicio in exercicios:
             tempo_exercicio = exercicio.get('tempo_sessao', 10)
-            
+
             if tempo_total + tempo_exercicio <= tempo_sessao:
                 if exercicio['tipo'] not in tipos_incluidos or len(combinacao_otima) < 3:
                     combinacao_otima.append(exercicio)
                     tempo_total += tempo_exercicio
                     tipos_incluidos.add(exercicio['tipo'])
-        
+
         return combinacao_otima
 
-    def estimar_duracao_tratamento(self, avaliacao: Dict) -> Dict:
+    def estimar_duracao_tratamento(self, avaliacao: dict) -> dict:
         """Estima duração do tratamento"""
-        
+
         score_funcional = avaliacao.get('score_global', 0.5)
-        
+
         if score_funcional < 0.3:
             duracao_base = 16
         elif score_funcional < 0.6:
             duracao_base = 12
         else:
             duracao_base = 8
-        
+
         fatores_ajuste = {
             'idade': avaliacao.get('idade', 50),
             'comorbidades': len(avaliacao.get('comorbidades', [])),
             'motivacao': avaliacao.get('motivacao', 0.7)
         }
-        
+
         if fatores_ajuste['idade'] > 65:
             duracao_base *= 1.2
         if fatores_ajuste['comorbidades'] > 2:
             duracao_base *= 1.1
         if fatores_ajuste['motivacao'] > 0.8:
             duracao_base *= 0.9
-        
+
         return {
             'duracao_semanas': int(duracao_base),
             'sessoes_por_semana': 3,
@@ -274,9 +272,9 @@ class PlanejadorReabilitacaoIA:
             'fatores_considerados': fatores_ajuste
         }
 
-    def definir_marcos_reavaliacao(self) -> List[Dict]:
+    def definir_marcos_reavaliacao(self) -> list[dict]:
         """Define marcos de reavaliação"""
-        
+
         return [
             {
                 'semana': 2,
@@ -304,11 +302,11 @@ class GeradorExerciciosIA:
 
 
 class OtimizadorProgressaoML:
-    def criar_progressao(self, exercicios: List[Dict], nivel_inicial: float, velocidade_progressao: str) -> Dict:
+    def criar_progressao(self, exercicios: list[dict], nivel_inicial: float, velocidade_progressao: str) -> dict:
         """Cria progressão de exercícios"""
-        
+
         fases = []
-        
+
         fases.append({
             'nome': 'Fase Inicial',
             'semanas': [1, 2],
@@ -316,7 +314,7 @@ class OtimizadorProgressaoML:
             'foco': 'Adaptação e redução de sintomas',
             'exercicios': exercicios[:2]  # Primeiros 2 exercícios
         })
-        
+
         fases.append({
             'nome': 'Fase Intermediária',
             'semanas': [3, 4, 5, 6],
@@ -324,7 +322,7 @@ class OtimizadorProgressaoML:
             'foco': 'Fortalecimento e melhora funcional',
             'exercicios': exercicios[:4]  # Primeiros 4 exercícios
         })
-        
+
         fases.append({
             'nome': 'Fase Avançada',
             'semanas': [7, 8, 9, 10],
@@ -332,16 +330,16 @@ class OtimizadorProgressaoML:
             'foco': 'Otimização e retorno funcional',
             'exercicios': exercicios  # Todos os exercícios
         })
-        
+
         return {
             'fases': fases,
             'criterios_progressao': self.definir_criterios_progressao(),
             'ajustes_automaticos': True
         }
 
-    def definir_criterios_progressao(self) -> Dict:
+    def definir_criterios_progressao(self) -> dict:
         """Define critérios para progressão entre fases"""
-        
+
         return {
             'inicial_para_intermediaria': [
                 'Redução de dor > 50%',
@@ -362,17 +360,17 @@ class OtimizadorProgressaoML:
 
 
 class PersonalizadorTerapiaIA:
-    def personalizar_plano(self, plano_base: Dict, perfil_paciente: Dict, fatores_psicossociais: Dict) -> Dict:
+    def personalizar_plano(self, plano_base: dict, perfil_paciente: dict, fatores_psicossociais: dict) -> dict:
         """Personaliza plano baseado no perfil do paciente"""
-        
+
         plano_personalizado = plano_base.copy()
-        
+
         idade = perfil_paciente.get('idade', 50)
         if idade > 65:
             for fase in plano_personalizado.get('fases', []):
                 if fase['intensidade'] == 'Alta':
                     fase['intensidade'] = 'Moderada'
-        
+
         motivacao = fatores_psicossociais.get('motivacao', 0.7)
         if motivacao < 0.5:
             plano_personalizado['elementos_motivacionais'] = [
@@ -380,5 +378,5 @@ class PersonalizadorTerapiaIA:
                 'Metas de curto prazo',
                 'Feedback positivo frequente'
             ]
-        
+
         return plano_personalizado

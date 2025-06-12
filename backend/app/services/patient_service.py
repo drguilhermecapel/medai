@@ -3,10 +3,10 @@ Patient Service - Enhanced patient management functionality with audit logging.
 """
 
 import logging
-from datetime import date, datetime
-from typing import Any, Dict, Optional
 import secrets
 import string
+from datetime import date, datetime
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -123,7 +123,7 @@ class PatientService(BaseService):
         self,
         patient_id: int,
         days: int = 30
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get patient timeline with medical events
         """
@@ -148,9 +148,9 @@ class PatientService(BaseService):
                     "last_activity": patient.updated_at or patient.created_at
                 }
             }
-            
+
             return timeline
-            
+
         except Exception as e:
             logger.error(f"Error getting patient timeline: {e}")
             raise
@@ -173,25 +173,25 @@ class PatientService(BaseService):
         try:
             primary_patient = await self.repository.get_patient_by_id(primary_patient_id)
             secondary_patient = await self.repository.get_patient_by_id(secondary_patient_id)
-            
+
             if not primary_patient or not secondary_patient:
                 raise ValueError("One or both patients not found")
-            
+
             logger.info(f"Merging patient {secondary_patient_id} into {primary_patient_id}")
-            
-            
+
+
             merge_data = {}
             if not primary_patient.phone and secondary_patient.phone:
                 merge_data['phone'] = secondary_patient.phone
             if not primary_patient.email and secondary_patient.email:
                 merge_data['email'] = secondary_patient.email
-                
+
             if merge_data:
                 await self.repository.update_patient(primary_patient_id, merge_data)
                 primary_patient = await self.repository.get_patient_by_id(primary_patient_id)
-            
+
             return primary_patient
-            
+
         except Exception as e:
             logger.error(f"Error merging patients: {e}")
             raise

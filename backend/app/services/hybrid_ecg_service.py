@@ -6,6 +6,7 @@ Integrates comprehensive pathology detection with existing cardio.ai.pro infrast
 import logging
 import time
 import warnings
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 import neurokit2 as nk
@@ -18,7 +19,6 @@ from sklearn.preprocessing import StandardScaler  # type: ignore[import-untyped]
 
 from app.core.constants import ClinicalUrgency
 from app.core.exceptions import ECGProcessingException
-from datetime import datetime
 
 # from app.monitoring.structured_logging import get_ecg_logger  # Temporarily disabled for core component
 from app.repositories.ecg_repository import ECGRepository
@@ -537,7 +537,7 @@ class FeatureExtractor:
 
 class MultiPathologyService:
     """Service for detecting multiple pathologies in ECG data."""
-    
+
     def detect_multi_pathology(self, ecg_data: Any, **kwargs: Any) -> dict[str, Any]:
         """Implementar o método que está faltando"""
         results = {
@@ -549,27 +549,27 @@ class MultiPathologyService:
 
 class AdaptiveThresholdManager:
     """Manager for adaptive thresholds based on clinical context."""
-    
+
     def __init__(self) -> None:
         self.base_thresholds = {
             'confidence': 0.5,
             'quality': 0.6,
             'pathology': 0.7
         }
-    
-    def get_adaptive_threshold(self, 
-                             metric_name: str, 
+
+    def get_adaptive_threshold(self,
+                             metric_name: str,
                              clinical_context: dict[str, Any] | None = None,
                              **kwargs: Any) -> float:
         """Aceitar clinical_context como parâmetro"""
         threshold = self.base_thresholds.get(metric_name, 0.5)
-        
+
         if clinical_context:
             if clinical_context.get('age', 0) > 65:
                 threshold *= 0.9
             if clinical_context.get('cardiac_history'):
                 threshold *= 0.85
-                
+
         return threshold
 
 

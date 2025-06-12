@@ -2,30 +2,28 @@
 Navegador de paciente oncológico
 """
 
-import asyncio
-from typing import Dict, List
-from datetime import datetime
 import logging
+from datetime import datetime
 
 logger = logging.getLogger('MedAI.Oncologia.NavegadorPaciente')
 
 class NavegadorPacienteOncologico:
     """Navegador de paciente oncológico"""
-    
+
     def __init__(self):
         self.coordenador_cuidados = CoordenadorCuidadosOncologicos()
         self.educador_paciente = EducadorPacienteIA()
         self.suporte_psicossocial = SuportePsicossocialIA()
         self.gestor_recursos = GestorRecursosComunitarios()
-        
-    async def navegar_jornada_completa(self, pacientes_oncologicos: List[Dict],
+
+    async def navegar_jornada_completa(self, pacientes_oncologicos: list[dict],
                                        navegacao_personalizada: bool = True,
-                                       suporte_integral: bool = True) -> Dict:
+                                       suporte_integral: bool = True) -> dict:
         """Navegação completa da jornada do paciente oncológico"""
-        
+
         try:
             navegacao_pacientes = {}
-            
+
             for paciente in pacientes_oncologicos:
                 coordenacao = await self.coordenador_cuidados.coordenar_cuidados_integrais(
                     paciente=paciente,
@@ -34,7 +32,7 @@ class NavegadorPacienteOncologico:
                     suporte_familiar=True,
                     navegacao_sistema=True
                 )
-                
+
                 educacao = await self.educador_paciente.educar_paciente_familia(
                     paciente=paciente,
                     nivel_educacional=paciente.get('nivel_educacional', 'medio'),
@@ -43,7 +41,7 @@ class NavegadorPacienteOncologico:
                     incluir_familia=True,
                     materiais_personalizados=navegacao_personalizada
                 )
-                
+
                 if suporte_integral:
                     suporte = await self.suporte_psicossocial.avaliar_necessidades_psicossociais(
                         paciente=paciente,
@@ -54,7 +52,7 @@ class NavegadorPacienteOncologico:
                     )
                 else:
                     suporte = None
-                
+
                 recursos = await self.gestor_recursos.mapear_recursos_disponiveis(
                     paciente=paciente,
                     necessidades_identificadas=await self.identificar_necessidades_recursos(
@@ -64,7 +62,7 @@ class NavegadorPacienteOncologico:
                     recursos_financeiros=paciente.get('situacao_financeira'),
                     incluir_recursos_comunitarios=True
                 )
-                
+
                 plano_navegacao = await self.criar_plano_navegacao_personalizado(
                     paciente=paciente,
                     coordenacao=coordenacao,
@@ -72,14 +70,14 @@ class NavegadorPacienteOncologico:
                     suporte=suporte,
                     recursos=recursos
                 )
-                
+
                 monitoramento = await self.definir_monitoramento_jornada(
                     paciente=paciente,
                     plano_navegacao=plano_navegacao,
                     indicadores_qualidade=True,
                     satisfacao_paciente=True
                 )
-                
+
                 navegacao_pacientes[paciente['id']] = {
                     'coordenacao_cuidados': coordenacao,
                     'educacao_paciente': educacao,
@@ -94,7 +92,7 @@ class NavegadorPacienteOncologico:
                         paciente
                     )
                 }
-            
+
             return {
                 'navegacao_individualizada': navegacao_pacientes,
                 'estatisticas_navegacao': await self.calcular_estatisticas_navegacao(
@@ -104,7 +102,7 @@ class NavegadorPacienteOncologico:
                 'recursos_mais_utilizados': await self.analisar_recursos_utilizados(),
                 'satisfacao_geral': await self.calcular_satisfacao_geral(navegacao_pacientes)
             }
-            
+
         except Exception as e:
             logger.error(f"Erro na navegação de pacientes oncológicos: {e}")
             return {
@@ -112,79 +110,79 @@ class NavegadorPacienteOncologico:
                 'timestamp': datetime.now().isoformat()
             }
 
-    async def identificar_fatores_estresse(self, paciente: Dict) -> List[Dict]:
+    async def identificar_fatores_estresse(self, paciente: dict) -> list[dict]:
         """Identifica fatores de estresse do paciente"""
-        
+
         fatores = []
-        
+
         if paciente.get('tempo_diagnostico_dias', 0) < 30:
             fatores.append({
                 'fator': 'Diagnóstico recente',
                 'categoria': 'diagnostico',
                 'intensidade': 'alta'
             })
-        
+
         if paciente.get('situacao_financeira') == 'dificil':
             fatores.append({
                 'fator': 'Dificuldades financeiras',
                 'categoria': 'socioeconomico',
                 'intensidade': 'alta'
             })
-        
+
         if not paciente.get('suporte_familiar'):
             fatores.append({
                 'fator': 'Falta de suporte familiar',
                 'categoria': 'familiar',
                 'intensidade': 'moderada'
             })
-        
+
         if paciente.get('tratamento_complexo'):
             fatores.append({
                 'fator': 'Complexidade do tratamento',
                 'categoria': 'tratamento',
                 'intensidade': 'moderada'
             })
-        
+
         return fatores
 
-    async def identificar_necessidades_recursos(self, paciente: Dict) -> List[str]:
+    async def identificar_necessidades_recursos(self, paciente: dict) -> list[str]:
         """Identifica necessidades de recursos"""
-        
+
         necessidades = []
-        
+
         if paciente.get('situacao_financeira') in ['dificil', 'muito_dificil']:
             necessidades.extend([
                 'auxilio_financeiro',
                 'medicamentos_gratuitos',
                 'transporte_tratamento'
             ])
-        
+
         if paciente.get('dependencia_cuidados'):
             necessidades.extend([
                 'cuidador_domiciliar',
                 'equipamentos_medicos',
                 'home_care'
             ])
-        
+
         if paciente.get('distress_psicologico', 0) > 5:
             necessidades.extend([
                 'suporte_psicologico',
                 'grupos_apoio',
                 'terapia_familiar'
             ])
-        
+
         if paciente.get('conhecimento_doenca', 'baixo') == 'baixo':
             necessidades.extend([
                 'educacao_doenca',
                 'materiais_educativos',
                 'orientacao_nutricional'
             ])
-        
+
         return necessidades
 
-    async def criar_plano_navegacao_personalizado(self, paciente: Dict, **componentes) -> Dict:
+    async def criar_plano_navegacao_personalizado(self, paciente: dict, **componentes) -> dict:
         """Cria plano de navegação personalizado"""
-        
+
         return {
             'objetivos_navegacao': [
                 'Facilitar acesso aos cuidados',
@@ -211,37 +209,37 @@ class NavegadorPacienteOncologico:
             'frequencia_contato': await self.definir_frequencia_contato(paciente)
         }
 
-    async def definir_estrategias_personalizadas(self, paciente: Dict) -> List[Dict]:
+    async def definir_estrategias_personalizadas(self, paciente: dict) -> list[dict]:
         """Define estratégias personalizadas de navegação"""
-        
+
         estrategias = []
-        
+
         if paciente.get('idade', 0) > 65:
             estrategias.append({
                 'estrategia': 'Comunicação simplificada',
                 'descricao': 'Usar linguagem clara e repetir informações importantes',
                 'frequencia': 'A cada contato'
             })
-        
+
         if paciente.get('nivel_educacional') == 'baixo':
             estrategias.append({
                 'estrategia': 'Materiais visuais',
                 'descricao': 'Utilizar infográficos e vídeos educativos',
                 'frequencia': 'Conforme necessário'
             })
-        
+
         if paciente.get('ansiedade_alta'):
             estrategias.append({
                 'estrategia': 'Suporte emocional intensificado',
                 'descricao': 'Contatos mais frequentes e encaminhamento psicológico',
                 'frequencia': 'Semanal'
             })
-        
+
         return estrategias
 
-    async def definir_cronograma_navegacao(self, paciente: Dict) -> Dict:
+    async def definir_cronograma_navegacao(self, paciente: dict) -> dict:
         """Define cronograma de navegação"""
-        
+
         return {
             'fase_inicial': {
                 'duracao': '30 dias',
@@ -275,20 +273,20 @@ class NavegadorPacienteOncologico:
             }
         }
 
-    async def definir_frequencia_contato(self, paciente: Dict) -> Dict:
+    async def definir_frequencia_contato(self, paciente: dict) -> dict:
         """Define frequência de contato"""
-        
+
         frequencia_base = 'quinzenal'
-        
+
         if paciente.get('complexidade_caso') == 'alta':
             frequencia_base = 'semanal'
-        
+
         if paciente.get('suporte_social') == 'baixo':
             frequencia_base = 'semanal'
-        
+
         if paciente.get('aderencia_historica', 1.0) < 0.8:
             frequencia_base = 'semanal'
-        
+
         return {
             'frequencia_principal': frequencia_base,
             'contatos_emergencia': 'Disponível 24/7',
@@ -296,9 +294,9 @@ class NavegadorPacienteOncologico:
             'preferencia_paciente': paciente.get('preferencia_contato', 'telefone')
         }
 
-    async def definir_monitoramento_jornada(self, paciente: Dict, plano: Dict, **kwargs) -> Dict:
+    async def definir_monitoramento_jornada(self, paciente: dict, plano: dict, **kwargs) -> dict:
         """Define monitoramento da jornada"""
-        
+
         return {
             'indicadores_processo': [
                 'Tempo para início tratamento',
@@ -321,44 +319,44 @@ class NavegadorPacienteOncologico:
             'frequencia_avaliacao': 'Mensal'
         }
 
-    async def identificar_barreiras_acesso(self, paciente: Dict) -> List[Dict]:
+    async def identificar_barreiras_acesso(self, paciente: dict) -> list[dict]:
         """Identifica barreiras de acesso"""
-        
+
         barreiras = []
-        
+
         if paciente.get('distancia_hospital_km', 0) > 50:
             barreiras.append({
                 'tipo': 'geografica',
                 'descricao': 'Distância do centro de tratamento',
                 'impacto': 'alto'
             })
-        
+
         if paciente.get('situacao_financeira') == 'dificil':
             barreiras.append({
                 'tipo': 'financeira',
                 'descricao': 'Dificuldades econômicas',
                 'impacto': 'alto'
             })
-        
+
         if paciente.get('idioma_principal') != 'portugues':
             barreiras.append({
                 'tipo': 'linguistica',
                 'descricao': 'Barreira de idioma',
                 'impacto': 'moderado'
             })
-        
+
         if not paciente.get('acesso_internet'):
             barreiras.append({
                 'tipo': 'tecnologica',
                 'descricao': 'Falta de acesso à internet',
                 'impacto': 'moderado'
             })
-        
+
         return barreiras
 
-    async def avaliar_satisfacao_navegacao(self, paciente: Dict) -> Dict:
+    async def avaliar_satisfacao_navegacao(self, paciente: dict) -> dict:
         """Avalia satisfação com a navegação"""
-        
+
         return {
             'satisfacao_geral': 4.5,  # escala 1-5
             'aspectos_avaliados': {
@@ -374,9 +372,9 @@ class NavegadorPacienteOncologico:
             ]
         }
 
-    async def calcular_estatisticas_navegacao(self, navegacao: Dict) -> Dict:
+    async def calcular_estatisticas_navegacao(self, navegacao: dict) -> dict:
         """Calcula estatísticas de navegação"""
-        
+
         return {
             'pacientes_navegados': len(navegacao),
             'tempo_medio_navegacao': 180,  # dias
@@ -385,9 +383,9 @@ class NavegadorPacienteOncologico:
             'recursos_conectados_media': 3.2
         }
 
-    async def avaliar_impacto_navegacao(self) -> Dict:
+    async def avaliar_impacto_navegacao(self) -> dict:
         """Avalia impacto da navegação"""
-        
+
         return {
             'melhoria_aderencia': 0.25,  # 25% melhoria
             'reducao_tempo_inicio_tratamento': 0.35,  # 35% redução
@@ -396,9 +394,9 @@ class NavegadorPacienteOncologico:
             'roi_navegacao': 3.8
         }
 
-    async def analisar_recursos_utilizados(self) -> Dict:
+    async def analisar_recursos_utilizados(self) -> dict:
         """Analisa recursos mais utilizados"""
-        
+
         return {
             'recursos_frequentes': [
                 {'tipo': 'Transporte', 'utilizacao': 0.78},
@@ -410,9 +408,9 @@ class NavegadorPacienteOncologico:
             'tempo_medio_conexao': 5.2  # dias
         }
 
-    async def calcular_satisfacao_geral(self, navegacao: Dict) -> Dict:
+    async def calcular_satisfacao_geral(self, navegacao: dict) -> dict:
         """Calcula satisfação geral"""
-        
+
         return {
             'satisfacao_media_geral': 4.4,
             'distribuicao_satisfacao': {
@@ -431,10 +429,10 @@ class NavegadorPacienteOncologico:
 
 class CoordenadorCuidadosOncologicos:
     """Coordenador de cuidados oncológicos"""
-    
-    async def coordenar_cuidados_integrais(self, **kwargs) -> Dict:
+
+    async def coordenar_cuidados_integrais(self, **kwargs) -> dict:
         """Coordena cuidados integrais"""
-        
+
         return {
             'equipe_coordenada': ['Oncologia', 'Enfermagem', 'Farmácia', 'Psicologia'],
             'plano_cuidados_integrado': True,
@@ -445,10 +443,10 @@ class CoordenadorCuidadosOncologicos:
 
 class EducadorPacienteIA:
     """Educador de paciente com IA"""
-    
-    async def educar_paciente_familia(self, **kwargs) -> Dict:
+
+    async def educar_paciente_familia(self, **kwargs) -> dict:
         """Educa paciente e família"""
-        
+
         return {
             'materiais_fornecidos': ['Guia da doença', 'Vídeos educativos'],
             'sessoes_educativas': 4,
@@ -459,10 +457,10 @@ class EducadorPacienteIA:
 
 class SuportePsicossocialIA:
     """Suporte psicossocial com IA"""
-    
-    async def avaliar_necessidades_psicossociais(self, **kwargs) -> Dict:
+
+    async def avaliar_necessidades_psicossociais(self, **kwargs) -> dict:
         """Avalia necessidades psicossociais"""
-        
+
         return {
             'distress_score': 4.2,
             'necessidades_identificadas': ['Ansiedade', 'Suporte familiar'],
@@ -473,10 +471,10 @@ class SuportePsicossocialIA:
 
 class GestorRecursosComunitarios:
     """Gestor de recursos comunitários"""
-    
-    async def mapear_recursos_disponiveis(self, **kwargs) -> Dict:
+
+    async def mapear_recursos_disponiveis(self, **kwargs) -> dict:
         """Mapeia recursos disponíveis"""
-        
+
         return {
             'recursos_identificados': [
                 'Casa de apoio',

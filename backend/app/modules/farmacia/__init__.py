@@ -3,16 +3,16 @@ MedAI Farmácia Module
 Sistema inteligente de farmácia hospitalar com IA avançada
 """
 
-from .farmacia_service import FarmaciaHospitalarIA
-from .validador_prescricoes import ValidadorPrescricoesIA
-from .gestor_estoque import GestorEstoqueInteligente
-from .farmacia_clinica import FarmaciaClinicaAvancada
-from .rastreador_medicamentos import RastreadorMedicamentosBlockchain
-from .otimizador_distribuicao import OtimizadorDistribuicaoIA
-from .unit_dose import UnitDoseInteligente
 from .antimicrobial_stewardship import AntimicrobialStewardshipIA
-from .nutricao_parenteral import NutricaoParenteralIA
 from .dashboard_executivo import DashboardFarmaciaExecutivo
+from .farmacia_clinica import FarmaciaClinicaAvancada
+from .farmacia_service import FarmaciaHospitalarIA
+from .gestor_estoque import GestorEstoqueInteligente
+from .nutricao_parenteral import NutricaoParenteralIA
+from .otimizador_distribuicao import OtimizadorDistribuicaoIA
+from .rastreador_medicamentos import RastreadorMedicamentosBlockchain
+from .unit_dose import UnitDoseInteligente
+from .validador_prescricoes import ValidadorPrescricoesIA
 
 __all__ = [
     'FarmaciaHospitalarIA',

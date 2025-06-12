@@ -2,31 +2,29 @@
 Gestão inteligente de quimioterapia
 """
 
-import asyncio
-from typing import Dict, List
-from datetime import datetime
 import logging
+from datetime import datetime
 
 logger = logging.getLogger('MedAI.Oncologia.GestorQuimioterapia')
 
 class GestorQuimioterapiaInteligente:
     """Gestão inteligente de quimioterapia"""
-    
+
     def __init__(self):
         self.calculador_doses = CalculadorDosesQuimioIA()
         self.otimizador_protocolos = OtimizadorProtocolosQuimio()
         self.predictor_toxicidade = PredictorToxicidadeQuimioIA()
         self.monitor_resposta = MonitorRespostaQuimioterapia()
         self.gestor_premedicacao = GestorPremedicacaoIA()
-        
-    async def otimizar_tratamentos(self, pacientes_quimio: List[Dict],
+
+    async def otimizar_tratamentos(self, pacientes_quimio: list[dict],
                                    protocolos_personalizados: bool = True,
-                                   minimizar_toxicidade: bool = True) -> Dict:
+                                   minimizar_toxicidade: bool = True) -> dict:
         """Otimização completa dos tratamentos quimioterápicos"""
-        
+
         try:
             gestao_quimio = {}
-            
+
             for paciente in pacientes_quimio:
                 doses_personalizadas = await self.calculador_doses.calcular_doses_otimizadas(
                     paciente=paciente,
@@ -42,7 +40,7 @@ class GestorQuimioterapiaInteligente:
                     },
                     ajustar_por_toxicidade_previa=True
                 )
-                
+
                 if protocolos_personalizados:
                     protocolo_otimizado = await self.otimizador_protocolos.otimizar(
                         protocolo_standard=paciente['protocolo_indicado'],
@@ -53,7 +51,7 @@ class GestorQuimioterapiaInteligente:
                     )
                 else:
                     protocolo_otimizado = paciente['protocolo_indicado']
-                
+
                 if minimizar_toxicidade:
                     predicao_toxicidade = await self.predictor_toxicidade.prever_toxicidades(
                         paciente=paciente,
@@ -72,7 +70,7 @@ class GestorQuimioterapiaInteligente:
                             'hepatotoxicidade'
                         ]
                     )
-                    
+
                     if predicao_toxicidade['risco_alto']:
                         ajustes = await self.gerar_ajustes_preventivos(
                             protocolo_otimizado,
@@ -81,7 +79,7 @@ class GestorQuimioterapiaInteligente:
                         protocolo_otimizado = ajustes['protocolo_ajustado']
                 else:
                     predicao_toxicidade = None
-                
+
                 premedicacao = await self.gestor_premedicacao.definir_premedicacao(
                     paciente=paciente,
                     protocolo=protocolo_otimizado,
@@ -89,14 +87,14 @@ class GestorQuimioterapiaInteligente:
                     incluir_profilaxia_nausea=True,
                     incluir_profilaxia_alergia=True
                 )
-                
+
                 plano_monitoramento = await self.monitor_resposta.definir_monitoramento(
                     paciente=paciente,
                     protocolo=protocolo_otimizado,
                     biomarcadores_seguimento=True,
                     imagem_funcional=True
                 )
-                
+
                 gestao_quimio[paciente['id']] = {
                     'protocolo_otimizado': protocolo_otimizado,
                     'doses_personalizadas': doses_personalizadas,
@@ -110,7 +108,7 @@ class GestorQuimioterapiaInteligente:
                         protocolo_otimizado
                     )
                 }
-            
+
             return {
                 'gestao_individualizada': gestao_quimio,
                 'estatisticas_otimizacao': await self.calcular_estatisticas_otimizacao(
@@ -122,7 +120,7 @@ class GestorQuimioterapiaInteligente:
                 ),
                 'economia_gerada': await self.calcular_economia_personalizacao()
             }
-            
+
         except Exception as e:
             logger.error(f"Erro na otimização de tratamentos quimioterápicos: {e}")
             return {
@@ -130,18 +128,18 @@ class GestorQuimioterapiaInteligente:
                 'timestamp': datetime.now().isoformat()
             }
 
-    async def calcular_bsa(self, paciente: Dict) -> float:
+    async def calcular_bsa(self, paciente: dict) -> float:
         """Calcula superfície corporal (BSA)"""
-        
+
         peso = paciente.get('peso', 70)  # kg
         altura = paciente.get('altura', 170)  # cm
-        
+
         bsa = ((peso * altura) / 3600) ** 0.5
         return round(bsa, 2)
 
-    async def avaliar_tolerancia(self, paciente: Dict) -> Dict:
+    async def avaliar_tolerancia(self, paciente: dict) -> dict:
         """Avalia tolerância do paciente"""
-        
+
         return {
             'performance_status': paciente.get('ecog', 1),
             'funcao_organica': {
@@ -154,35 +152,35 @@ class GestorQuimioterapiaInteligente:
             'score_tolerancia': 0.8  # 0-1
         }
 
-    async def avaliar_elegibilidade_dose_densa(self, paciente: Dict) -> bool:
+    async def avaliar_elegibilidade_dose_densa(self, paciente: dict) -> bool:
         """Avalia elegibilidade para dose densa"""
-        
+
         idade = paciente.get('idade', 65)
         ecog = paciente.get('ecog', 1)
         comorbidades = len(paciente.get('comorbidades', []))
-        
+
         return idade < 65 and ecog <= 1 and comorbidades <= 2
 
-    async def gerar_ajustes_preventivos(self, protocolo: Dict, predicao: Dict) -> Dict:
+    async def gerar_ajustes_preventivos(self, protocolo: dict, predicao: dict) -> dict:
         """Gera ajustes preventivos baseados na predição de toxicidade"""
-        
+
         ajustes = {
             'protocolo_ajustado': protocolo.copy(),
             'modificacoes': []
         }
-        
+
         if predicao.get('neutropenia_risco') > 0.7:
             ajustes['modificacoes'].append('Redução de dose 20%')
             ajustes['protocolo_ajustado']['dose_reducao'] = 0.8
-        
+
         if predicao.get('neuropatia_risco') > 0.6:
             ajustes['modificacoes'].append('Substituição por análogo menos neurotóxico')
-        
+
         return ajustes
 
-    async def gerar_cronograma(self, protocolo: Dict) -> Dict:
+    async def gerar_cronograma(self, protocolo: dict) -> dict:
         """Gera cronograma de tratamento"""
-        
+
         return {
             'ciclos_totais': protocolo.get('ciclos', 6),
             'intervalo_ciclos': protocolo.get('intervalo', 21),  # dias
@@ -191,9 +189,9 @@ class GestorQuimioterapiaInteligente:
             'avaliacoes_intermediarias': [3, 6]  # após ciclos
         }
 
-    async def gerar_orientacoes_paciente(self, protocolo: Dict) -> List[str]:
+    async def gerar_orientacoes_paciente(self, protocolo: dict) -> list[str]:
         """Gera orientações para o paciente"""
-        
+
         return [
             'Manter hidratação adequada',
             'Monitorar temperatura corporal',
@@ -202,21 +200,21 @@ class GestorQuimioterapiaInteligente:
             'Seguir premedicação conforme prescrito'
         ]
 
-    async def calcular_estatisticas_otimizacao(self, gestao: Dict) -> Dict:
+    async def calcular_estatisticas_otimizacao(self, gestao: dict) -> dict:
         """Calcula estatísticas da otimização"""
-        
+
         return {
             'pacientes_otimizados': len(gestao),
-            'reducoes_dose_aplicadas': sum(1 for p in gestao.values() 
+            'reducoes_dose_aplicadas': sum(1 for p in gestao.values()
                                          if p.get('doses_personalizadas', {}).get('dose_reducao')),
-            'protocolos_modificados': sum(1 for p in gestao.values() 
+            'protocolos_modificados': sum(1 for p in gestao.values()
                                         if p.get('protocolo_otimizado', {}).get('modificado')),
             'toxicidades_previstas_evitadas': 15  # estimativa
         }
 
-    async def analisar_protocolos_utilizados(self) -> Dict:
+    async def analisar_protocolos_utilizados(self) -> dict:
         """Analisa protocolos mais utilizados"""
-        
+
         return {
             'protocolos_frequentes': [
                 {'nome': 'FOLFOX', 'frequencia': 0.35},
@@ -227,9 +225,9 @@ class GestorQuimioterapiaInteligente:
             'toxicidade_media': 0.25
         }
 
-    async def consolidar_predicoes_toxicidade(self, gestao: Dict) -> Dict:
+    async def consolidar_predicoes_toxicidade(self, gestao: dict) -> dict:
         """Consolida predições de toxicidade"""
-        
+
         return {
             'toxicidades_mais_previstas': [
                 {'tipo': 'Neutropenia', 'frequencia_prevista': 0.45},
@@ -240,9 +238,9 @@ class GestorQuimioterapiaInteligente:
             'intervencoes_preventivas': 12
         }
 
-    async def calcular_economia_personalizacao(self) -> Dict:
+    async def calcular_economia_personalizacao(self) -> dict:
         """Calcula economia gerada pela personalização"""
-        
+
         return {
             'economia_reducao_toxicidade': 85000.00,  # R$
             'economia_hospitalizacoes_evitadas': 125000.00,  # R$
@@ -254,10 +252,10 @@ class GestorQuimioterapiaInteligente:
 
 class CalculadorDosesQuimioIA:
     """Calculador de doses de quimioterapia com IA"""
-    
-    async def calcular_doses_otimizadas(self, **kwargs) -> Dict:
+
+    async def calcular_doses_otimizadas(self, **kwargs) -> dict:
         """Calcula doses otimizadas"""
-        
+
         return {
             'doses_calculadas': {
                 'carboplatina': 'AUC 5',
@@ -270,10 +268,10 @@ class CalculadorDosesQuimioIA:
 
 class OtimizadorProtocolosQuimio:
     """Otimizador de protocolos de quimioterapia"""
-    
-    async def otimizar(self, **kwargs) -> Dict:
+
+    async def otimizar(self, **kwargs) -> dict:
         """Otimiza protocolo"""
-        
+
         return {
             'protocolo_nome': 'Carbo-Paclitaxel modificado',
             'modificado': False,
@@ -285,10 +283,10 @@ class OtimizadorProtocolosQuimio:
 
 class PredictorToxicidadeQuimioIA:
     """Preditor de toxicidade de quimioterapia"""
-    
-    async def prever_toxicidades(self, **kwargs) -> Dict:
+
+    async def prever_toxicidades(self, **kwargs) -> dict:
         """Prediz toxicidades"""
-        
+
         return {
             'risco_alto': False,
             'neutropenia_risco': 0.35,
@@ -300,10 +298,10 @@ class PredictorToxicidadeQuimioIA:
 
 class MonitorRespostaQuimioterapia:
     """Monitor de resposta à quimioterapia"""
-    
-    async def definir_monitoramento(self, **kwargs) -> Dict:
+
+    async def definir_monitoramento(self, **kwargs) -> dict:
         """Define plano de monitoramento"""
-        
+
         return {
             'exames_baseline': ['TC tórax', 'Laboratório'],
             'seguimento_regular': 'A cada 2 ciclos',
@@ -314,10 +312,10 @@ class MonitorRespostaQuimioterapia:
 
 class GestorPremedicacaoIA:
     """Gestor de premedicação inteligente"""
-    
-    async def definir_premedicacao(self, **kwargs) -> Dict:
+
+    async def definir_premedicacao(self, **kwargs) -> dict:
         """Define premedicação"""
-        
+
         return {
             'antieméticos': ['Ondansetrona', 'Dexametasona'],
             'antihistaminicos': ['Difenidramina'],

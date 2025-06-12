@@ -2,36 +2,34 @@
 Rastreabilidade completa com blockchain
 """
 
-import asyncio
-from typing import Dict, List
-from datetime import datetime
 import logging
+from datetime import datetime
 
 logger = logging.getLogger('MedAI.Farmacia.RastreadorMedicamentos')
 
 class RastreadorMedicamentosBlockchain:
     """Rastreabilidade completa com blockchain"""
-    
+
     def __init__(self):
         self.blockchain = BlockchainFarmaceutico()
         self.scanner_rfid = ScannerRFIDMedicamentos()
         self.validador_autenticidade = ValidadorAutenticidadeML()
-        
-    async def rastrear_medicamento_completo(self, codigo_rastreio: str) -> Dict:
+
+    async def rastrear_medicamento_completo(self, codigo_rastreio: str) -> dict:
         """Rastreamento completo do medicamento desde origem"""
-        
+
         try:
             historico_blockchain = await self.blockchain.buscar_historico(codigo_rastreio)
-            
+
             autenticidade = await self.validador_autenticidade.verificar(
                 codigo=codigo_rastreio,
                 historico=historico_blockchain
             )
-            
+
             cadeia_custodia = self.analisar_cadeia_custodia(historico_blockchain)
-            
+
             condicoes = await self.verificar_condicoes_transporte(historico_blockchain)
-            
+
             return {
                 'autenticidade': autenticidade,
                 'historico_completo': historico_blockchain,
@@ -40,7 +38,7 @@ class RastreadorMedicamentosBlockchain:
                 'alertas': self.gerar_alertas_rastreabilidade(autenticidade, condicoes),
                 'timestamp': datetime.now().isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"Erro no rastreamento do medicamento: {e}")
             return {
@@ -51,11 +49,11 @@ class RastreadorMedicamentosBlockchain:
                 'condicoes_transporte': {}
             }
 
-    def analisar_cadeia_custodia(self, historico: Dict) -> Dict:
+    def analisar_cadeia_custodia(self, historico: dict) -> dict:
         """Analisa integridade da cadeia de custódia"""
-        
+
         eventos = historico.get('eventos', [])
-        
+
         analise = {
             'integridade_cadeia': True,
             'gaps_temporais': [],
@@ -63,11 +61,11 @@ class RastreadorMedicamentosBlockchain:
             'tempo_total_transporte': 0,
             'alertas_custodia': []
         }
-        
+
         for i in range(len(eventos) - 1):
             evento_atual = eventos[i]
             proximo_evento = eventos[i + 1]
-            
+
             gap_horas = 2  # Exemplo
             if gap_horas > 24:
                 analise['gaps_temporais'].append({
@@ -75,17 +73,17 @@ class RastreadorMedicamentosBlockchain:
                     'gap_horas': gap_horas,
                     'criticidade': 'alta' if gap_horas > 48 else 'moderada'
                 })
-        
+
         if len(eventos) > 10:
             analise['alertas_custodia'].append('Número excessivo de mudanças de custódia')
-        
+
         return analise
 
-    async def verificar_condicoes_transporte(self, historico: Dict) -> Dict:
+    async def verificar_condicoes_transporte(self, historico: dict) -> dict:
         """Verifica condições de armazenamento e transporte"""
-        
+
         eventos = historico.get('eventos', [])
-        
+
         condicoes = {
             'temperatura_adequada': True,
             'umidade_adequada': True,
@@ -93,11 +91,11 @@ class RastreadorMedicamentosBlockchain:
             'violacoes_detectadas': [],
             'score_qualidade': 0.95
         }
-        
+
         for evento in eventos:
             temp = evento.get('temperatura', 25)
             umidade = evento.get('umidade', 60)
-            
+
             if temp < 15 or temp > 30:
                 condicoes['violacoes_detectadas'].append({
                     'tipo': 'temperatura',
@@ -106,7 +104,7 @@ class RastreadorMedicamentosBlockchain:
                     'gravidade': 'alta' if temp < 5 or temp > 40 else 'moderada'
                 })
                 condicoes['temperatura_adequada'] = False
-            
+
             if umidade > 80:
                 condicoes['violacoes_detectadas'].append({
                     'tipo': 'umidade',
@@ -115,18 +113,18 @@ class RastreadorMedicamentosBlockchain:
                     'gravidade': 'moderada'
                 })
                 condicoes['umidade_adequada'] = False
-        
+
         if condicoes['violacoes_detectadas']:
             reducao_score = len(condicoes['violacoes_detectadas']) * 0.1
             condicoes['score_qualidade'] = max(0, 0.95 - reducao_score)
-        
+
         return condicoes
 
-    def gerar_alertas_rastreabilidade(self, autenticidade: Dict, condicoes: Dict) -> List[Dict]:
+    def gerar_alertas_rastreabilidade(self, autenticidade: dict, condicoes: dict) -> list[dict]:
         """Gera alertas baseados na rastreabilidade"""
-        
+
         alertas = []
-        
+
         if not autenticidade.get('medicamento_autentico', True):
             alertas.append({
                 'tipo': 'autenticidade',
@@ -134,7 +132,7 @@ class RastreadorMedicamentosBlockchain:
                 'mensagem': 'Medicamento possivelmente falsificado',
                 'acao_recomendada': 'Isolar produto e notificar autoridades'
             })
-        
+
         if not condicoes.get('temperatura_adequada', True):
             alertas.append({
                 'tipo': 'temperatura',
@@ -142,7 +140,7 @@ class RastreadorMedicamentosBlockchain:
                 'mensagem': 'Violação de temperatura detectada',
                 'acao_recomendada': 'Avaliar integridade do produto'
             })
-        
+
         if condicoes.get('score_qualidade', 1.0) < 0.7:
             alertas.append({
                 'tipo': 'qualidade',
@@ -150,28 +148,28 @@ class RastreadorMedicamentosBlockchain:
                 'mensagem': 'Múltiplas violações de condições de armazenamento',
                 'acao_recomendada': 'Revisar cadeia de suprimentos'
             })
-        
+
         return alertas
 
-    async def registrar_evento_blockchain(self, codigo_rastreio: str, evento: Dict) -> Dict:
+    async def registrar_evento_blockchain(self, codigo_rastreio: str, evento: dict) -> dict:
         """Registra novo evento na blockchain"""
-        
+
         try:
             if not self.validar_evento(evento):
                 return {
                     'sucesso': False,
                     'erro': 'Evento inválido'
                 }
-            
+
             resultado = await self.blockchain.registrar_evento(codigo_rastreio, evento)
-            
+
             return {
                 'sucesso': True,
                 'hash_transacao': resultado.get('hash'),
                 'timestamp': datetime.now().isoformat(),
                 'evento_registrado': evento
             }
-            
+
         except Exception as e:
             logger.error(f"Erro ao registrar evento na blockchain: {e}")
             return {
@@ -179,29 +177,29 @@ class RastreadorMedicamentosBlockchain:
                 'erro': str(e)
             }
 
-    def validar_evento(self, evento: Dict) -> bool:
+    def validar_evento(self, evento: dict) -> bool:
         """Valida estrutura do evento"""
-        
+
         campos_obrigatorios = ['tipo', 'timestamp', 'responsavel', 'localizacao']
-        
+
         for campo in campos_obrigatorios:
             if campo not in evento:
                 return False
-        
+
         tipo = evento.get('tipo')
-        
+
         if tipo == 'fabricacao':
             return 'lote' in evento and 'data_fabricacao' in evento
         elif tipo == 'transporte':
             return 'origem' in evento and 'destino' in evento
         elif tipo == 'dispensacao':
             return 'paciente_id' in evento and 'prescricao_id' in evento
-        
+
         return True
 
-    async def gerar_relatorio_rastreabilidade(self, periodo: str = '30_dias') -> Dict:
+    async def gerar_relatorio_rastreabilidade(self, periodo: str = '30_dias') -> dict:
         """Gera relatório de rastreabilidade"""
-        
+
         return {
             'periodo': periodo,
             'data_relatorio': datetime.now().isoformat(),
@@ -235,9 +233,9 @@ class RastreadorMedicamentosBlockchain:
 
 
 class BlockchainFarmaceutico:
-    async def buscar_historico(self, codigo_rastreio: str) -> Dict:
+    async def buscar_historico(self, codigo_rastreio: str) -> dict:
         """Busca histórico na blockchain"""
-        
+
         return {
             'codigo_rastreio': codigo_rastreio,
             'medicamento': 'Omeprazol 20mg',
@@ -290,10 +288,10 @@ class BlockchainFarmaceutico:
                 }
             ]
         }
-    
-    async def registrar_evento(self, codigo_rastreio: str, evento: Dict) -> Dict:
+
+    async def registrar_evento(self, codigo_rastreio: str, evento: dict) -> dict:
         """Registra evento na blockchain"""
-        
+
         return {
             'hash': f"0x{hash(str(evento)) % 1000000:06x}",
             'bloco': 12345,
@@ -306,42 +304,42 @@ class ScannerRFIDMedicamentos:
 
 
 class ValidadorAutenticidadeML:
-    async def verificar(self, codigo: str, historico: Dict) -> Dict:
+    async def verificar(self, codigo: str, historico: dict) -> dict:
         """Verifica autenticidade usando ML"""
-        
+
         score_autenticidade = 0.95
-        
+
         eventos = historico.get('eventos', [])
-        
+
         if len(eventos) < 3:
             score_autenticidade -= 0.2
-        
+
         fabricante = historico.get('fabricante', '')
         if 'desconhecido' in fabricante.lower():
             score_autenticidade -= 0.5
-        
+
         return {
             'medicamento_autentico': score_autenticidade > 0.8,
             'score_autenticidade': score_autenticidade,
             'fatores_risco': self.identificar_fatores_risco(historico),
             'recomendacao': 'aprovado' if score_autenticidade > 0.8 else 'investigar'
         }
-    
-    def identificar_fatores_risco(self, historico: Dict) -> List[str]:
+
+    def identificar_fatores_risco(self, historico: dict) -> list[str]:
         """Identifica fatores de risco para falsificação"""
-        
+
         fatores = []
-        
+
         fabricante = historico.get('fabricante', '')
         if not fabricante or 'desconhecido' in fabricante.lower():
             fatores.append('Fabricante não identificado ou suspeito')
-        
+
         eventos = historico.get('eventos', [])
         if len(eventos) < 3:
             fatores.append('Cadeia de custódia incompleta')
-        
+
         tem_qc = any(evento.get('tipo') == 'controle_qualidade' for evento in eventos)
         if not tem_qc:
             fatores.append('Ausência de controle de qualidade registrado')
-        
+
         return fatores

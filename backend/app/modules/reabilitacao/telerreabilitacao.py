@@ -2,44 +2,42 @@
 Sistema de Telerreabilitação com IA
 """
 
-import asyncio
-from typing import Dict, List
-from datetime import datetime
 import logging
+from datetime import datetime
 
 logger = logging.getLogger('MedAI.Reabilitacao.Telerreabilitacao')
 
 class TelerreabilitacaoIA:
     """Sistema de telerreabilitação com IA"""
-    
+
     def __init__(self):
         self.plataforma_video = PlataformaVideoTerapeutica()
         self.analisador_remoto = AnalisadorMovimentoRemoto()
         self.coach_virtual = CoachVirtualIA()
-        
-    async def sessao_telerreabilitacao(self, paciente: Dict, terapeuta: Dict) -> Dict:
+
+    async def sessao_telerreabilitacao(self, paciente: dict, terapeuta: dict) -> dict:
         """Sessão completa de telerreabilitação"""
-        
+
         try:
             sessao = await self.plataforma_video.iniciar_sessao(
                 qualidade='4K',
                 latencia_maxima=50,  # ms
                 recursos_ia=True
             )
-            
+
             avaliacao_inicial = await self.realizar_avaliacao_remota(paciente)
-            
+
             exercicios_executados = []
             for exercicio in paciente.get('programa_exercicios', []):
                 resultado = await self.executar_exercicio_remoto(exercicio, sessao)
                 exercicios_executados.append(resultado)
-            
+
             feedback_terapeuta = await self.coletar_feedback_terapeuta(terapeuta)
-            
+
             analise_sessao = self.analisar_sessao_telerreabilitacao(
                 avaliacao_inicial, exercicios_executados, feedback_terapeuta
             )
-            
+
             return {
                 'sessao_info': sessao,
                 'avaliacao_inicial': avaliacao_inicial,
@@ -49,7 +47,7 @@ class TelerreabilitacaoIA:
                 'recomendacoes': self.gerar_recomendacoes_telerreabilitacao(analise_sessao),
                 'timestamp': datetime.now().isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"Erro na sessão de telerreabilitação: {e}")
             return {
@@ -58,9 +56,9 @@ class TelerreabilitacaoIA:
                 'exercicios_executados': []
             }
 
-    async def realizar_avaliacao_remota(self, paciente: Dict) -> Dict:
+    async def realizar_avaliacao_remota(self, paciente: dict) -> dict:
         """Realiza avaliação funcional remota"""
-        
+
         return {
             'qualidade_video': await self.avaliar_qualidade_video(),
             'ambiente_adequado': self.verificar_ambiente_paciente(),
@@ -71,9 +69,9 @@ class TelerreabilitacaoIA:
             'recomendacoes_setup': self.gerar_recomendacoes_setup()
         }
 
-    async def avaliar_qualidade_video(self) -> Dict:
+    async def avaliar_qualidade_video(self) -> dict:
         """Avalia qualidade da transmissão de vídeo"""
-        
+
         return {
             'resolucao': '1920x1080',
             'fps': 30,
@@ -83,9 +81,9 @@ class TelerreabilitacaoIA:
             'adequada_para_analise': True
         }
 
-    def verificar_ambiente_paciente(self) -> Dict:
+    def verificar_ambiente_paciente(self) -> dict:
         """Verifica adequação do ambiente do paciente"""
-        
+
         return {
             'espaco_suficiente': True,
             'iluminacao_adequada': True,
@@ -95,9 +93,9 @@ class TelerreabilitacaoIA:
             'score_ambiente': 0.8
         }
 
-    def identificar_equipamentos_disponiveis(self) -> List[str]:
+    def identificar_equipamentos_disponiveis(self) -> list[str]:
         """Identifica equipamentos disponíveis no ambiente"""
-        
+
         return [
             'Cadeira estável',
             'Mesa de apoio',
@@ -106,18 +104,18 @@ class TelerreabilitacaoIA:
             'Faixa elástica'
         ]
 
-    def identificar_limitacoes_tecnicas(self) -> List[str]:
+    def identificar_limitacoes_tecnicas(self) -> list[str]:
         """Identifica limitações técnicas da sessão remota"""
-        
+
         return [
             'Ângulo de câmera limitado',
             'Não é possível medir força diretamente',
             'Feedback tátil limitado'
         ]
 
-    async def capturar_baseline_movimento(self) -> Dict:
+    async def capturar_baseline_movimento(self) -> dict:
         """Captura baseline de movimento do paciente"""
-        
+
         return {
             'amplitude_movimento': {
                 'ombro': {'flexao': 120, 'abducao': 90},
@@ -129,9 +127,9 @@ class TelerreabilitacaoIA:
             'simetria': 0.85
         }
 
-    def avaliar_estado_inicial_paciente(self) -> Dict:
+    def avaliar_estado_inicial_paciente(self) -> dict:
         """Avalia estado inicial do paciente"""
-        
+
         return {
             'nivel_energia': 'Bom',
             'motivacao': 0.8,
@@ -141,9 +139,9 @@ class TelerreabilitacaoIA:
             'prontidao_exercicio': True
         }
 
-    def gerar_recomendacoes_setup(self) -> List[str]:
+    def gerar_recomendacoes_setup(self) -> list[str]:
         """Gera recomendações para melhorar setup"""
-        
+
         return [
             'Posicionar câmera para visualizar corpo inteiro',
             'Melhorar iluminação do ambiente',
@@ -151,18 +149,18 @@ class TelerreabilitacaoIA:
             'Ter água disponível para hidratação'
         ]
 
-    async def executar_exercicio_remoto(self, exercicio: Dict, sessao: Dict) -> Dict:
+    async def executar_exercicio_remoto(self, exercicio: dict, sessao: dict) -> dict:
         """Executa exercício com monitoramento remoto"""
-        
+
         try:
             demonstracao = await self.demonstrar_exercicio(exercicio)
-            
+
             execucao = await self.monitorar_execucao_remota(exercicio)
-            
+
             feedback_tempo_real = await self.fornecer_feedback_tempo_real(execucao)
-            
+
             coaching = await self.coach_virtual.fornecer_coaching(execucao)
-            
+
             return {
                 'exercicio': exercicio.get('nome', 'Exercício'),
                 'demonstracao': demonstracao,
@@ -171,7 +169,7 @@ class TelerreabilitacaoIA:
                 'coaching': coaching,
                 'resultado_final': self.avaliar_resultado_exercicio(execucao)
             }
-            
+
         except Exception as e:
             logger.error(f"Erro na execução do exercício remoto: {e}")
             return {
@@ -180,9 +178,9 @@ class TelerreabilitacaoIA:
                 'execucao': {}
             }
 
-    async def demonstrar_exercicio(self, exercicio: Dict) -> Dict:
+    async def demonstrar_exercicio(self, exercicio: dict) -> dict:
         """Demonstra exercício para o paciente"""
-        
+
         return {
             'tipo_demonstracao': 'video_avatar',
             'duracao_demonstracao': 30,  # segundos
@@ -197,9 +195,9 @@ class TelerreabilitacaoIA:
             'qualidade_demonstracao': 'HD'
         }
 
-    async def monitorar_execucao_remota(self, exercicio: Dict) -> Dict:
+    async def monitorar_execucao_remota(self, exercicio: dict) -> dict:
         """Monitora execução do exercício remotamente"""
-        
+
         return {
             'analise_movimento': await self.analisador_remoto.analisar_movimento_video(),
             'qualidade_execucao': 0.75,
@@ -211,32 +209,32 @@ class TelerreabilitacaoIA:
             'score_tecnica': 0.78
         }
 
-    async def fornecer_feedback_tempo_real(self, execucao: Dict) -> Dict:
+    async def fornecer_feedback_tempo_real(self, execucao: dict) -> dict:
         """Fornece feedback em tempo real durante exercício"""
-        
+
         feedback = {
             'mensagens_audio': [],
             'indicadores_visuais': [],
             'alertas': []
         }
-        
+
         qualidade = execucao.get('qualidade_execucao', 0)
-        
+
         if qualidade > 0.8:
             feedback['mensagens_audio'].append('Excelente execução!')
         elif qualidade < 0.6:
             feedback['mensagens_audio'].append('Tente manter melhor postura')
             feedback['alertas'].append('qualidade_baixa')
-        
+
         if execucao.get('simetria', 1) < 0.7:
             feedback['mensagens_audio'].append('Mantenha movimentos simétricos')
             feedback['indicadores_visuais'].append('simetria_visual')
-        
+
         return feedback
 
-    def avaliar_resultado_exercicio(self, execucao: Dict) -> Dict:
+    def avaliar_resultado_exercicio(self, execucao: dict) -> dict:
         """Avalia resultado final do exercício"""
-        
+
         return {
             'score_final': execucao.get('score_tecnica', 0),
             'objetivos_atingidos': execucao.get('qualidade_execucao', 0) > 0.7,
@@ -245,9 +243,9 @@ class TelerreabilitacaoIA:
             'recomendacao_progressao': 'Manter exercício atual'
         }
 
-    async def coletar_feedback_terapeuta(self, terapeuta: Dict) -> Dict:
+    async def coletar_feedback_terapeuta(self, terapeuta: dict) -> dict:
         """Coleta feedback do terapeuta durante sessão"""
-        
+
         return {
             'observacoes_gerais': 'Paciente demonstrou boa aderência aos exercícios',
             'areas_melhoria': ['Amplitude de movimento do ombro', 'Velocidade de execução'],
@@ -258,15 +256,15 @@ class TelerreabilitacaoIA:
             'proximos_objetivos': ['Progressão para exercícios funcionais']
         }
 
-    def analisar_sessao_telerreabilitacao(self, avaliacao_inicial: Dict, exercicios: List[Dict], feedback_terapeuta: Dict) -> Dict:
+    def analisar_sessao_telerreabilitacao(self, avaliacao_inicial: dict, exercicios: list[dict], feedback_terapeuta: dict) -> dict:
         """Analisa sessão completa de telerreabilitação"""
-        
+
         qualidade_tecnica = self.analisar_qualidade_tecnica(avaliacao_inicial)
-        
+
         performance_exercicios = self.analisar_performance_exercicios(exercicios)
-        
+
         engajamento = self.analisar_engajamento_paciente(exercicios)
-        
+
         return {
             'qualidade_tecnica': qualidade_tecnica,
             'performance_exercicios': performance_exercicios,
@@ -277,12 +275,12 @@ class TelerreabilitacaoIA:
             'areas_melhoria': self.identificar_areas_melhoria(exercicios, feedback_terapeuta)
         }
 
-    def analisar_qualidade_tecnica(self, avaliacao_inicial: Dict) -> Dict:
+    def analisar_qualidade_tecnica(self, avaliacao_inicial: dict) -> dict:
         """Analisa qualidade técnica da sessão"""
-        
+
         qualidade_video = avaliacao_inicial.get('qualidade_video', {})
         ambiente = avaliacao_inicial.get('ambiente_adequado', {})
-        
+
         return {
             'qualidade_video_adequada': qualidade_video.get('adequada_para_analise', False),
             'ambiente_otimo': ambiente.get('score_ambiente', 0) > 0.7,
@@ -290,15 +288,15 @@ class TelerreabilitacaoIA:
             'score_tecnico': (qualidade_video.get('qualidade_imagem', 0) + ambiente.get('score_ambiente', 0)) / 2
         }
 
-    def analisar_performance_exercicios(self, exercicios: List[Dict]) -> Dict:
+    def analisar_performance_exercicios(self, exercicios: list[dict]) -> dict:
         """Analisa performance nos exercícios"""
-        
+
         if not exercicios:
             return {}
-        
+
         qualidades = [ex.get('execucao', {}).get('qualidade_execucao', 0) for ex in exercicios]
         scores_tecnica = [ex.get('execucao', {}).get('score_tecnica', 0) for ex in exercicios]
-        
+
         return {
             'qualidade_media': sum(qualidades) / len(qualidades) if qualidades else 0,
             'score_tecnica_medio': sum(scores_tecnica) / len(scores_tecnica) if scores_tecnica else 0,
@@ -307,9 +305,9 @@ class TelerreabilitacaoIA:
             'consistencia': self.calcular_consistencia_performance(qualidades)
         }
 
-    def analisar_engajamento_paciente(self, exercicios: List[Dict]) -> Dict:
+    def analisar_engajamento_paciente(self, exercicios: list[dict]) -> dict:
         """Analisa engajamento do paciente"""
-        
+
         return {
             'participacao_ativa': True,
             'seguimento_instrucoes': 0.85,
@@ -319,70 +317,70 @@ class TelerreabilitacaoIA:
             'satisfacao_estimada': 0.8
         }
 
-    def calcular_score_sessao(self, qualidade_tecnica: Dict, performance: Dict, engajamento: Dict) -> float:
+    def calcular_score_sessao(self, qualidade_tecnica: dict, performance: dict, engajamento: dict) -> float:
         """Calcula score geral da sessão"""
-        
+
         score_tecnico = qualidade_tecnica.get('score_tecnico', 0)
         score_performance = performance.get('qualidade_media', 0)
         score_engajamento = engajamento.get('satisfacao_estimada', 0)
-        
+
         return (score_tecnico * 0.2 + score_performance * 0.5 + score_engajamento * 0.3)
 
-    def calcular_consistencia_performance(self, qualidades: List[float]) -> float:
+    def calcular_consistencia_performance(self, qualidades: list[float]) -> float:
         """Calcula consistência da performance"""
-        
+
         if len(qualidades) < 2:
             return 1.0
-        
+
         media = sum(qualidades) / len(qualidades)
         variancia = sum((q - media) ** 2 for q in qualidades) / len(qualidades)
         desvio_padrao = variancia ** 0.5
-        
+
         return max(0, 1 - desvio_padrao)
 
-    def identificar_areas_sucesso(self, exercicios: List[Dict]) -> List[str]:
+    def identificar_areas_sucesso(self, exercicios: list[dict]) -> list[str]:
         """Identifica áreas de sucesso na sessão"""
-        
+
         areas_sucesso = []
-        
+
         if exercicios:
             qualidade_media = sum(ex.get('execucao', {}).get('qualidade_execucao', 0) for ex in exercicios) / len(exercicios)
-            
+
             if qualidade_media > 0.8:
                 areas_sucesso.append('Excelente qualidade de execução')
-            
+
             if all(not ex.get('execucao', {}).get('fadiga_observada', False) for ex in exercicios):
                 areas_sucesso.append('Boa resistência durante sessão')
-            
+
             if all(ex.get('execucao', {}).get('ritmo_adequado', False) for ex in exercicios):
                 areas_sucesso.append('Controle adequado de ritmo')
-        
+
         return areas_sucesso
 
-    def identificar_areas_melhoria(self, exercicios: List[Dict], feedback_terapeuta: Dict) -> List[str]:
+    def identificar_areas_melhoria(self, exercicios: list[dict], feedback_terapeuta: dict) -> list[str]:
         """Identifica áreas que precisam melhorar"""
-        
+
         areas_melhoria = []
-        
+
         if exercicios:
             simetrias = [ex.get('execucao', {}).get('simetria', 1) for ex in exercicios]
             if any(s < 0.7 for s in simetrias):
                 areas_melhoria.append('Melhorar simetria dos movimentos')
-            
+
             amplitudes = [ex.get('execucao', {}).get('amplitude_atingida', 1) for ex in exercicios]
             if any(a < 0.7 for a in amplitudes):
                 areas_melhoria.append('Aumentar amplitude de movimento')
-        
+
         areas_terapeuta = feedback_terapeuta.get('areas_melhoria', [])
         areas_melhoria.extend(areas_terapeuta)
-        
+
         return list(set(areas_melhoria))  # Remove duplicatas
 
-    def gerar_recomendacoes_telerreabilitacao(self, analise_sessao: Dict) -> List[Dict]:
+    def gerar_recomendacoes_telerreabilitacao(self, analise_sessao: dict) -> list[dict]:
         """Gera recomendações para telerreabilitação"""
-        
+
         recomendacoes = []
-        
+
         qualidade_tecnica = analise_sessao.get('qualidade_tecnica', {})
         if not qualidade_tecnica.get('qualidade_video_adequada', True):
             recomendacoes.append({
@@ -390,14 +388,14 @@ class TelerreabilitacaoIA:
                 'recomendacao': 'Melhorar qualidade de vídeo ou iluminação',
                 'prioridade': 'Alta'
             })
-        
+
         if not qualidade_tecnica.get('ambiente_otimo', True):
             recomendacoes.append({
                 'categoria': 'Ambiente',
                 'recomendacao': 'Otimizar ambiente para sessões futuras',
                 'prioridade': 'Moderada'
             })
-        
+
         performance = analise_sessao.get('performance_exercicios', {})
         if performance.get('qualidade_media', 0) < 0.6:
             recomendacoes.append({
@@ -405,14 +403,14 @@ class TelerreabilitacaoIA:
                 'recomendacao': 'Revisar técnica dos exercícios com demonstrações adicionais',
                 'prioridade': 'Alta'
             })
-        
+
         return recomendacoes
 
 
 class PlataformaVideoTerapeutica:
-    async def iniciar_sessao(self, qualidade: str, latencia_maxima: int, recursos_ia: bool) -> Dict:
+    async def iniciar_sessao(self, qualidade: str, latencia_maxima: int, recursos_ia: bool) -> dict:
         """Inicia sessão de vídeo terapêutica"""
-        
+
         return {
             'sessao_id': f'tele_session_{datetime.now().strftime("%Y%m%d_%H%M%S")}',
             'qualidade_configurada': qualidade,
@@ -425,9 +423,9 @@ class PlataformaVideoTerapeutica:
 
 
 class AnalisadorMovimentoRemoto:
-    async def analisar_movimento_video(self) -> Dict:
+    async def analisar_movimento_video(self) -> dict:
         """Analisa movimento através de vídeo"""
-        
+
         return {
             'qualidade_analise': 0.8,
             'confianca_deteccao': 0.85,
@@ -438,11 +436,11 @@ class AnalisadorMovimentoRemoto:
 
 
 class CoachVirtualIA:
-    async def fornecer_coaching(self, execucao: Dict) -> Dict:
+    async def fornecer_coaching(self, execucao: dict) -> dict:
         """Fornece coaching virtual baseado na execução"""
-        
+
         qualidade = execucao.get('qualidade_execucao', 0)
-        
+
         if qualidade > 0.8:
             mensagem = 'Excelente! Continue assim!'
             tom = 'encorajador'
@@ -452,7 +450,7 @@ class CoachVirtualIA:
         else:
             mensagem = 'Vamos ajustar a técnica. Observe a demonstração.'
             tom = 'corretivo'
-        
+
         return {
             'mensagem_principal': mensagem,
             'tom_coaching': tom,

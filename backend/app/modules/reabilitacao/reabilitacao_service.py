@@ -2,41 +2,39 @@
 Sistema Principal de Reabilitação e Fisioterapia com IA
 """
 
-import asyncio
-from typing import Dict, List
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime
 
-from .avaliador_funcional import AvaliadorFuncionalIA
 from .analisador_movimento import AnalisadorMovimento3D
-from .planejador_reabilitacao import PlanejadorReabilitacaoIA
+from .avaliador_funcional import AvaliadorFuncionalIA
 from .monitor_progresso import MonitorProgressoInteligente
+from .planejador_reabilitacao import PlanejadorReabilitacaoIA
 from .realidade_virtual import SistemaRealidadeVirtual
 
 logger = logging.getLogger('MedAI.Reabilitacao')
 
 class ReabilitacaoFisioterapiaIA:
     """Sistema principal de reabilitação e fisioterapia com IA"""
-    
+
     def __init__(self):
         self.avaliador_funcional = AvaliadorFuncionalIA()
         self.analisador_movimento = AnalisadorMovimento3D()
         self.planejador_reabilitacao = PlanejadorReabilitacaoIA()
         self.monitor_progresso = MonitorProgressoInteligente()
         self.realidade_virtual = SistemaRealidadeVirtual()
-        
-    async def criar_programa_reabilitacao_personalizado(self, paciente: Dict) -> Dict:
+
+    async def criar_programa_reabilitacao_personalizado(self, paciente: dict) -> dict:
         """Criação de programa de reabilitação totalmente personalizado"""
-        
+
         try:
             avaliacao = await self.realizar_avaliacao_completa(paciente)
-            
+
             biomecanica = await self.analisar_biomecanica(paciente)
-            
+
             plano = await self.criar_plano_personalizado(avaliacao, biomecanica)
-            
+
             monitoramento = await self.configurar_monitoramento_continuo(plano)
-            
+
             return {
                 'avaliacao_inicial': avaliacao,
                 'analise_biomecanica': biomecanica,
@@ -45,7 +43,7 @@ class ReabilitacaoFisioterapiaIA:
                 'previsao_recuperacao': self.prever_tempo_recuperacao(avaliacao),
                 'timestamp': datetime.now().isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"Erro na criação do programa de reabilitação: {e}")
             return {
@@ -55,26 +53,26 @@ class ReabilitacaoFisioterapiaIA:
                 'monitoramento': {}
             }
 
-    async def realizar_avaliacao_completa(self, paciente: Dict) -> Dict:
+    async def realizar_avaliacao_completa(self, paciente: dict) -> dict:
         """Realiza avaliação funcional completa"""
-        
+
         return await self.avaliador_funcional.avaliar_paciente_completo(paciente)
 
-    async def analisar_biomecanica(self, paciente: Dict) -> Dict:
+    async def analisar_biomecanica(self, paciente: dict) -> dict:
         """Análise biomecânica do paciente"""
-        
+
         movimento_tipo = paciente.get('movimento_principal', 'marcha')
         return await self.analisador_movimento.analisar_movimento_completo(movimento_tipo)
 
-    async def criar_plano_personalizado(self, avaliacao: Dict, biomecanica: Dict) -> Dict:
+    async def criar_plano_personalizado(self, avaliacao: dict, biomecanica: dict) -> dict:
         """Cria plano de reabilitação personalizado"""
-        
+
         objetivos = self.definir_objetivos_reabilitacao(avaliacao)
         return await self.planejador_reabilitacao.criar_plano_reabilitacao(avaliacao, objetivos)
 
-    async def configurar_monitoramento_continuo(self, plano: Dict) -> Dict:
+    async def configurar_monitoramento_continuo(self, plano: dict) -> dict:
         """Configura sistema de monitoramento contínuo"""
-        
+
         return {
             'tipo_monitoramento': 'continuo',
             'sensores_utilizados': ['acelerometro', 'giroscopio', 'camera'],
@@ -92,13 +90,13 @@ class ReabilitacaoFisioterapiaIA:
             ]
         }
 
-    def definir_objetivos_reabilitacao(self, avaliacao: Dict) -> List[str]:
+    def definir_objetivos_reabilitacao(self, avaliacao: dict) -> list[str]:
         """Define objetivos específicos baseados na avaliação"""
-        
+
         objetivos = []
-        
+
         score_global = avaliacao.get('score_global', 0)
-        
+
         if score_global < 0.3:
             objetivos.extend([
                 'Melhorar mobilidade básica',
@@ -117,9 +115,9 @@ class ReabilitacaoFisioterapiaIA:
                 'Prevenção de lesões',
                 'Otimização de performance'
             ])
-        
+
         condicao = avaliacao.get('diagnostico', '').lower()
-        
+
         if 'avc' in condicao:
             objetivos.extend([
                 'Recuperar função motora',
@@ -132,12 +130,12 @@ class ReabilitacaoFisioterapiaIA:
                 'Fortalecer músculos específicos',
                 'Retorno funcional'
             ])
-        
+
         return objetivos
 
-    def prever_tempo_recuperacao(self, avaliacao: Dict) -> Dict:
+    def prever_tempo_recuperacao(self, avaliacao: dict) -> dict:
         """Predição do tempo de recuperação baseada em IA"""
-        
+
         fatores = {
             'idade': avaliacao.get('idade', 50),
             'score_funcional': avaliacao.get('score_global', 0.5),
@@ -145,9 +143,9 @@ class ReabilitacaoFisioterapiaIA:
             'motivacao': avaliacao.get('motivacao_paciente', 0.7),
             'suporte_social': avaliacao.get('suporte_social', 0.6)
         }
-        
+
         tempo_base = 12  # semanas
-        
+
         if fatores['idade'] > 65:
             tempo_base *= 1.3
         if fatores['score_funcional'] < 0.3:
@@ -158,9 +156,9 @@ class ReabilitacaoFisioterapiaIA:
             tempo_base *= 0.8
         if fatores['suporte_social'] > 0.8:
             tempo_base *= 0.9
-        
+
         tempo_estimado = int(tempo_base)
-        
+
         return {
             'tempo_estimado_semanas': tempo_estimado,
             'fatores_influencia': fatores,
@@ -168,18 +166,18 @@ class ReabilitacaoFisioterapiaIA:
             'marcos_recuperacao': self.definir_marcos_recuperacao(tempo_estimado)
         }
 
-    def definir_marcos_recuperacao(self, tempo_total: int) -> List[Dict]:
+    def definir_marcos_recuperacao(self, tempo_total: int) -> list[dict]:
         """Define marcos de recuperação ao longo do tratamento"""
-        
+
         marcos = []
-        
+
         marcos.append({
             'semana': 2,
             'objetivo': 'Adaptação ao programa',
             'metas': ['Redução da dor', 'Melhora da mobilidade básica'],
             'avaliacao': 'Reavaliação funcional básica'
         })
-        
+
         marco_25 = int(tempo_total * 0.25)
         marcos.append({
             'semana': marco_25,
@@ -187,7 +185,7 @@ class ReabilitacaoFisioterapiaIA:
             'metas': ['Melhora de 25% no score funcional', 'Aumento da força'],
             'avaliacao': 'Avaliação biomecânica'
         })
-        
+
         marco_50 = int(tempo_total * 0.5)
         marcos.append({
             'semana': marco_50,
@@ -195,7 +193,7 @@ class ReabilitacaoFisioterapiaIA:
             'metas': ['Independência em AVDs básicas', 'Marcha segura'],
             'avaliacao': 'Avaliação funcional completa'
         })
-        
+
         marco_75 = int(tempo_total * 0.75)
         marcos.append({
             'semana': marco_75,
@@ -203,21 +201,21 @@ class ReabilitacaoFisioterapiaIA:
             'metas': ['Funcionalidade próxima ao normal', 'Confiança do paciente'],
             'avaliacao': 'Teste de capacidade funcional'
         })
-        
+
         marcos.append({
             'semana': tempo_total,
             'objetivo': 'Alta do programa',
             'metas': ['Objetivos funcionais atingidos', 'Programa de manutenção'],
             'avaliacao': 'Avaliação final completa'
         })
-        
+
         return marcos
 
-    async def gerar_relatorio_progresso(self, paciente_id: str) -> Dict:
+    async def gerar_relatorio_progresso(self, paciente_id: str) -> dict:
         """Gera relatório completo de progresso"""
-        
+
         progresso = await self.monitor_progresso.calcular_progresso_total()
-        
+
         return {
             'paciente_id': paciente_id,
             'data_relatorio': datetime.now().isoformat(),
@@ -228,9 +226,9 @@ class ReabilitacaoFisioterapiaIA:
             'proximo_marco': self.identificar_proximo_marco()
         }
 
-    def calcular_evolucao_funcional(self) -> Dict:
+    def calcular_evolucao_funcional(self) -> dict:
         """Calcula evolução funcional do paciente"""
-        
+
         return {
             'score_inicial': 0.3,
             'score_atual': 0.6,
@@ -239,9 +237,9 @@ class ReabilitacaoFisioterapiaIA:
             'areas_atencao': ['Resistência cardiovascular']
         }
 
-    def calcular_aderencia(self) -> Dict:
+    def calcular_aderencia(self) -> dict:
         """Calcula aderência ao tratamento"""
-        
+
         return {
             'aderencia_geral': 0.85,
             'sessoes_realizadas': 24,
@@ -250,11 +248,11 @@ class ReabilitacaoFisioterapiaIA:
             'fatores_aderencia': ['Motivação alta', 'Suporte familiar']
         }
 
-    def gerar_recomendacoes_progresso(self, progresso: Dict) -> List[str]:
+    def gerar_recomendacoes_progresso(self, progresso: dict) -> list[str]:
         """Gera recomendações baseadas no progresso"""
-        
+
         recomendacoes = []
-        
+
         if progresso.get('score_atual', 0) < 0.5:
             recomendacoes.extend([
                 'Intensificar exercícios de fortalecimento',
@@ -273,12 +271,12 @@ class ReabilitacaoFisioterapiaIA:
                 'Focar em áreas específicas de melhoria',
                 'Monitorar aderência'
             ])
-        
+
         return recomendacoes
 
-    def identificar_proximo_marco(self) -> Dict:
+    def identificar_proximo_marco(self) -> dict:
         """Identifica próximo marco de recuperação"""
-        
+
         return {
             'marco': 'Recuperação funcional moderada',
             'semana_prevista': 8,

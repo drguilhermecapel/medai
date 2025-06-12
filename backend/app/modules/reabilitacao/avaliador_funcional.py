@@ -2,26 +2,22 @@
 Avaliador Funcional com IA
 """
 
-import asyncio
-from typing import Dict, List
-from datetime import datetime
-import cv2
-import mediapipe as mp
 import logging
+from datetime import datetime
 
 logger = logging.getLogger('MedAI.Reabilitacao.AvaliadorFuncional')
 
 class AvaliadorFuncionalIA:
     """Avaliação funcional inteligente com múltiplas escalas"""
-    
+
     def __init__(self):
         self.escalas_funcionais = EscalasFuncionaisAutomatizadas()
         self.analisador_video = AnalisadorVideoFuncional()
         self.predictor_funcional = PredictorRecuperacaoFuncional()
-        
-    async def avaliar_paciente_completo(self, paciente: Dict) -> Dict:
+
+    async def avaliar_paciente_completo(self, paciente: dict) -> dict:
         """Avaliação funcional completa com IA"""
-        
+
         try:
             escalas = {
                 'mif': await self.escalas_funcionais.calcular_mif(paciente),
@@ -31,15 +27,15 @@ class AvaliadorFuncionalIA:
                 'six_minute_walk': await self.realizar_tc6m(paciente),
                 'fim': await self.escalas_funcionais.calcular_fim(paciente)
             }
-            
+
             forca_muscular = await self.avaliar_forca_muscular_completa(paciente)
-            
+
             adm = await self.medir_amplitude_movimento(paciente)
-            
+
             marcha = await self.analisar_marcha_ia(paciente)
-            
+
             score_global = self.calcular_score_funcional_global(escalas, forca_muscular, adm, marcha)
-            
+
             return {
                 'escalas': escalas,
                 'forca_muscular': forca_muscular,
@@ -49,7 +45,7 @@ class AvaliadorFuncionalIA:
                 'classificacao_funcional': self.classificar_nivel_funcional(score_global),
                 'timestamp': datetime.now().isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"Erro na avaliação funcional: {e}")
             return {
@@ -57,13 +53,13 @@ class AvaliadorFuncionalIA:
                 'escalas': {},
                 'score_global': 0
             }
-    
-    async def medir_timed_up_go(self, paciente: Dict) -> Dict:
+
+    async def medir_timed_up_go(self, paciente: dict) -> dict:
         """Medição automatizada do Timed Up and Go com visão computacional"""
-        
+
         try:
             video_data = await self.simular_captura_video_tug()
-            
+
             tempos = {
                 'levantar': 2.1,
                 'caminhar_ida': 3.5,
@@ -71,9 +67,9 @@ class AvaliadorFuncionalIA:
                 'caminhar_volta': 3.2,
                 'sentar': 2.4
             }
-            
+
             tempo_total = sum(tempos.values())
-            
+
             return {
                 'tempo_total': tempo_total,
                 'tempos_parciais': tempos,
@@ -81,7 +77,7 @@ class AvaliadorFuncionalIA:
                 'risco_queda': self.calcular_risco_queda_tug(tempo_total),
                 'interpretacao': self.interpretar_resultado_tug(tempo_total)
             }
-            
+
         except Exception as e:
             logger.error(f"Erro no teste TUG: {e}")
             return {
@@ -89,23 +85,23 @@ class AvaliadorFuncionalIA:
                 'error': str(e)
             }
 
-    async def realizar_tc6m(self, paciente: Dict) -> Dict:
+    async def realizar_tc6m(self, paciente: dict) -> dict:
         """Teste de caminhada de 6 minutos"""
-        
+
         distancia_percorrida = 450  # metros
-        
+
         idade = paciente.get('idade', 65)
         altura = paciente.get('altura', 170)  # cm
         peso = paciente.get('peso', 70)  # kg
         sexo = paciente.get('sexo', 'M')
-        
+
         if sexo == 'M':
             distancia_predita = (7.57 * altura) - (5.02 * idade) - (1.76 * peso) - 309
         else:
             distancia_predita = (2.11 * altura) - (2.29 * peso) - (5.78 * idade) + 667
-        
+
         percentual_predito = (distancia_percorrida / distancia_predita) * 100
-        
+
         return {
             'distancia_percorrida': distancia_percorrida,
             'distancia_predita': distancia_predita,
@@ -114,9 +110,9 @@ class AvaliadorFuncionalIA:
             'limitacoes_observadas': self.identificar_limitacoes_tc6m(distancia_percorrida)
         }
 
-    async def avaliar_forca_muscular_completa(self, paciente: Dict) -> Dict:
+    async def avaliar_forca_muscular_completa(self, paciente: dict) -> dict:
         """Avaliação completa de força muscular"""
-        
+
         grupos_musculares = {
             'flexores_quadril': {'grau': 4, 'dinamometria': 85},
             'extensores_quadril': {'grau': 4, 'dinamometria': 120},
@@ -127,10 +123,10 @@ class AvaliadorFuncionalIA:
             'abdutores_quadril': {'grau': 3, 'dinamometria': 65},
             'adutores_quadril': {'grau': 4, 'dinamometria': 70}
         }
-        
+
         score_manual = sum([m['grau'] for m in grupos_musculares.values()]) / len(grupos_musculares)
         score_dinamometria = sum([m['dinamometria'] for m in grupos_musculares.values()]) / len(grupos_musculares)
-        
+
         return {
             'grupos_musculares': grupos_musculares,
             'score_manual_medio': score_manual,
@@ -139,9 +135,9 @@ class AvaliadorFuncionalIA:
             'recomendacoes': self.gerar_recomendacoes_forca(grupos_musculares)
         }
 
-    async def medir_amplitude_movimento(self, paciente: Dict) -> Dict:
+    async def medir_amplitude_movimento(self, paciente: dict) -> dict:
         """Medição de amplitude de movimento"""
-        
+
         articulacoes = {
             'quadril': {
                 'flexao': {'ativo': 110, 'passivo': 115, 'normal': 120},
@@ -158,14 +154,14 @@ class AvaliadorFuncionalIA:
                 'plantiflexao': {'ativo': 45, 'passivo': 50, 'normal': 50}
             }
         }
-        
+
         deficits = {}
         for articulacao, movimentos in articulacoes.items():
             deficits[articulacao] = {}
             for movimento, valores in movimentos.items():
                 deficit = valores['normal'] - valores['ativo']
                 deficits[articulacao][movimento] = max(0, deficit)
-        
+
         return {
             'articulacoes': articulacoes,
             'deficits': deficits,
@@ -173,9 +169,9 @@ class AvaliadorFuncionalIA:
             'limitacoes_principais': self.identificar_limitacoes_adm(deficits)
         }
 
-    async def analisar_marcha_ia(self, paciente: Dict) -> Dict:
+    async def analisar_marcha_ia(self, paciente: dict) -> dict:
         """Análise de marcha com IA"""
-        
+
         parametros_marcha = {
             'velocidade': 1.1,  # m/s
             'cadencia': 105,    # passos/min
@@ -185,11 +181,11 @@ class AvaliadorFuncionalIA:
             'simetria': 0.92,           # 0-1
             'estabilidade': 0.88        # 0-1
         }
-        
+
         desvios = self.identificar_desvios_marcha(parametros_marcha)
-        
+
         classificacao = self.classificar_marcha(parametros_marcha)
-        
+
         return {
             'parametros': parametros_marcha,
             'desvios': desvios,
@@ -198,28 +194,28 @@ class AvaliadorFuncionalIA:
             'risco_queda': self.calcular_risco_queda_marcha(parametros_marcha)
         }
 
-    def calcular_score_funcional_global(self, escalas: Dict, forca: Dict, adm: Dict, marcha: Dict) -> float:
+    def calcular_score_funcional_global(self, escalas: dict, forca: dict, adm: dict, marcha: dict) -> float:
         """Calcula score funcional global"""
-        
-        score_escalas = (escalas.get('mif', {}).get('score', 0) / 126 + 
+
+        score_escalas = (escalas.get('mif', {}).get('score', 0) / 126 +
                         escalas.get('barthel', {}).get('score', 0) / 100) / 2
-        
+
         score_forca = forca.get('score_manual_medio', 0) / 5
         score_adm = adm.get('score_adm_global', 0)
         score_marcha = marcha.get('classificacao', {}).get('score', 0)
-        
+
         pesos = {'escalas': 0.4, 'forca': 0.2, 'adm': 0.2, 'marcha': 0.2}
-        
-        score_global = (score_escalas * pesos['escalas'] + 
-                       score_forca * pesos['forca'] + 
-                       score_adm * pesos['adm'] + 
+
+        score_global = (score_escalas * pesos['escalas'] +
+                       score_forca * pesos['forca'] +
+                       score_adm * pesos['adm'] +
                        score_marcha * pesos['marcha'])
-        
+
         return min(1.0, max(0.0, score_global))
 
-    def classificar_nivel_funcional(self, score_global: float) -> Dict:
+    def classificar_nivel_funcional(self, score_global: float) -> dict:
         """Classifica nível funcional baseado no score global"""
-        
+
         if score_global >= 0.8:
             nivel = 'Excelente'
             descricao = 'Funcionalidade próxima ao normal'
@@ -235,7 +231,7 @@ class AvaliadorFuncionalIA:
         else:
             nivel = 'Severo'
             descricao = 'Dependência total ou quase total'
-        
+
         return {
             'nivel': nivel,
             'descricao': descricao,
@@ -243,11 +239,11 @@ class AvaliadorFuncionalIA:
             'recomendacoes_gerais': self.gerar_recomendacoes_nivel(nivel)
         }
 
-    async def simular_captura_video_tug(self) -> Dict:
+    async def simular_captura_video_tug(self) -> dict:
         """Simula captura de vídeo para TUG"""
         return {'frames': 300, 'fps': 30, 'duracao': 10}
 
-    def avaliar_qualidade_movimento_tug(self, tempos: Dict) -> Dict:
+    def avaliar_qualidade_movimento_tug(self, tempos: dict) -> dict:
         """Avalia qualidade do movimento no TUG"""
         return {
             'fluidez': 0.8,
@@ -256,7 +252,7 @@ class AvaliadorFuncionalIA:
             'score_qualidade': 0.75
         }
 
-    def calcular_risco_queda_tug(self, tempo_total: float) -> Dict:
+    def calcular_risco_queda_tug(self, tempo_total: float) -> dict:
         """Calcula risco de queda baseado no TUG"""
         if tempo_total > 14:
             risco = 'Alto'
@@ -264,7 +260,7 @@ class AvaliadorFuncionalIA:
             risco = 'Moderado'
         else:
             risco = 'Baixo'
-        
+
         return {'risco': risco, 'tempo': tempo_total}
 
     def interpretar_resultado_tug(self, tempo_total: float) -> str:
@@ -287,7 +283,7 @@ class AvaliadorFuncionalIA:
         else:
             return 'Severa limitação'
 
-    def identificar_limitacoes_tc6m(self, distancia: float) -> List[str]:
+    def identificar_limitacoes_tc6m(self, distancia: float) -> list[str]:
         """Identifica limitações no TC6M"""
         limitacoes = []
         if distancia < 300:
@@ -296,11 +292,11 @@ class AvaliadorFuncionalIA:
             limitacoes.append('Resistência reduzida')
         return limitacoes
 
-    def detectar_assimetrias_forca(self, grupos: Dict) -> List[str]:
+    def detectar_assimetrias_forca(self, grupos: dict) -> list[str]:
         """Detecta assimetrias de força"""
         return ['Assimetria leve em extensores de joelho']
 
-    def gerar_recomendacoes_forca(self, grupos: Dict) -> List[str]:
+    def gerar_recomendacoes_forca(self, grupos: dict) -> list[str]:
         """Gera recomendações para força"""
         return [
             'Fortalecimento específico de extensores de joelho',
@@ -308,12 +304,12 @@ class AvaliadorFuncionalIA:
             'Progressão gradual de carga'
         ]
 
-    def calcular_score_adm_global(self, deficits: Dict) -> float:
+    def calcular_score_adm_global(self, deficits: dict) -> float:
         """Calcula score global de ADM"""
         total_deficits = sum([sum(movs.values()) for movs in deficits.values()])
         return max(0, 1 - (total_deficits / 100))
 
-    def identificar_limitacoes_adm(self, deficits: Dict) -> List[str]:
+    def identificar_limitacoes_adm(self, deficits: dict) -> list[str]:
         """Identifica principais limitações de ADM"""
         limitacoes = []
         for articulacao, movimentos in deficits.items():
@@ -322,7 +318,7 @@ class AvaliadorFuncionalIA:
                     limitacoes.append(f'Limitação de {movimento} em {articulacao}')
         return limitacoes
 
-    def identificar_desvios_marcha(self, parametros: Dict) -> List[str]:
+    def identificar_desvios_marcha(self, parametros: dict) -> list[str]:
         """Identifica desvios na marcha"""
         desvios = []
         if parametros['velocidade'] < 1.0:
@@ -333,10 +329,10 @@ class AvaliadorFuncionalIA:
             desvios.append('Instabilidade durante marcha')
         return desvios
 
-    def classificar_marcha(self, parametros: Dict) -> Dict:
+    def classificar_marcha(self, parametros: dict) -> dict:
         """Classifica qualidade da marcha"""
         score = (parametros['simetria'] + parametros['estabilidade']) / 2
-        
+
         if score >= 0.9:
             classificacao = 'Excelente'
         elif score >= 0.8:
@@ -345,10 +341,10 @@ class AvaliadorFuncionalIA:
             classificacao = 'Regular'
         else:
             classificacao = 'Alterada'
-        
+
         return {'classificacao': classificacao, 'score': score}
 
-    def gerar_recomendacoes_marcha(self, desvios: List[str]) -> List[str]:
+    def gerar_recomendacoes_marcha(self, desvios: list[str]) -> list[str]:
         """Gera recomendações para marcha"""
         recomendacoes = []
         if 'Velocidade reduzida' in desvios:
@@ -359,7 +355,7 @@ class AvaliadorFuncionalIA:
             recomendacoes.append('Treino de equilíbrio dinâmico')
         return recomendacoes
 
-    def calcular_risco_queda_marcha(self, parametros: Dict) -> str:
+    def calcular_risco_queda_marcha(self, parametros: dict) -> str:
         """Calcula risco de queda baseado na marcha"""
         if parametros['estabilidade'] < 0.7 or parametros['velocidade'] < 0.8:
             return 'Alto'
@@ -368,7 +364,7 @@ class AvaliadorFuncionalIA:
         else:
             return 'Baixo'
 
-    def gerar_recomendacoes_nivel(self, nivel: str) -> List[str]:
+    def gerar_recomendacoes_nivel(self, nivel: str) -> list[str]:
         """Gera recomendações baseadas no nível funcional"""
         recomendacoes = {
             'Excelente': ['Manter atividade física', 'Prevenção de lesões'],
@@ -381,7 +377,7 @@ class AvaliadorFuncionalIA:
 
 
 class EscalasFuncionaisAutomatizadas:
-    async def calcular_mif(self, paciente: Dict) -> Dict:
+    async def calcular_mif(self, paciente: dict) -> dict:
         """Calcula Medida de Independência Funcional"""
         return {
             'score': 98,
@@ -390,21 +386,21 @@ class EscalasFuncionaisAutomatizadas:
             'interpretacao': 'Independência modificada'
         }
 
-    async def calcular_barthel(self, paciente: Dict) -> Dict:
+    async def calcular_barthel(self, paciente: dict) -> dict:
         """Calcula Índice de Barthel"""
         return {
             'score': 85,
             'interpretacao': 'Dependência leve'
         }
 
-    async def calcular_berg(self, paciente: Dict) -> Dict:
+    async def calcular_berg(self, paciente: dict) -> dict:
         """Calcula Escala de Equilíbrio de Berg"""
         return {
             'score': 45,
             'interpretacao': 'Risco moderado de quedas'
         }
 
-    async def calcular_fim(self, paciente: Dict) -> Dict:
+    async def calcular_fim(self, paciente: dict) -> dict:
         """Calcula Functional Independence Measure"""
         return {
             'score': 110,

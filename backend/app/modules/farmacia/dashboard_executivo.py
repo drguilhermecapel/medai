@@ -2,37 +2,35 @@
 Dashboard executivo da farmácia hospitalar
 """
 
-import asyncio
-from typing import Dict, List
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime
 
 logger = logging.getLogger('MedAI.Farmacia.DashboardExecutivo')
 
 class DashboardFarmaciaExecutivo:
     """Dashboard executivo da farmácia hospitalar"""
-    
+
     def __init__(self):
         self.analisador_kpis = AnalisadorKPIsFarmacia()
         self.gerador_insights = GeradorInsightsExecutivos()
         self.predictor_tendencias = PredictorTendenciasFarmacia()
-        
-    async def gerar_dashboard_executivo(self, periodo: str = '30_dias') -> Dict:
+
+    async def gerar_dashboard_executivo(self, periodo: str = '30_dias') -> dict:
         """Gera dashboard executivo completo"""
-        
+
         try:
             kpis_principais = await self.calcular_kpis_principais(periodo)
-            
+
             analise_financeira = await self.analisar_performance_financeira(periodo)
-            
+
             indicadores_qualidade = await self.calcular_indicadores_qualidade(periodo)
-            
+
             analise_operacional = await self.analisar_eficiencia_operacional(periodo)
-            
+
             insights = await self.gerar_insights_executivos(kpis_principais, analise_financeira)
-            
+
             previsoes = await self.gerar_previsoes_tendencias(periodo)
-            
+
             return {
                 'periodo': periodo,
                 'data_atualizacao': datetime.now().isoformat(),
@@ -44,7 +42,7 @@ class DashboardFarmaciaExecutivo:
                 'previsoes_tendencias': previsoes,
                 'score_performance_geral': self.calcular_score_performance_geral(kpis_principais)
             }
-            
+
         except Exception as e:
             logger.error(f"Erro na geração do dashboard executivo: {e}")
             return {
@@ -53,9 +51,9 @@ class DashboardFarmaciaExecutivo:
                 'data_atualizacao': datetime.now().isoformat()
             }
 
-    async def calcular_kpis_principais(self, periodo: str) -> Dict:
+    async def calcular_kpis_principais(self, periodo: str) -> dict:
         """Calcula KPIs principais da farmácia"""
-        
+
         kpis = {
             'seguranca_medicamentosa': {
                 'erros_medicacao_evitados': 45,
@@ -87,31 +85,31 @@ class DashboardFarmaciaExecutivo:
                 'meta_economia': 100000.00
             }
         }
-        
+
         for categoria, metricas in kpis.items():
             for metrica, valor in metricas.items():
                 if isinstance(valor, (int, float)) and metrica != 'meta':
                     variacao = self.simular_variacao_periodo_anterior()
                     metricas[f'{metrica}_variacao'] = variacao
-        
+
         return kpis
 
-    def simular_variacao_periodo_anterior(self) -> Dict:
+    def simular_variacao_periodo_anterior(self) -> dict:
         """Simula variação em relação ao período anterior"""
-        
+
         import random
-        
+
         variacao_percentual = random.uniform(-15, 25)  # -15% a +25%
-        
+
         return {
             'percentual': variacao_percentual,
             'tendencia': 'positiva' if variacao_percentual > 0 else 'negativa',
             'significativa': abs(variacao_percentual) > 10
         }
 
-    async def analisar_performance_financeira(self, periodo: str) -> Dict:
+    async def analisar_performance_financeira(self, periodo: str) -> dict:
         """Analisa performance financeira da farmácia"""
-        
+
         analise = {
             'receita_total': 2850000.00,  # R$
             'custo_medicamentos': 1995000.00,  # R$
@@ -138,15 +136,15 @@ class DashboardFarmaciaExecutivo:
                 {'area': 'Redução desperdício', 'economia_potencial': 35000.00}
             ]
         }
-        
+
         analise['margem_liquida'] = analise['margem_bruta'] - analise['custo_operacional']
         analise['margem_liquida_percentual'] = (analise['margem_liquida'] / analise['receita_total']) * 100
-        
+
         return analise
 
-    async def calcular_indicadores_qualidade(self, periodo: str) -> Dict:
+    async def calcular_indicadores_qualidade(self, periodo: str) -> dict:
         """Calcula indicadores de qualidade"""
-        
+
         indicadores = {
             'seguranca_paciente': {
                 'eventos_adversos_evitados': 28,
@@ -183,12 +181,12 @@ class DashboardFarmaciaExecutivo:
                 'violacoes_temperatura': 3
             }
         }
-        
+
         return indicadores
 
-    async def analisar_eficiencia_operacional(self, periodo: str) -> Dict:
+    async def analisar_eficiencia_operacional(self, periodo: str) -> dict:
         """Analisa eficiência operacional"""
-        
+
         analise = {
             'produtividade_equipe': {
                 'dispensacoes_por_farmaceutico': 125,
@@ -223,12 +221,12 @@ class DashboardFarmaciaExecutivo:
                 'pegada_carbono_kg': 1250
             }
         }
-        
+
         return analise
 
-    async def gerar_insights_executivos(self, kpis: Dict, financeiro: Dict) -> Dict:
+    async def gerar_insights_executivos(self, kpis: dict, financeiro: dict) -> dict:
         """Gera insights executivos baseados nos dados"""
-        
+
         insights = {
             'destaques_positivos': [],
             'areas_atencao': [],
@@ -236,21 +234,21 @@ class DashboardFarmaciaExecutivo:
             'recomendacoes_estrategicas': [],
             'alertas_criticos': []
         }
-        
+
         if kpis['seguranca_medicamentosa']['score_seguranca'] > 0.9:
             insights['destaques_positivos'].append({
                 'titulo': 'Excelência em Segurança Medicamentosa',
                 'descricao': f"Score de segurança de {kpis['seguranca_medicamentosa']['score_seguranca']:.1%} supera a meta",
                 'impacto': 'alto'
             })
-        
+
         if financeiro['economia_negociacao'] > 150000:
             insights['destaques_positivos'].append({
                 'titulo': 'Economia Significativa em Negociações',
                 'descricao': f"R$ {financeiro['economia_negociacao']:,.2f} economizados em negociações",
                 'impacto': 'alto'
             })
-        
+
         if kpis['eficiencia_operacional']['taxa_falta_medicamentos'] > 2.5:
             insights['areas_atencao'].append({
                 'titulo': 'Taxa de Falta de Medicamentos Elevada',
@@ -258,7 +256,7 @@ class DashboardFarmaciaExecutivo:
                 'impacto': 'moderado',
                 'acao_sugerida': 'Revisar pontos de reposição e previsão de demanda'
             })
-        
+
         economia_potencial = sum(op['economia_potencial'] for op in financeiro['oportunidades_economia'])
         if economia_potencial > 100000:
             insights['oportunidades_melhoria'].append({
@@ -267,7 +265,7 @@ class DashboardFarmaciaExecutivo:
                 'prazo': '6_meses',
                 'roi_estimado': 4.5
             })
-        
+
         insights['recomendacoes_estrategicas'].extend([
             {
                 'titulo': 'Expansão da Farmácia Clínica',
@@ -284,12 +282,12 @@ class DashboardFarmaciaExecutivo:
                 'prazo': '8_meses'
             }
         ])
-        
+
         return insights
 
-    async def gerar_previsoes_tendencias(self, periodo: str) -> Dict:
+    async def gerar_previsoes_tendencias(self, periodo: str) -> dict:
         """Gera previsões e análise de tendências"""
-        
+
         previsoes = {
             'demanda_medicamentos': {
                 'proximo_mes': {
@@ -340,34 +338,34 @@ class DashboardFarmaciaExecutivo:
                 'investimento_compliance': 45000.00
             }
         }
-        
+
         return previsoes
 
-    def calcular_score_performance_geral(self, kpis: Dict) -> Dict:
+    def calcular_score_performance_geral(self, kpis: dict) -> dict:
         """Calcula score geral de performance"""
-        
+
         pesos = {
             'seguranca_medicamentosa': 0.35,
             'eficiencia_operacional': 0.25,
             'satisfacao_cliente': 0.20,
             'sustentabilidade': 0.20
         }
-        
+
         score_total = 0.0
         detalhes_score = {}
-        
+
         for categoria, peso in pesos.items():
             if categoria in kpis:
                 score_categoria = self.calcular_score_categoria(kpis[categoria], categoria)
                 score_ponderado = score_categoria * peso
                 score_total += score_ponderado
-                
+
                 detalhes_score[categoria] = {
                     'score_categoria': score_categoria,
                     'peso': peso,
                     'contribuicao': score_ponderado
                 }
-        
+
         if score_total >= 0.9:
             classificacao = 'excelente'
         elif score_total >= 0.8:
@@ -378,7 +376,7 @@ class DashboardFarmaciaExecutivo:
             classificacao = 'regular'
         else:
             classificacao = 'necessita_melhoria'
-        
+
         return {
             'score_geral': score_total,
             'classificacao': classificacao,
@@ -387,56 +385,56 @@ class DashboardFarmaciaExecutivo:
             'areas_melhoria': self.identificar_areas_melhoria(detalhes_score)
         }
 
-    def calcular_score_categoria(self, metricas: Dict, categoria: str) -> float:
+    def calcular_score_categoria(self, metricas: dict, categoria: str) -> float:
         """Calcula score de uma categoria específica"""
-        
+
         if categoria == 'seguranca_medicamentosa':
             score_seguranca = metricas.get('score_seguranca', 0)
             taxa_intervencao = min(1.0, metricas.get('taxa_intervencao', 0) / 10)  # Normaliza para 0-1
             return (score_seguranca * 0.7) + (taxa_intervencao * 0.3)
-        
+
         elif categoria == 'eficiencia_operacional':
             tempo_dispensacao = max(0, 1 - (metricas.get('tempo_medio_dispensacao', 15) - 10) / 10)
             taxa_falta = max(0, 1 - metricas.get('taxa_falta_medicamentos', 0) / 5)
             giro_estoque = min(1.0, metricas.get('giro_estoque', 0) / 12)
             acuracia = metricas.get('acuracia_inventario', 0) / 100
-            
+
             return (tempo_dispensacao * 0.3) + (taxa_falta * 0.3) + (giro_estoque * 0.2) + (acuracia * 0.2)
-        
+
         elif categoria == 'satisfacao_cliente':
             score_satisfacao = metricas.get('score_satisfacao', 0) / 5  # Normaliza escala 1-5
             tempo_resposta = max(0, 1 - (metricas.get('tempo_resposta_solicitacoes', 10) - 5) / 10)
             return (score_satisfacao * 0.7) + (tempo_resposta * 0.3)
-        
+
         elif categoria == 'sustentabilidade':
             economia = min(1.0, metricas.get('economia_gerada', 0) / 150000)  # Normaliza para meta
             reducao_desperdicio = metricas.get('reducao_desperdicio', 0)
             medicamentos_vencidos = max(0, 1 - metricas.get('medicamentos_vencidos', 0) / 2)
-            
+
             return (economia * 0.5) + (reducao_desperdicio * 0.3) + (medicamentos_vencidos * 0.2)
-        
+
         return 0.5  # Score padrão
 
-    def identificar_areas_destaque(self, detalhes_score: Dict) -> List[str]:
+    def identificar_areas_destaque(self, detalhes_score: dict) -> list[str]:
         """Identifica áreas de destaque (score > 0.8)"""
-        
+
         areas_destaque = []
-        
+
         for categoria, dados in detalhes_score.items():
             if dados['score_categoria'] > 0.8:
                 areas_destaque.append(categoria)
-        
+
         return areas_destaque
 
-    def identificar_areas_melhoria(self, detalhes_score: Dict) -> List[str]:
+    def identificar_areas_melhoria(self, detalhes_score: dict) -> list[str]:
         """Identifica áreas que precisam de melhoria (score < 0.7)"""
-        
+
         areas_melhoria = []
-        
+
         for categoria, dados in detalhes_score.items():
             if dados['score_categoria'] < 0.7:
                 areas_melhoria.append(categoria)
-        
+
         return areas_melhoria
 
 

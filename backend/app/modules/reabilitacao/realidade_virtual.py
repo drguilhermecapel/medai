@@ -2,50 +2,48 @@
 Sistema de Realidade Virtual para Reabilitação
 """
 
-import asyncio
-from typing import Dict, List
-from datetime import datetime
 import logging
+from datetime import datetime
 
 logger = logging.getLogger('MedAI.Reabilitacao.RealidadeVirtual')
 
 class SistemaRealidadeVirtual:
     """Sistema de reabilitação com realidade virtual"""
-    
+
     def __init__(self):
         self.ambiente_vr = AmbienteVirtualTerapeutico()
         self.gamificador = GamificadorReabilitacao()
         self.adaptador_dificuldade = AdaptadorDificuldadeIA()
-        
-    async def criar_sessao_vr_personalizada(self, paciente: Dict, objetivos: List) -> Dict:
+
+    async def criar_sessao_vr_personalizada(self, paciente: dict, objetivos: list) -> dict:
         """Criação de sessão de reabilitação em VR"""
-        
+
         try:
             ambiente = await self.selecionar_ambiente_terapeutico(
                 condicao=paciente.get('condicao', ''),
                 preferencias=paciente.get('preferencias_vr', {}),
                 objetivos_terapeuticos=objetivos
             )
-            
+
             exercicios_vr = await self.gamificador.criar_exercicios_gamificados(
                 exercicios_base=objetivos,
                 nivel_dificuldade=paciente.get('nivel_funcional', 'moderado'),
                 elementos_motivacionais=self.definir_elementos_motivacionais(paciente)
             )
-            
+
             sistema_recompensas = self.criar_sistema_recompensas(
                 perfil_paciente=paciente,
                 metas_curto_prazo=True,
                 metas_longo_prazo=True
             )
-            
+
             configuracao_adaptativa = {
                 'ajuste_dificuldade': 'automatico',
                 'threshold_sucesso': 0.7,
                 'threshold_frustacao': 0.3,
                 'velocidade_adaptacao': 'moderada'
             }
-            
+
             return {
                 'ambiente': ambiente,
                 'exercicios': exercicios_vr,
@@ -54,7 +52,7 @@ class SistemaRealidadeVirtual:
                 'metricas_engajamento': self.definir_metricas_engajamento(),
                 'timestamp': datetime.now().isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"Erro na criação da sessão VR: {e}")
             return {
@@ -63,9 +61,9 @@ class SistemaRealidadeVirtual:
                 'exercicios': []
             }
 
-    async def selecionar_ambiente_terapeutico(self, condicao: str, preferencias: Dict, objetivos_terapeuticos: List) -> Dict:
+    async def selecionar_ambiente_terapeutico(self, condicao: str, preferencias: dict, objetivos_terapeuticos: list) -> dict:
         """Seleciona ambiente virtual mais adequado"""
-        
+
         ambientes_disponiveis = {
             'casa_virtual': {
                 'descricao': 'Ambiente doméstico para treino de AVDs',
@@ -92,26 +90,26 @@ class SistemaRealidadeVirtual:
                 'dificuldade': 'alta'
             }
         }
-        
+
         ambiente_selecionado = 'casa_virtual'  # Default
-        
+
         if any('equilibrio' in obj.lower() for obj in objetivos_terapeuticos):
             ambiente_selecionado = 'parque_natural'
         elif any('forca' in obj.lower() for obj in objetivos_terapeuticos):
             ambiente_selecionado = 'academia_virtual'
         elif any('social' in obj.lower() for obj in objetivos_terapeuticos):
             ambiente_selecionado = 'cidade_virtual'
-        
+
         ambiente = ambientes_disponiveis[ambiente_selecionado]
         ambiente['nome'] = ambiente_selecionado
-        
+
         return ambiente
 
-    def definir_elementos_motivacionais(self, paciente: Dict) -> List[str]:
+    def definir_elementos_motivacionais(self, paciente: dict) -> list[str]:
         """Define elementos motivacionais baseados no perfil"""
-        
+
         elementos = []
-        
+
         idade = paciente.get('idade', 50)
         if idade < 30:
             elementos.extend(['pontuacao_competitiva', 'rankings', 'conquistas'])
@@ -119,24 +117,24 @@ class SistemaRealidadeVirtual:
             elementos.extend(['progresso_visual', 'metas_pessoais', 'feedback_positivo'])
         else:
             elementos.extend(['encorajamento_verbal', 'progresso_gradual', 'celebracao_marcos'])
-        
+
         preferencias = paciente.get('preferencias', {})
         if preferencias.get('gosta_jogos', False):
             elementos.extend(['elementos_jogo', 'desafios', 'narrativa'])
         if preferencias.get('competitivo', False):
             elementos.extend(['comparacao_performance', 'desafios_tempo'])
-        
+
         return elementos
 
-    def criar_sistema_recompensas(self, perfil_paciente: Dict, metas_curto_prazo: bool, metas_longo_prazo: bool) -> Dict:
+    def criar_sistema_recompensas(self, perfil_paciente: dict, metas_curto_prazo: bool, metas_longo_prazo: bool) -> dict:
         """Cria sistema de recompensas personalizado"""
-        
+
         sistema = {
             'tipos_recompensa': [],
             'criterios_desbloqueio': {},
             'progressao': {}
         }
-        
+
         if metas_curto_prazo:
             sistema['tipos_recompensa'].extend([
                 'feedback_imediato',
@@ -148,7 +146,7 @@ class SistemaRealidadeVirtual:
                 'qualidade_boa': 25,
                 'sessao_completa': 50
             }
-        
+
         if metas_longo_prazo:
             sistema['tipos_recompensa'].extend([
                 'desbloqueio_ambientes',
@@ -160,19 +158,19 @@ class SistemaRealidadeVirtual:
                 'marco_funcional': 500,
                 'objetivo_atingido': 1000
             }
-        
+
         sistema['progressao'] = {
             'nivel_inicial': 1,
             'pontos_proximo_nivel': 100,
             'multiplicador_dificuldade': 1.2,
             'bonus_consistencia': 0.1
         }
-        
+
         return sistema
 
-    def definir_metricas_engajamento(self) -> Dict:
+    def definir_metricas_engajamento(self) -> dict:
         """Define métricas para medir engajamento"""
-        
+
         return {
             'tempo_sessao': 'minutos_ativo',
             'interacoes_por_minuto': 'frequencia_comandos',
@@ -183,9 +181,9 @@ class SistemaRealidadeVirtual:
             'progressao_dificuldade': 'niveis_avancados_atingidos'
         }
 
-    async def executar_sessao_vr(self, configuracao_sessao: Dict) -> Dict:
+    async def executar_sessao_vr(self, configuracao_sessao: dict) -> dict:
         """Executa sessão de VR e coleta métricas"""
-        
+
         try:
             resultados = {
                 'inicio_sessao': datetime.now().isoformat(),
@@ -194,27 +192,27 @@ class SistemaRealidadeVirtual:
                 'adaptacoes_realizadas': [],
                 'feedback_paciente': {}
             }
-            
+
             for exercicio in configuracao_sessao.get('exercicios', []):
                 resultado_exercicio = await self.executar_exercicio_vr(exercicio)
                 resultados['exercicios_executados'].append(resultado_exercicio)
-                
+
                 performance = self.analisar_performance_tempo_real(resultado_exercicio)
-                
+
                 if performance['necessita_adaptacao']:
                     adaptacao = await self.adaptador_dificuldade.adaptar_exercicio(
                         exercicio, performance
                     )
                     resultados['adaptacoes_realizadas'].append(adaptacao)
-            
+
             resultados['metricas_coletadas'] = self.calcular_metricas_sessao(resultados)
-            
+
             resultados['feedback_paciente'] = await self.coletar_feedback_paciente()
-            
+
             resultados['fim_sessao'] = datetime.now().isoformat()
-            
+
             return resultados
-            
+
         except Exception as e:
             logger.error(f"Erro na execução da sessão VR: {e}")
             return {
@@ -223,9 +221,9 @@ class SistemaRealidadeVirtual:
                 'metricas_coletadas': {}
             }
 
-    async def executar_exercicio_vr(self, exercicio: Dict) -> Dict:
+    async def executar_exercicio_vr(self, exercicio: dict) -> dict:
         """Executa exercício individual em VR"""
-        
+
         return {
             'exercicio': exercicio.get('nome', 'Exercício VR'),
             'tempo_execucao': 180,  # segundos
@@ -239,12 +237,12 @@ class SistemaRealidadeVirtual:
             'satisfacao': 8  # escala 1-10
         }
 
-    def analisar_performance_tempo_real(self, resultado_exercicio: Dict) -> Dict:
+    def analisar_performance_tempo_real(self, resultado_exercicio: dict) -> dict:
         """Analisa performance em tempo real"""
-        
+
         taxa_sucesso = resultado_exercicio.get('taxa_sucesso', 0)
         dificuldade_percebida = resultado_exercicio.get('dificuldade_percebida', 5)
-        
+
         return {
             'performance_adequada': 0.4 <= taxa_sucesso <= 0.8,
             'muito_facil': taxa_sucesso > 0.9 and dificuldade_percebida < 4,
@@ -253,18 +251,18 @@ class SistemaRealidadeVirtual:
             'direcao_adaptacao': 'aumentar' if taxa_sucesso > 0.9 else 'diminuir'
         }
 
-    def calcular_metricas_sessao(self, resultados: Dict) -> Dict:
+    def calcular_metricas_sessao(self, resultados: dict) -> dict:
         """Calcula métricas consolidadas da sessão"""
-        
+
         exercicios = resultados.get('exercicios_executados', [])
-        
+
         if not exercicios:
             return {}
-        
+
         taxa_sucesso_media = sum(ex.get('taxa_sucesso', 0) for ex in exercicios) / len(exercicios)
         engajamento_medio = sum(ex.get('engajamento', 0) for ex in exercicios) / len(exercicios)
         satisfacao_media = sum(ex.get('satisfacao', 0) for ex in exercicios) / len(exercicios)
-        
+
         return {
             'taxa_sucesso_sessao': taxa_sucesso_media,
             'engajamento_sessao': engajamento_medio,
@@ -275,9 +273,9 @@ class SistemaRealidadeVirtual:
             'score_sessao_geral': (taxa_sucesso_media + engajamento_medio + satisfacao_media/10) / 3
         }
 
-    async def coletar_feedback_paciente(self) -> Dict:
+    async def coletar_feedback_paciente(self) -> dict:
         """Coleta feedback do paciente sobre a sessão VR"""
-        
+
         return {
             'facilidade_uso': 8,  # 1-10
             'conforto_visual': 7,
@@ -290,9 +288,9 @@ class SistemaRealidadeVirtual:
             'sugestoes_melhoria': ['Mais variedade de exercícios', 'Música de fundo']
         }
 
-    async def gerar_relatorio_vr(self, paciente_id: str, periodo: str = '1_mes') -> Dict:
+    async def gerar_relatorio_vr(self, paciente_id: str, periodo: str = '1_mes') -> dict:
         """Gera relatório de uso de VR"""
-        
+
         return {
             'paciente_id': paciente_id,
             'periodo': periodo,
@@ -331,11 +329,11 @@ class AmbienteVirtualTerapeutico:
 
 
 class GamificadorReabilitacao:
-    async def criar_exercicios_gamificados(self, exercicios_base: List, nivel_dificuldade: str, elementos_motivacionais: List) -> List[Dict]:
+    async def criar_exercicios_gamificados(self, exercicios_base: list, nivel_dificuldade: str, elementos_motivacionais: list) -> list[dict]:
         """Cria exercícios gamificados"""
-        
+
         exercicios_gamificados = []
-        
+
         for i, exercicio in enumerate(exercicios_base[:3]):  # Limita a 3 exercícios
             exercicio_gamificado = {
                 'nome': f'Desafio {i+1}: {exercicio}',
@@ -359,21 +357,21 @@ class GamificadorReabilitacao:
                 }
             }
             exercicios_gamificados.append(exercicio_gamificado)
-        
+
         return exercicios_gamificados
 
 
 class AdaptadorDificuldadeIA:
-    async def adaptar_exercicio(self, exercicio: Dict, performance: Dict) -> Dict:
+    async def adaptar_exercicio(self, exercicio: dict, performance: dict) -> dict:
         """Adapta dificuldade do exercício baseado na performance"""
-        
+
         adaptacao = {
             'exercicio_original': exercicio.get('nome', 'Exercício'),
             'motivo_adaptacao': '',
             'mudancas_realizadas': [],
             'nova_configuracao': {}
         }
-        
+
         if performance.get('muito_facil'):
             adaptacao['motivo_adaptacao'] = 'Exercício muito fácil para o paciente'
             adaptacao['mudancas_realizadas'] = [
@@ -389,11 +387,11 @@ class AdaptadorDificuldadeIA:
                 'Aumentar tempo disponível',
                 'Adicionar assistência visual'
             ]
-        
+
         adaptacao['nova_configuracao'] = {
             'nivel_dificuldade': 'adaptado',
             'parametros_ajustados': True,
             'timestamp_adaptacao': datetime.now().isoformat()
         }
-        
+
         return adaptacao

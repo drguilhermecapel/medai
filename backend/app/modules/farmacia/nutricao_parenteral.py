@@ -2,35 +2,33 @@
 Sistema inteligente de nutrição parenteral
 """
 
-import asyncio
-from typing import Dict, List
-from datetime import datetime
 import logging
+from datetime import datetime
 
 logger = logging.getLogger('MedAI.Farmacia.NutricaoParenteral')
 
 class NutricaoParenteralIA:
     """Sistema inteligente de nutrição parenteral"""
-    
+
     def __init__(self):
         self.calculador_nutricional = CalculadorNutricionalIA()
         self.formulador_np = FormuladorNutricaoParenteral()
         self.monitor_compatibilidade = MonitorCompatibilidadeNP()
-        
-    async def calcular_nutricao_parenteral(self, paciente: Dict) -> Dict:
+
+    async def calcular_nutricao_parenteral(self, paciente: dict) -> dict:
         """Cálculo completo de nutrição parenteral personalizada"""
-        
+
         try:
             avaliacao = await self.avaliar_estado_nutricional(paciente)
-            
+
             necessidades = await self.calcular_necessidades_nutricionais(paciente, avaliacao)
-            
+
             formulacao = await self.formular_nutricao_parenteral(necessidades, paciente)
-            
+
             compatibilidade = await self.verificar_compatibilidade_componentes(formulacao)
-            
+
             monitoramento = await self.definir_monitoramento_laboratorial(paciente, formulacao)
-            
+
             return {
                 'avaliacao_nutricional': avaliacao,
                 'necessidades_calculadas': necessidades,
@@ -40,7 +38,7 @@ class NutricaoParenteralIA:
                 'score_adequacao': self.calcular_score_adequacao(formulacao, necessidades),
                 'timestamp': datetime.now().isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"Erro no cálculo da nutrição parenteral: {e}")
             return {
@@ -52,13 +50,13 @@ class NutricaoParenteralIA:
                 'monitoramento': {}
             }
 
-    async def avaliar_estado_nutricional(self, paciente: Dict) -> Dict:
+    async def avaliar_estado_nutricional(self, paciente: dict) -> dict:
         """Avaliação completa do estado nutricional"""
-        
+
         dados_antropometricos = paciente.get('antropometria', {})
         dados_laboratoriais = paciente.get('laboratorio', {})
         dados_clinicos = paciente.get('clinicos', {})
-        
+
         avaliacao = {
             'imc': self.calcular_imc(dados_antropometricos),
             'estado_nutricional': '',
@@ -66,7 +64,7 @@ class NutricaoParenteralIA:
             'fatores_estresse': [],
             'score_nutricional': 0.0
         }
-        
+
         imc = avaliacao['imc']
         if imc < 18.5:
             avaliacao['estado_nutricional'] = 'desnutrido'
@@ -80,16 +78,16 @@ class NutricaoParenteralIA:
         else:
             avaliacao['estado_nutricional'] = 'obesidade'
             avaliacao['score_nutricional'] = 0.6
-        
+
         albumina = dados_laboratoriais.get('albumina', 4.0)
         if albumina < 3.0:
             avaliacao['necessidades_especiais'].append('hipoalbuminemia')
             avaliacao['score_nutricional'] *= 0.8
-        
+
         transferrina = dados_laboratoriais.get('transferrina', 250)
         if transferrina < 200:
             avaliacao['necessidades_especiais'].append('deficiencia_ferro')
-        
+
         if dados_clinicos.get('sepse', False):
             avaliacao['fatores_estresse'].append('sepse')
         if dados_clinicos.get('cirurgia_maior', False):
@@ -98,34 +96,34 @@ class NutricaoParenteralIA:
             avaliacao['fatores_estresse'].append('queimaduras')
         if dados_clinicos.get('trauma', False):
             avaliacao['fatores_estresse'].append('trauma')
-        
+
         return avaliacao
 
-    def calcular_imc(self, antropometria: Dict) -> float:
+    def calcular_imc(self, antropometria: dict) -> float:
         """Calcula índice de massa corporal"""
-        
+
         peso = antropometria.get('peso', 70)
         altura = antropometria.get('altura', 170) / 100  # converte cm para m
-        
+
         return peso / (altura ** 2)
 
-    async def calcular_necessidades_nutricionais(self, paciente: Dict, avaliacao: Dict) -> Dict:
+    async def calcular_necessidades_nutricionais(self, paciente: dict, avaliacao: dict) -> dict:
         """Calcula necessidades nutricionais personalizadas"""
-        
+
         peso = paciente.get('antropometria', {}).get('peso', 70)
         idade = paciente.get('idade', 50)
         sexo = paciente.get('sexo', 'masculino')
-        
+
         if sexo == 'masculino':
             geb = 88.362 + (13.397 * peso) + (4.799 * paciente.get('antropometria', {}).get('altura', 170)) - (5.677 * idade)
         else:
             geb = 447.593 + (9.247 * peso) + (3.098 * paciente.get('antropometria', {}).get('altura', 170)) - (4.330 * idade)
-        
+
         fator_estresse = self.calcular_fator_estresse(avaliacao.get('fatores_estresse', []))
         fator_atividade = 1.2  # Paciente acamado
-        
+
         calorias_totais = geb * fator_atividade * fator_estresse
-        
+
         necessidades = {
             'calorias_totais': calorias_totais,
             'proteinas': {
@@ -146,23 +144,23 @@ class NutricaoParenteralIA:
             'micronutrientes': self.calcular_micronutrientes(peso, avaliacao),
             'volume_total': self.calcular_volume_total(peso, paciente)
         }
-        
+
         necessidades['proteinas']['calorias'] = necessidades['proteinas']['gramas'] * 4
         necessidades['proteinas']['percentual'] = (necessidades['proteinas']['calorias'] / calorias_totais) * 100
-        
+
         necessidades['carboidratos']['calorias'] = calorias_totais * (necessidades['carboidratos']['percentual'] / 100)
         necessidades['carboidratos']['gramas'] = necessidades['carboidratos']['calorias'] / 4
-        
+
         necessidades['lipidios']['calorias'] = calorias_totais * (necessidades['lipidios']['percentual'] / 100)
         necessidades['lipidios']['gramas'] = necessidades['lipidios']['calorias'] / 9
-        
+
         return necessidades
 
-    def calcular_fator_estresse(self, fatores_estresse: List[str]) -> float:
+    def calcular_fator_estresse(self, fatores_estresse: list[str]) -> float:
         """Calcula fator de estresse metabólico"""
-        
+
         fator_base = 1.0
-        
+
         fatores_multiplicadores = {
             'sepse': 1.3,
             'cirurgia_maior': 1.2,
@@ -170,36 +168,36 @@ class NutricaoParenteralIA:
             'trauma': 1.25,
             'insuficiencia_respiratoria': 1.15
         }
-        
+
         for fator in fatores_estresse:
             multiplicador = fatores_multiplicadores.get(fator, 1.0)
             fator_base *= multiplicador
-        
+
         return min(2.0, fator_base)  # Máximo 2.0
 
-    def calcular_necessidade_proteina(self, peso: float, avaliacao: Dict) -> float:
+    def calcular_necessidade_proteina(self, peso: float, avaliacao: dict) -> float:
         """Calcula necessidade de proteína"""
-        
+
         proteina_base = 1.2
-        
+
         if avaliacao.get('estado_nutricional') == 'desnutrido':
             proteina_base = 1.5
-        
+
         fatores_estresse = avaliacao.get('fatores_estresse', [])
         if 'sepse' in fatores_estresse:
             proteina_base = 1.8
         if 'queimaduras' in fatores_estresse:
             proteina_base = 2.0
-        
+
         necessidades_especiais = avaliacao.get('necessidades_especiais', [])
         if 'hipoalbuminemia' in necessidades_especiais:
             proteina_base += 0.3
-        
+
         return peso * proteina_base
 
-    def calcular_micronutrientes(self, peso: float, avaliacao: Dict) -> Dict:
+    def calcular_micronutrientes(self, peso: float, avaliacao: dict) -> dict:
         """Calcula necessidades de micronutrientes"""
-        
+
         micronutrientes = {
             'vitaminas': {
                 'vitamina_a': 900,  # mcg
@@ -237,39 +235,39 @@ class NutricaoParenteralIA:
                 'fosforo': peso * 0.3   # mmol
             }
         }
-        
+
         necessidades_especiais = avaliacao.get('necessidades_especiais', [])
-        
+
         if 'deficiencia_ferro' in necessidades_especiais:
             micronutrientes['minerais']['ferro'] *= 2
-        
+
         return micronutrientes
 
-    def calcular_volume_total(self, peso: float, paciente: Dict) -> Dict:
+    def calcular_volume_total(self, peso: float, paciente: dict) -> dict:
         """Calcula volume total da NP"""
-        
+
         volume_base = peso * 32
-        
+
         condicoes = paciente.get('clinicos', {})
-        
+
         if condicoes.get('insuficiencia_cardiaca', False):
             volume_base *= 0.8  # Restrição hídrica
-        
+
         if condicoes.get('insuficiencia_renal', False):
             volume_base *= 0.7  # Restrição hídrica severa
-        
+
         if condicoes.get('febre', False):
             volume_base *= 1.1  # Aumento por perdas
-        
+
         return {
             'volume_total_ml': volume_base,
             'taxa_infusao_ml_h': volume_base / 24,
             'restricao_hidrica': volume_base < (peso * 25)
         }
 
-    async def formular_nutricao_parenteral(self, necessidades: Dict, paciente: Dict) -> Dict:
+    async def formular_nutricao_parenteral(self, necessidades: dict, paciente: dict) -> dict:
         """Formula a nutrição parenteral"""
-        
+
         formulacao = {
             'componentes': {},
             'concentracoes': {},
@@ -278,7 +276,7 @@ class NutricaoParenteralIA:
             'estabilidade': True,
             'via_administracao': 'central'
         }
-        
+
         proteinas_g = necessidades.get('proteinas', {}).get('gramas', 80)
         formulacao['componentes']['aminoacidos'] = {
             'quantidade_g': proteinas_g,
@@ -286,7 +284,7 @@ class NutricaoParenteralIA:
             'volume_ml': proteinas_g * 10,  # 10% = 10g/100mL
             'nitrogenio_g': proteinas_g / 6.25
         }
-        
+
         carboidratos_g = necessidades.get('carboidratos', {}).get('gramas', 250)
         formulacao['componentes']['glicose'] = {
             'quantidade_g': carboidratos_g,
@@ -294,7 +292,7 @@ class NutricaoParenteralIA:
             'volume_ml': carboidratos_g * 2,  # 50% = 50g/100mL
             'taxa_infusao_mg_kg_min': self.calcular_taxa_glicose(carboidratos_g, paciente.get('antropometria', {}).get('peso', 70))
         }
-        
+
         lipidios_g = necessidades.get('lipidios', {}).get('gramas', 70)
         formulacao['componentes']['lipidios'] = {
             'quantidade_g': lipidios_g,
@@ -302,97 +300,97 @@ class NutricaoParenteralIA:
             'volume_ml': lipidios_g * 5,  # 20% = 20g/100mL
             'tipo': 'MCT/LCT'
         }
-        
+
         formulacao['componentes']['eletrolitos'] = necessidades.get('micronutrientes', {}).get('eletroliticos', {})
-        
+
         formulacao['componentes']['vitaminas'] = 'complexo_vitaminico_adulto_1_ampola'
         formulacao['componentes']['oligoelementos'] = 'oligoelementos_adulto_1_ampola'
-        
+
         formulacao['osmolaridade'] = self.calcular_osmolaridade(formulacao)
-        
+
         if formulacao['osmolaridade'] > 900:
             formulacao['via_administracao'] = 'central'
         else:
             formulacao['via_administracao'] = 'periferica'
-        
+
         return formulacao
 
     def calcular_taxa_glicose(self, glicose_g: float, peso: float) -> float:
         """Calcula taxa de infusão de glicose"""
-        
+
         glicose_mg_dia = glicose_g * 1000
         glicose_mg_min = glicose_mg_dia / (24 * 60)
         taxa_mg_kg_min = glicose_mg_min / peso
-        
+
         return taxa_mg_kg_min
 
-    def calcular_osmolaridade(self, formulacao: Dict) -> float:
+    def calcular_osmolaridade(self, formulacao: dict) -> float:
         """Calcula osmolaridade da formulação"""
-        
+
         osmolaridade = 0
-        
+
         aa_g = formulacao.get('componentes', {}).get('aminoacidos', {}).get('quantidade_g', 0)
         osmolaridade += aa_g * 10
-        
+
         glicose_g = formulacao.get('componentes', {}).get('glicose', {}).get('quantidade_g', 0)
         osmolaridade += glicose_g * 5.5
-        
+
         osmolaridade += 300  # Estimativa base para eletrólitos
-        
+
         volume_l = formulacao.get('volume_final', 2000) / 1000
         osmolaridade_final = osmolaridade / volume_l
-        
+
         return osmolaridade_final
 
-    async def verificar_compatibilidade_componentes(self, formulacao: Dict) -> Dict:
+    async def verificar_compatibilidade_componentes(self, formulacao: dict) -> dict:
         """Verifica compatibilidade entre componentes"""
-        
+
         compatibilidade = {
             'compativel': True,
             'alertas': [],
             'incompatibilidades': [],
             'recomendacoes': []
         }
-        
+
         ph_estimado = self.estimar_ph_formulacao(formulacao)
         if ph_estimado < 5.0 or ph_estimado > 7.0:
             compatibilidade['alertas'].append(f'pH fora da faixa ideal: {ph_estimado:.1f}')
-        
+
         calcio = formulacao.get('componentes', {}).get('eletrolitos', {}).get('calcio', 0)
         fosforo = formulacao.get('componentes', {}).get('eletrolitos', {}).get('fosforo', 0)
-        
+
         if calcio * fosforo > 200:  # Regra empírica
             compatibilidade['incompatibilidades'].append('Risco de precipitação cálcio-fosfato')
             compatibilidade['compativel'] = False
-        
+
         if formulacao.get('osmolaridade', 0) > 1200:
             compatibilidade['alertas'].append('Osmolaridade elevada pode afetar estabilidade')
-        
+
         if not compatibilidade['compativel']:
             compatibilidade['recomendacoes'].extend([
                 'Revisar concentrações de cálcio e fosfato',
                 'Considerar administração separada de componentes incompatíveis',
                 'Consultar farmacêutico especialista'
             ])
-        
+
         return compatibilidade
 
-    def estimar_ph_formulacao(self, formulacao: Dict) -> float:
+    def estimar_ph_formulacao(self, formulacao: dict) -> float:
         """Estima pH da formulação"""
-        
+
         ph_base = 6.0
-        
+
         eletrolitos = formulacao.get('componentes', {}).get('eletrolitos', {})
-        
+
         fosforo = eletrolitos.get('fosforo', 0)
         if fosforo > 20:
             ph_base -= 0.3
-        
+
         return ph_base
 
-    async def definir_monitoramento_laboratorial(self, paciente: Dict, formulacao: Dict) -> Dict:
+    async def definir_monitoramento_laboratorial(self, paciente: dict, formulacao: dict) -> dict:
         """Define protocolo de monitoramento laboratorial"""
-        
+
         monitoramento = {
             'exames_diarios': [
                 'glicemia',
@@ -424,66 +422,66 @@ class NutricaoParenteralIA:
                 'balanco_nitrogenado': 'positivo'
             }
         }
-        
+
         condicoes = paciente.get('clinicos', {})
-        
+
         if condicoes.get('diabetes', False):
             monitoramento['exames_diarios'].append('hemoglobina glicada (semanal)')
             monitoramento['metas_terapeuticas']['glicemia'] = '140-180 mg/dL (rigoroso)'
-        
+
         if condicoes.get('insuficiencia_renal', False):
             monitoramento['exames_diarios'].extend(['gasometria', 'balanço hídrico rigoroso'])
-        
+
         if condicoes.get('insuficiencia_hepatica', False):
             monitoramento['exames_diarios'].append('amônia sérica')
             monitoramento['exames_semanais'].append('tempo de protrombina')
-        
+
         return monitoramento
 
-    def calcular_score_adequacao(self, formulacao: Dict, necessidades: Dict) -> float:
+    def calcular_score_adequacao(self, formulacao: dict, necessidades: dict) -> float:
         """Calcula score de adequação da formulação"""
-        
+
         score = 1.0
-        
+
         calorias_formulacao = self.calcular_calorias_formulacao(formulacao)
         calorias_necessarias = necessidades.get('calorias_totais', 2000)
-        
+
         diferenca_calorica = abs(calorias_formulacao - calorias_necessarias) / calorias_necessarias
         if diferenca_calorica > 0.1:  # 10% de diferença
             score -= 0.2
-        
+
         proteinas_formulacao = formulacao.get('componentes', {}).get('aminoacidos', {}).get('quantidade_g', 0)
         proteinas_necessarias = necessidades.get('proteinas', {}).get('gramas', 80)
-        
+
         diferenca_proteica = abs(proteinas_formulacao - proteinas_necessarias) / proteinas_necessarias
         if diferenca_proteica > 0.1:
             score -= 0.2
-        
+
         if not formulacao.get('estabilidade', True):
             score -= 0.3
-        
+
         osmolaridade = formulacao.get('osmolaridade', 0)
         if osmolaridade > 1200:
             score -= 0.1
-        
+
         return max(0, score)
 
-    def calcular_calorias_formulacao(self, formulacao: Dict) -> float:
+    def calcular_calorias_formulacao(self, formulacao: dict) -> float:
         """Calcula calorias totais da formulação"""
-        
+
         componentes = formulacao.get('componentes', {})
-        
+
         calorias_proteinas = componentes.get('aminoacidos', {}).get('quantidade_g', 0) * 4
-        
+
         calorias_carboidratos = componentes.get('glicose', {}).get('quantidade_g', 0) * 4
-        
+
         calorias_lipidios = componentes.get('lipidios', {}).get('quantidade_g', 0) * 9
-        
+
         return calorias_proteinas + calorias_carboidratos + calorias_lipidios
 
-    async def gerar_relatorio_nutricao_parenteral(self, periodo: str = '7_dias') -> Dict:
+    async def gerar_relatorio_nutricao_parenteral(self, periodo: str = '7_dias') -> dict:
         """Gera relatório de nutrição parenteral"""
-        
+
         return {
             'periodo': periodo,
             'data_relatorio': datetime.now().isoformat(),

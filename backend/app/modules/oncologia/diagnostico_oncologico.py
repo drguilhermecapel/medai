@@ -2,31 +2,29 @@
 Sistema avançado de diagnóstico oncológico com IA
 """
 
-import asyncio
-from typing import Dict, List
-from datetime import datetime
 import logging
+from datetime import datetime
 
 logger = logging.getLogger('MedAI.Oncologia.Diagnostico')
 
 class SistemaDiagnosticoOncologicoIA:
     """Sistema avançado de diagnóstico oncológico com IA"""
-    
+
     def __init__(self):
         self.analisador_imagem = AnalisadorImagemOncologicaIA()
         self.patologia_digital = PatologiaDigitalIA()
         self.integrador_biomarcadores = IntegradorBiomarcadoresIA()
         self.estadiamento_ia = EstadiamentoAutomaticoIA()
         self.predictor_risco = PredictorRiscoOncologicoIA()
-        
-    async def processar_novos_casos(self, casos_suspeitos: List[Dict],
+
+    async def processar_novos_casos(self, casos_suspeitos: list[dict],
                                    integrar_patologia_radiologia: bool = True,
-                                   usar_ia_diagnostica: bool = True) -> Dict:
+                                   usar_ia_diagnostica: bool = True) -> dict:
         """Processamento completo de novos casos suspeitos de câncer"""
-        
+
         try:
             diagnosticos_processados = {}
-            
+
             for caso in casos_suspeitos:
                 if caso.get('imagens_disponiveis'):
                     analise_imagem = await self.analisador_imagem.analisar_multimodal(
@@ -39,7 +37,7 @@ class SistemaDiagnosticoOncologicoIA:
                     )
                 else:
                     analise_imagem = None
-                
+
                 if caso.get('laminas_histologicas'):
                     analise_patologia = await self.patologia_digital.analisar_laminas_digitais(
                         laminas=caso['laminas_histologicas'],
@@ -51,7 +49,7 @@ class SistemaDiagnosticoOncologicoIA:
                     )
                 else:
                     analise_patologia = None
-                
+
                 if caso.get('biomarcadores_disponiveis'):
                     integracao_biomarcadores = await self.integrador_biomarcadores.integrar_dados(
                         biomarcadores_sericos=caso.get('biomarcadores_sericos'),
@@ -61,7 +59,7 @@ class SistemaDiagnosticoOncologicoIA:
                     )
                 else:
                     integracao_biomarcadores = None
-                
+
                 estadiamento = await self.estadiamento_ia.estadiar_automaticamente(
                     dados_clinicos=caso.get('dados_clinicos'),
                     analise_imagem=analise_imagem,
@@ -69,14 +67,14 @@ class SistemaDiagnosticoOncologicoIA:
                     sistema_tnm=True,
                     calcular_prognostico=True
                 )
-                
+
                 predicao_risco = await self.predictor_risco.calcular_risco_progressao(
                     estadiamento=estadiamento,
                     biomarcadores=integracao_biomarcadores,
                     fatores_clinicos=caso.get('fatores_risco'),
                     usar_modelos_ml=True
                 )
-                
+
                 diagnostico_final = await self.integrar_diagnostico_final(
                     caso_id=caso['id'],
                     analise_imagem=analise_imagem,
@@ -85,7 +83,7 @@ class SistemaDiagnosticoOncologicoIA:
                     estadiamento=estadiamento,
                     predicao_risco=predicao_risco
                 )
-                
+
                 diagnosticos_processados[caso['id']] = {
                     'diagnostico_final': diagnostico_final,
                     'analise_imagem': analise_imagem,
@@ -100,7 +98,7 @@ class SistemaDiagnosticoOncologicoIA:
                         diagnostico_final
                     )
                 }
-            
+
             return {
                 'casos_processados': diagnosticos_processados,
                 'estatisticas_processamento': await self.calcular_estatisticas_processamento(
@@ -111,7 +109,7 @@ class SistemaDiagnosticoOncologicoIA:
                     diagnosticos_processados
                 )
             }
-            
+
         except Exception as e:
             logger.error(f"Erro no processamento de casos oncológicos: {e}")
             return {
@@ -119,9 +117,9 @@ class SistemaDiagnosticoOncologicoIA:
                 'timestamp': datetime.now().isoformat()
             }
 
-    async def integrar_diagnostico_final(self, caso_id: str, **analises) -> Dict:
+    async def integrar_diagnostico_final(self, caso_id: str, **analises) -> dict:
         """Integra todas as análises para diagnóstico final"""
-        
+
         return {
             'diagnostico_principal': 'Adenocarcinoma pulmonar',
             'subtipo_histologico': 'Adenocarcinoma invasivo',
@@ -134,9 +132,9 @@ class SistemaDiagnosticoOncologicoIA:
             'areas_incerteza': []
         }
 
-    async def calcular_confianca_diagnostica(self, diagnostico: Dict) -> Dict:
+    async def calcular_confianca_diagnostica(self, diagnostico: dict) -> dict:
         """Calcula confiança no diagnóstico"""
-        
+
         return {
             'score_confianca': 0.92,
             'fatores_confianca': [
@@ -148,9 +146,9 @@ class SistemaDiagnosticoOncologicoIA:
             'recomendacao_segunda_opiniao': False
         }
 
-    async def gerar_recomendacoes_seguimento(self, diagnostico: Dict) -> List[str]:
+    async def gerar_recomendacoes_seguimento(self, diagnostico: dict) -> list[str]:
         """Gera recomendações de seguimento"""
-        
+
         return [
             'Discussão em tumor board multidisciplinar',
             'Avaliação para terapia alvo baseada em EGFR',
@@ -158,9 +156,9 @@ class SistemaDiagnosticoOncologicoIA:
             'Avaliação cardiológica pré-operatória'
         ]
 
-    async def calcular_estatisticas_processamento(self, diagnosticos: Dict) -> Dict:
+    async def calcular_estatisticas_processamento(self, diagnosticos: dict) -> dict:
         """Calcula estatísticas do processamento"""
-        
+
         return {
             'total_casos_processados': len(diagnosticos),
             'tempo_medio_processamento': 45.2,  # minutos
@@ -168,9 +166,9 @@ class SistemaDiagnosticoOncologicoIA:
             'casos_necessitam_investigacao_adicional': 2
         }
 
-    async def avaliar_qualidade_diagnostica(self, diagnosticos: Dict) -> Dict:
+    async def avaliar_qualidade_diagnostica(self, diagnosticos: dict) -> dict:
         """Avalia qualidade dos diagnósticos"""
-        
+
         return {
             'score_qualidade_geral': 0.91,
             'concordancia_inter_observador': 0.88,
@@ -178,9 +176,9 @@ class SistemaDiagnosticoOncologicoIA:
             'taxa_revisao_diagnostica': 0.05
         }
 
-    async def gerar_recomendacoes_diagnostico(self, diagnosticos: Dict) -> List[str]:
+    async def gerar_recomendacoes_diagnostico(self, diagnosticos: dict) -> list[str]:
         """Gera recomendações para melhoria do processo diagnóstico"""
-        
+
         return [
             'Implementar segunda leitura automática para casos complexos',
             'Melhorar qualidade das imagens de TC',
@@ -190,13 +188,13 @@ class SistemaDiagnosticoOncologicoIA:
 
 class AnalisadorImagemOncologicaIA:
     """Analisador de imagens oncológicas com IA"""
-    
+
     def __init__(self):
         pass
-        
-    async def analisar_multimodal(self, **kwargs) -> Dict:
+
+    async def analisar_multimodal(self, **kwargs) -> dict:
         """Análise multimodal de imagens"""
-        
+
         return {
             'lesoes_detectadas': [
                 {
@@ -215,13 +213,13 @@ class AnalisadorImagemOncologicaIA:
 
 class PatologiaDigitalIA:
     """Sistema de patologia digital com IA"""
-    
+
     def __init__(self):
         pass
-        
-    async def analisar_laminas_digitais(self, **kwargs) -> Dict:
+
+    async def analisar_laminas_digitais(self, **kwargs) -> dict:
         """Análise de lâminas digitais"""
-        
+
         return {
             'diagnostico_histologico': 'Adenocarcinoma invasivo',
             'grau_diferenciacao': 'Grau 2',
@@ -239,13 +237,13 @@ class PatologiaDigitalIA:
 
 class IntegradorBiomarcadoresIA:
     """Integrador de biomarcadores com IA"""
-    
+
     def __init__(self):
         pass
-        
-    async def integrar_dados(self, **kwargs) -> Dict:
+
+    async def integrar_dados(self, **kwargs) -> dict:
         """Integração de dados de biomarcadores"""
-        
+
         return {
             'biomarcadores_sericos': {
                 'CEA': 8.5,  # ng/mL
@@ -268,13 +266,13 @@ class IntegradorBiomarcadoresIA:
 
 class EstadiamentoAutomaticoIA:
     """Sistema de estadiamento automático"""
-    
+
     def __init__(self):
         pass
-        
-    async def estadiar_automaticamente(self, **kwargs) -> Dict:
+
+    async def estadiar_automaticamente(self, **kwargs) -> dict:
         """Estadiamento automático TNM"""
-        
+
         return {
             'estadio_clinico': 'IIIA',
             'tnm': {
@@ -296,13 +294,13 @@ class EstadiamentoAutomaticoIA:
 
 class PredictorRiscoOncologicoIA:
     """Preditor de risco oncológico"""
-    
+
     def __init__(self):
         pass
-        
-    async def calcular_risco_progressao(self, **kwargs) -> Dict:
+
+    async def calcular_risco_progressao(self, **kwargs) -> dict:
         """Calcula risco de progressão"""
-        
+
         return {
             'risco_progressao_local': 0.25,
             'risco_metastases': 0.42,

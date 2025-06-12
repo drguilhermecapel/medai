@@ -2,24 +2,22 @@
 Sistema principal de oncologia com IA avançada
 """
 
-import asyncio
-from typing import Dict, List
-from datetime import datetime
 import logging
+from datetime import datetime
 
 from .diagnostico_oncologico import SistemaDiagnosticoOncologicoIA
-from .medicina_precisao import MedicinaPrecisaoOncologia
 from .gestor_quimioterapia import GestorQuimioterapiaInteligente
-from .radioterapia_adaptativa import RadioterapiaAdaptativaIA
-from .tumor_board import GestorTumorBoardIA
+from .medicina_precisao import MedicinaPrecisaoOncologia
 from .monitor_toxicidade import MonitorToxicidadeIA
 from .navegador_paciente import NavegadorPacienteOncologico
+from .radioterapia_adaptativa import RadioterapiaAdaptativaIA
+from .tumor_board import GestorTumorBoardIA
 
 logger = logging.getLogger('MedAI.Oncologia.Service')
 
 class OncologiaInteligenteIA:
     """Sistema principal de oncologia com IA avançada"""
-    
+
     def __init__(self):
         self.sistema_diagnostico = SistemaDiagnosticoOncologicoIA()
         self.medicina_precisao = MedicinaPrecisaoOncologia()
@@ -29,44 +27,44 @@ class OncologiaInteligenteIA:
         self.sistema_cuidados_paliativos = CuidadosPaliativosInteligentes()
         self.monitor_toxicidade = MonitorToxicidadeIA()
         self.navegador_paciente = NavegadorPacienteOncologico()
-        
-    async def gerenciar_oncologia_completa(self) -> Dict:
+
+    async def gerenciar_oncologia_completa(self) -> dict:
         """Gestão completa e integrada do serviço de oncologia"""
-        
+
         try:
             estado_atual = await self.capturar_estado_oncologia()
-            
+
             diagnosticos = await self.sistema_diagnostico.processar_novos_casos(
                 casos_suspeitos=estado_atual['casos_investigacao'],
                 integrar_patologia_radiologia=True,
                 usar_ia_diagnostica=True
             )
-            
+
             planos_personalizados = await self.medicina_precisao.gerar_planos_tratamento(
                 pacientes_diagnosticados=estado_atual['pacientes_ativos'],
                 incluir_genomica=True,
                 incluir_imunoterapia=True,
                 trials_clinicos=True
             )
-            
+
             gestao_quimio = await self.gestor_quimioterapia.otimizar_tratamentos(
                 pacientes_quimio=self.filtrar_pacientes_quimio(estado_atual['pacientes_ativos']),
                 protocolos_personalizados=True,
                 minimizar_toxicidade=True
             )
-            
+
             radioterapia = await self.radioterapia_inteligente.planejar_tratamentos(
                 pacientes_radio=self.filtrar_pacientes_radio(estado_atual['pacientes_ativos']),
                 usar_imrt_vmat=True,
                 radioterapia_adaptativa=True
             )
-            
+
             decisoes_multidisciplinares = await self.gestor_multidisciplinar.coordenar_tumor_boards(
                 casos_discussao=await self.identificar_casos_complexos(),
                 virtual_aumentado=True,
                 consenso_ia=True
             )
-            
+
             return {
                 'estado_atual': estado_atual,
                 'diagnosticos_novos': diagnosticos,
@@ -78,7 +76,7 @@ class OncologiaInteligenteIA:
                 'sobrevida_analise': await self.analisar_curvas_sobrevida(),
                 'ensaios_clinicos': await self.gerenciar_trials_ativos()
             }
-            
+
         except Exception as e:
             logger.error(f"Erro na gestão completa de oncologia: {e}")
             return {
@@ -86,9 +84,9 @@ class OncologiaInteligenteIA:
                 'timestamp': datetime.now().isoformat()
             }
 
-    async def capturar_estado_oncologia(self) -> Dict:
+    async def capturar_estado_oncologia(self) -> dict:
         """Captura estado atual do serviço de oncologia"""
-        
+
         return {
             'casos_investigacao': await self.obter_casos_investigacao(),
             'pacientes_ativos': await self.obter_pacientes_ativos(),
@@ -98,9 +96,9 @@ class OncologiaInteligenteIA:
             'tratamentos_andamento': await self.obter_tratamentos_andamento()
         }
 
-    async def obter_casos_investigacao(self) -> List[Dict]:
+    async def obter_casos_investigacao(self) -> list[dict]:
         """Obtém casos em investigação"""
-        
+
         return [
             {
                 'id': 'CASO001',
@@ -118,9 +116,9 @@ class OncologiaInteligenteIA:
             }
         ]
 
-    async def obter_pacientes_ativos(self) -> List[Dict]:
+    async def obter_pacientes_ativos(self) -> list[dict]:
         """Obtém pacientes ativos em tratamento"""
-        
+
         return [
             {
                 'id': 'PAC001',
@@ -147,19 +145,19 @@ class OncologiaInteligenteIA:
             }
         ]
 
-    def filtrar_pacientes_quimio(self, pacientes: List[Dict]) -> List[Dict]:
+    def filtrar_pacientes_quimio(self, pacientes: list[dict]) -> list[dict]:
         """Filtra pacientes em quimioterapia"""
-        
+
         return [p for p in pacientes if 'quimio' in p.get('tratamento_atual', '').lower()]
 
-    def filtrar_pacientes_radio(self, pacientes: List[Dict]) -> List[Dict]:
+    def filtrar_pacientes_radio(self, pacientes: list[dict]) -> list[dict]:
         """Filtra pacientes em radioterapia"""
-        
+
         return [p for p in pacientes if 'radio' in p.get('tratamento_atual', '').lower()]
 
-    async def identificar_casos_complexos(self) -> List[Dict]:
+    async def identificar_casos_complexos(self) -> list[dict]:
         """Identifica casos complexos para discussão multidisciplinar"""
-        
+
         return [
             {
                 'paciente_id': 'PAC003',
@@ -169,9 +167,9 @@ class OncologiaInteligenteIA:
             }
         ]
 
-    async def calcular_indicadores_oncologia(self) -> Dict:
+    async def calcular_indicadores_oncologia(self) -> dict:
         """Calcula indicadores de qualidade em oncologia"""
-        
+
         return {
             'tempo_diagnostico_tratamento': 28,  # dias
             'taxa_sobrevida_5_anos': 0.72,  # 72%
@@ -181,9 +179,9 @@ class OncologiaInteligenteIA:
             'aderencia_protocolos': 0.94  # 94%
         }
 
-    async def analisar_curvas_sobrevida(self) -> Dict:
+    async def analisar_curvas_sobrevida(self) -> dict:
         """Analisa curvas de sobrevida dos pacientes"""
-        
+
         return {
             'sobrevida_global_mediana': 24.5,  # meses
             'sobrevida_livre_progressao': 12.8,  # meses
@@ -199,9 +197,9 @@ class OncologiaInteligenteIA:
             }
         }
 
-    async def gerenciar_trials_ativos(self) -> Dict:
+    async def gerenciar_trials_ativos(self) -> dict:
         """Gerencia ensaios clínicos ativos"""
-        
+
         return {
             'trials_ativos': 8,
             'pacientes_incluidos': 45,
@@ -213,9 +211,9 @@ class OncologiaInteligenteIA:
             }
         }
 
-    async def obter_status_leitos(self) -> Dict:
+    async def obter_status_leitos(self) -> dict:
         """Obtém status dos leitos de oncologia"""
-        
+
         return {
             'leitos_totais': 32,
             'leitos_ocupados': 28,
@@ -223,9 +221,9 @@ class OncologiaInteligenteIA:
             'tempo_medio_internacao': 8.5  # dias
         }
 
-    async def obter_agenda_consultas(self) -> Dict:
+    async def obter_agenda_consultas(self) -> dict:
         """Obtém informações da agenda de consultas"""
-        
+
         return {
             'consultas_hoje': 24,
             'consultas_semana': 156,
@@ -233,9 +231,9 @@ class OncologiaInteligenteIA:
             'taxa_absenteismo': 0.12  # 12%
         }
 
-    async def obter_cirurgias_programadas(self) -> List[Dict]:
+    async def obter_cirurgias_programadas(self) -> list[dict]:
         """Obtém cirurgias oncológicas programadas"""
-        
+
         return [
             {
                 'paciente_id': 'PAC004',
@@ -246,9 +244,9 @@ class OncologiaInteligenteIA:
             }
         ]
 
-    async def obter_tratamentos_andamento(self) -> Dict:
+    async def obter_tratamentos_andamento(self) -> dict:
         """Obtém tratamentos em andamento"""
-        
+
         return {
             'quimioterapia': 45,
             'radioterapia': 28,

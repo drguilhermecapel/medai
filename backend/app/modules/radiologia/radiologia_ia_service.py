@@ -3,38 +3,36 @@ Sistema Avançado de Radiologia com IA para MedIA Pro
 Análise automática de imagens médicas com deep learning
 """
 
+import logging
+from dataclasses import dataclass
+from datetime import datetime
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-from typing import Dict, List, Tuple, Optional
-import cv2
-from dataclasses import dataclass
-import asyncio
-from datetime import datetime
-import logging
 
 logger = logging.getLogger('MedAI.Radiologia')
 
 class RadiologiaInteligenteMedIA:
     """Sistema principal de radiologia com IA"""
-    
+
     def __init__(self):
         self.detector_patologias = DetectorPatologiasMultimodal()
         self.segmentador_3d = Segmentador3DAnatomico()
         self.comparador_temporal = ComparadorTemporalIA()
         self.gerador_laudos = GeradorLaudosRadiologicos()
         self.quality_assurance = QualityAssuranceIA()
-        
-    async def analisar_exame_completo(self, exame_id: str, modalidade: str) -> Dict:
+
+    async def analisar_exame_completo(self, exame_id: str, modalidade: str) -> dict:
         """Análise completa de exame radiológico com IA"""
-        
+
         imagens = await self.carregar_e_preprocessar(exame_id)
         qualidade = self.quality_assurance.avaliar_qualidade_imagem(imagens)
-        
+
         if qualidade.score < 0.7:
             sugestoes = self.quality_assurance.sugerir_melhorias(qualidade)
             await self.notificar_tecnico_radiologia(sugestoes)
-        
+
         if modalidade == 'TC':
             resultado = await self.analisar_tomografia(imagens)
         elif modalidade == 'RM':
@@ -47,19 +45,19 @@ class RadiologiaInteligenteMedIA:
             resultado = await self.analisar_pet_ct(imagens)
         else:
             resultado = await self.analisar_generico(imagens)
-        
+
         comparacao = await self.comparador_temporal.comparar_evolucao(
             exame_atual=resultado,
             exames_anteriores=await self.buscar_exames_anteriores(exame_id)
         )
-        
+
         laudo = await self.gerador_laudos.gerar_laudo_completo(
             achados=resultado.get('achados', {}),
             comparacao=comparacao,
             urgencia=self.classificar_urgencia(resultado),
             recomendacoes=self.gerar_recomendacoes_followup(resultado)
         )
-        
+
         return {
             'analise': resultado,
             'laudo': laudo,
@@ -69,31 +67,31 @@ class RadiologiaInteligenteMedIA:
             'achados_criticos': self.filtrar_achados_criticos(resultado)
         }
 
-    def analyze_image(self, image_array: np.ndarray) -> Dict:
+    def analyze_image(self, image_array: np.ndarray) -> dict:
         """Método simplificado para análise de imagem (compatibilidade)"""
         try:
             height, width = image_array.shape[:2]
-            
+
             predictions = {
                 'Normal': 0.85,
                 'Pneumonia': 0.10,
                 'COVID-19': 0.03,
                 'Tumor': 0.02
             }
-            
+
             predicted_class = max(predictions, key=predictions.get)
             confidence = predictions[predicted_class]
-            
+
             findings = []
             recommendations = []
-            
+
             if predicted_class == 'Normal':
                 findings.append('Sem achados patológicos significativos')
                 recommendations.append('Exame dentro dos limites da normalidade')
             else:
                 findings.append(f'Possível {predicted_class} detectado')
                 recommendations.append('Correlação clínica recomendada')
-            
+
             return {
                 'predicted_class': predicted_class,
                 'confidence': confidence,
@@ -103,7 +101,7 @@ class RadiologiaInteligenteMedIA:
                 'image_dimensions': f'{width}x{height}',
                 'analysis_timestamp': datetime.now().isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"Erro na análise de imagem: {e}")
             return {
@@ -119,35 +117,35 @@ class RadiologiaInteligenteMedIA:
         """Carrega e preprocessa imagens do exame"""
         return np.random.rand(512, 512, 3)
 
-    async def analisar_tomografia(self, imagens: np.ndarray) -> Dict:
+    async def analisar_tomografia(self, imagens: np.ndarray) -> dict:
         """Análise específica para tomografia"""
         return {'modalidade': 'TC', 'achados': {}, 'confidence_score': 0.8}
 
-    async def analisar_ressonancia(self, imagens: np.ndarray) -> Dict:
+    async def analisar_ressonancia(self, imagens: np.ndarray) -> dict:
         """Análise específica para ressonância"""
         return {'modalidade': 'RM', 'achados': {}, 'confidence_score': 0.8}
 
-    async def analisar_radiografia(self, imagens: np.ndarray) -> Dict:
+    async def analisar_radiografia(self, imagens: np.ndarray) -> dict:
         """Análise específica para radiografia"""
         return {'modalidade': 'RX', 'achados': {}, 'confidence_score': 0.8}
 
-    async def analisar_ultrassom(self, imagens: np.ndarray) -> Dict:
+    async def analisar_ultrassom(self, imagens: np.ndarray) -> dict:
         """Análise específica para ultrassom"""
         return {'modalidade': 'US', 'achados': {}, 'confidence_score': 0.8}
 
-    async def analisar_pet_ct(self, imagens: np.ndarray) -> Dict:
+    async def analisar_pet_ct(self, imagens: np.ndarray) -> dict:
         """Análise específica para PET-CT"""
         return {'modalidade': 'PET-CT', 'achados': {}, 'confidence_score': 0.8}
 
-    async def analisar_generico(self, imagens: np.ndarray) -> Dict:
+    async def analisar_generico(self, imagens: np.ndarray) -> dict:
         """Análise genérica para modalidades não específicas"""
         return {'modalidade': 'Generic', 'achados': {}, 'confidence_score': 0.7}
 
-    async def buscar_exames_anteriores(self, exame_id: str) -> List[Dict]:
+    async def buscar_exames_anteriores(self, exame_id: str) -> list[dict]:
         """Busca exames anteriores do paciente"""
         return []
 
-    def classificar_urgencia(self, resultado: Dict) -> str:
+    def classificar_urgencia(self, resultado: dict) -> str:
         """Classifica urgência do exame"""
         confidence = resultado.get('confidence_score', 0.0)
         if confidence > 0.9:
@@ -157,43 +155,43 @@ class RadiologiaInteligenteMedIA:
         else:
             return 'BAIXA'
 
-    def gerar_recomendacoes_followup(self, resultado: Dict) -> List[str]:
+    def gerar_recomendacoes_followup(self, resultado: dict) -> list[str]:
         """Gera recomendações de seguimento"""
         return ['Acompanhamento clínico recomendado']
 
-    async def gerar_visualizacoes_3d(self, resultado: Dict) -> Dict:
+    async def gerar_visualizacoes_3d(self, resultado: dict) -> dict:
         """Gera visualizações 3D"""
         return {'visualizacoes': []}
 
-    def filtrar_achados_criticos(self, resultado: Dict) -> List[Dict]:
+    def filtrar_achados_criticos(self, resultado: dict) -> list[dict]:
         """Filtra achados críticos"""
         return []
 
-    async def notificar_tecnico_radiologia(self, sugestoes: List[str]):
+    async def notificar_tecnico_radiologia(self, sugestoes: list[str]):
         """Notifica técnico sobre sugestões de melhoria"""
         logger.info(f"Notificação para técnico: {sugestoes}")
 
 
 class DetectorPatologiasMultimodal(nn.Module):
     """Rede neural para detecção de patologias em múltiplas modalidades"""
-    
+
     def __init__(self):
         super().__init__()
         self.conv1 = nn.Conv2d(3, 32, 3, padding=1)
         self.conv2 = nn.Conv2d(32, 64, 3, padding=1)
         self.pool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(64, 10)
-        
-    async def detectar_patologias(self, volume: torch.Tensor, regiao: str) -> Dict:
+
+    async def detectar_patologias(self, volume: torch.Tensor, regiao: str) -> dict:
         """Detecção de patologias com localização precisa"""
-        
+
         with torch.no_grad():
             x = torch.relu(self.conv1(volume))
             x = torch.relu(self.conv2(x))
             x = self.pool(x)
             x = x.view(x.size(0), -1)
             output = self.fc(x)
-        
+
         return {
             'patologias_detectadas': [],
             'mapas_calor': {},
@@ -205,13 +203,13 @@ class DetectorPatologiasMultimodal(nn.Module):
 
 class Segmentador3DAnatomico:
     """Segmentação anatômica 3D de alta precisão"""
-    
+
     def __init__(self):
         pass
-        
-    async def segmentar_estruturas(self, volume: np.ndarray, modalidade: str) -> Dict:
+
+    async def segmentar_estruturas(self, volume: np.ndarray, modalidade: str) -> dict:
         """Segmentação automática de estruturas anatômicas"""
-        
+
         return {
             'segmentacao_3d': volume,
             'estruturas_identificadas': [],
@@ -225,16 +223,16 @@ class Segmentador3DAnatomico:
 
 class ComparadorTemporalIA:
     """Comparação temporal inteligente de exames"""
-    
+
     def __init__(self):
         pass
-        
-    async def comparar_evolucao(self, exame_atual: Dict, exames_anteriores: List[Dict]) -> Dict:
+
+    async def comparar_evolucao(self, exame_atual: dict, exames_anteriores: list[dict]) -> dict:
         """Análise temporal detalhada com IA"""
-        
+
         if not exames_anteriores:
             return {'primeira_analise': True}
-        
+
         return {
             'mudancas_detectadas': {},
             'progressao_quantificada': {},
@@ -249,14 +247,14 @@ class ComparadorTemporalIA:
 
 class GeradorLaudosRadiologicos:
     """Gerador de laudos radiológicos com linguagem natural"""
-    
+
     def __init__(self):
         pass
-        
-    async def gerar_laudo_completo(self, achados: Dict, comparacao: Dict, 
-                                   urgencia: str, recomendacoes: List[str]) -> Dict:
+
+    async def gerar_laudo_completo(self, achados: dict, comparacao: dict,
+                                   urgencia: str, recomendacoes: list[str]) -> dict:
         """Geração de laudo completo e estruturado"""
-        
+
         return {
             'tecnica': 'Técnica adequada',
             'achados': 'Sem achados patológicos',
@@ -273,13 +271,13 @@ class GeradorLaudosRadiologicos:
 
 class QualityAssuranceIA:
     """Controle de qualidade automático de imagens"""
-    
+
     def __init__(self):
         pass
-        
+
     def avaliar_qualidade_imagem(self, imagens: np.ndarray) -> 'QualidadeAnalise':
         """Avaliação abrangente da qualidade da imagem"""
-        
+
         analise = QualidadeAnalise()
         analise.snr = 25.0
         analise.cnr = 15.0
@@ -288,10 +286,10 @@ class QualityAssuranceIA:
         analise.artefatos = []
         analise.score = 0.8
         analise.sugestoes = []
-        
+
         return analise
 
-    def sugerir_melhorias(self, qualidade: 'QualidadeAnalise') -> List[str]:
+    def sugerir_melhorias(self, qualidade: 'QualidadeAnalise') -> list[str]:
         """Sugere melhorias na qualidade da imagem"""
         sugestoes = []
         if qualidade.score < 0.8:
@@ -307,9 +305,9 @@ class QualidadeAnalise:
     cnr: float = 0.0
     nitidez: float = 0.0
     contraste: float = 0.0
-    artefatos: List[Dict] = None
+    artefatos: list[dict] = None
     score: float = 0.0
-    sugestoes: List[str] = None
+    sugestoes: list[str] = None
 
     def __post_init__(self):
         if self.artefatos is None:

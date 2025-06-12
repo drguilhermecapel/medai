@@ -2,33 +2,31 @@
 Otimização de distribuição interna de medicamentos
 """
 
-import asyncio
-from typing import Dict, List
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime
 
 logger = logging.getLogger('MedAI.Farmacia.OtimizadorDistribuicao')
 
 class OtimizadorDistribuicaoIA:
     """Otimização de distribuição interna de medicamentos"""
-    
+
     def __init__(self):
         self.roteador = RoteadorInteligente()
         self.predictor_urgencia = PredictorUrgenciaDispensacao()
         self.alocador_recursos = AlocadorRecursosFarmacia()
-        
-    async def otimizar_distribuicao_diaria(self) -> Dict:
+
+    async def otimizar_distribuicao_diaria(self) -> dict:
         """Otimização completa da distribuição diária"""
-        
+
         try:
             demanda_unidades = await self.analisar_demanda_unidades()
-            
+
             priorizacao = await self.priorizar_dispensacoes(demanda_unidades)
-            
+
             rotas_otimizadas = await self.otimizar_rotas_distribuicao(priorizacao)
-            
+
             alocacao_equipe = await self.alocar_equipe_otimizada(rotas_otimizadas)
-            
+
             return {
                 'rotas': rotas_otimizadas,
                 'equipe': alocacao_equipe,
@@ -36,7 +34,7 @@ class OtimizadorDistribuicaoIA:
                 'eficiencia_ganho': self.calcular_ganho_eficiencia(),
                 'timestamp': datetime.now().isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"Erro na otimização da distribuição: {e}")
             return {
@@ -46,9 +44,9 @@ class OtimizadorDistribuicaoIA:
                 'tempo_estimado': 0
             }
 
-    async def analisar_demanda_unidades(self) -> Dict:
+    async def analisar_demanda_unidades(self) -> dict:
         """Analisa demanda por unidade hospitalar"""
-        
+
         unidades = {
             'uti': {
                 'medicamentos_solicitados': 45,
@@ -81,7 +79,7 @@ class OtimizadorDistribuicaoIA:
                 'medicamentos_criticos': ['paracetamol_pediatrico', 'soro_pediatrico']
             }
         }
-        
+
         return {
             'unidades': unidades,
             'total_solicitacoes': sum(u['medicamentos_solicitados'] for u in unidades.values()),
@@ -89,23 +87,23 @@ class OtimizadorDistribuicaoIA:
             'unidades_criticas': [nome for nome, dados in unidades.items() if dados['urgencia_media'] > 0.8]
         }
 
-    async def priorizar_dispensacoes(self, demanda_unidades: Dict) -> Dict:
+    async def priorizar_dispensacoes(self, demanda_unidades: dict) -> dict:
         """Prioriza dispensações por urgência clínica"""
-        
+
         unidades = demanda_unidades.get('unidades', {})
         dispensacoes_priorizadas = []
-        
+
         for nome_unidade, dados_unidade in unidades.items():
             urgencia = dados_unidade.get('urgencia_media', 0)
             tempo_limite = dados_unidade.get('tempo_limite', 60)
             medicamentos_criticos = dados_unidade.get('medicamentos_criticos', [])
-            
+
             score_prioridade = self.calcular_score_prioridade(
                 urgencia=urgencia,
                 tempo_limite=tempo_limite,
                 tem_medicamentos_criticos=len(medicamentos_criticos) > 0
             )
-            
+
             dispensacoes_priorizadas.append({
                 'unidade': nome_unidade,
                 'score_prioridade': score_prioridade,
@@ -114,12 +112,12 @@ class OtimizadorDistribuicaoIA:
                 'medicamentos_criticos': medicamentos_criticos,
                 'ordem_atendimento': 0  # Será definido após ordenação
             })
-        
+
         dispensacoes_priorizadas.sort(key=lambda x: x['score_prioridade'], reverse=True)
-        
+
         for i, dispensacao in enumerate(dispensacoes_priorizadas):
             dispensacao['ordem_atendimento'] = i + 1
-        
+
         return {
             'dispensacoes_priorizadas': dispensacoes_priorizadas,
             'criterios_priorizacao': [
@@ -132,38 +130,38 @@ class OtimizadorDistribuicaoIA:
 
     def calcular_score_prioridade(self, urgencia: float, tempo_limite: int, tem_medicamentos_criticos: bool) -> float:
         """Calcula score de prioridade para dispensação"""
-        
+
         score = urgencia
-        
+
         if tempo_limite <= 15:
             score += 0.3
         elif tempo_limite <= 30:
             score += 0.2
         elif tempo_limite <= 60:
             score += 0.1
-        
+
         if tem_medicamentos_criticos:
             score += 0.2
-        
+
         return min(1.0, score)
 
-    async def otimizar_rotas_distribuicao(self, priorizacao: Dict) -> List[Dict]:
+    async def otimizar_rotas_distribuicao(self, priorizacao: dict) -> list[dict]:
         """Otimiza rotas de distribuição"""
-        
+
         dispensacoes = priorizacao.get('dispensacoes_priorizadas', [])
         rotas_otimizadas = []
-        
+
         grupos_proximidade = self.agrupar_por_proximidade(dispensacoes)
-        
+
         for grupo in grupos_proximidade:
             rota = await self.criar_rota_otimizada(grupo)
             rotas_otimizadas.append(rota)
-        
+
         return rotas_otimizadas
 
-    def agrupar_por_proximidade(self, dispensacoes: List[Dict]) -> List[List[Dict]]:
+    def agrupar_por_proximidade(self, dispensacoes: list[dict]) -> list[list[dict]]:
         """Agrupa unidades por proximidade física"""
-        
+
         proximidade_map = {
             'uti': ['centro_cirurgico'],
             'emergencia': ['uti'],
@@ -171,19 +169,19 @@ class OtimizadorDistribuicaoIA:
             'enfermaria_clinica': ['pediatria'],
             'pediatria': ['enfermaria_clinica']
         }
-        
+
         grupos = []
         unidades_processadas = set()
-        
+
         for dispensacao in dispensacoes:
             unidade = dispensacao['unidade']
-            
+
             if unidade in unidades_processadas:
                 continue
-            
+
             grupo = [dispensacao]
             unidades_processadas.add(unidade)
-            
+
             unidades_proximas = proximidade_map.get(unidade, [])
             for unidade_proxima in unidades_proximas:
                 dispensacao_proxima = next(
@@ -193,24 +191,24 @@ class OtimizadorDistribuicaoIA:
                 if dispensacao_proxima:
                     grupo.append(dispensacao_proxima)
                     unidades_processadas.add(unidade_proxima)
-            
+
             grupos.append(grupo)
-        
+
         return grupos
 
-    async def criar_rota_otimizada(self, grupo_unidades: List[Dict]) -> Dict:
+    async def criar_rota_otimizada(self, grupo_unidades: list[dict]) -> dict:
         """Cria rota otimizada para grupo de unidades"""
-        
+
         grupo_ordenado = sorted(grupo_unidades, key=lambda x: x['score_prioridade'], reverse=True)
-        
+
         tempo_total = 0
         for i, unidade in enumerate(grupo_ordenado):
             tempo_preparacao = 10  # minutos base
             tempo_deslocamento = 5 if i > 0 else 0  # minutos entre unidades
             tempo_entrega = 3  # minutos para entrega
-            
+
             tempo_total += tempo_preparacao + tempo_deslocamento + tempo_entrega
-        
+
         return {
             'id_rota': f"rota_{datetime.now().strftime('%H%M%S')}",
             'unidades': [u['unidade'] for u in grupo_ordenado],
@@ -221,29 +219,29 @@ class OtimizadorDistribuicaoIA:
             'medicamentos_criticos': any(u['medicamentos_criticos'] for u in grupo_ordenado)
         }
 
-    async def alocar_equipe_otimizada(self, rotas: List[Dict]) -> Dict:
+    async def alocar_equipe_otimizada(self, rotas: list[dict]) -> dict:
         """Aloca equipe de forma otimizada"""
-        
+
         equipe_disponivel = [
             {'id': 'farm001', 'nome': 'Ana Silva', 'experiencia': 'senior', 'disponivel': True},
             {'id': 'farm002', 'nome': 'Carlos Santos', 'experiencia': 'pleno', 'disponivel': True},
             {'id': 'farm003', 'nome': 'Maria Oliveira', 'experiencia': 'junior', 'disponivel': True},
             {'id': 'aux001', 'nome': 'João Costa', 'experiencia': 'auxiliar', 'disponivel': True}
         ]
-        
+
         alocacao = {
             'alocacoes': [],
             'equipe_utilizada': 0,
             'equipe_disponivel': len(equipe_disponivel),
             'eficiencia_alocacao': 0.0
         }
-        
+
         rotas_ordenadas = sorted(rotas, key=lambda x: x['prioridade_rota'], reverse=True)
-        
+
         for i, rota in enumerate(rotas_ordenadas):
             if i < len(equipe_disponivel):
                 membro_equipe = equipe_disponivel[i]
-                
+
                 if rota['medicamentos_criticos'] and membro_equipe['experiencia'] in ['senior', 'pleno']:
                     alocacao['alocacoes'].append({
                         'rota_id': rota['id_rota'],
@@ -258,27 +256,27 @@ class OtimizadorDistribuicaoIA:
                         'justificativa': 'Alocação por disponibilidade',
                         'tempo_estimado': rota['tempo_estimado']
                     })
-                
+
                 alocacao['equipe_utilizada'] += 1
-        
+
         if alocacao['equipe_disponivel'] > 0:
             alocacao['eficiencia_alocacao'] = alocacao['equipe_utilizada'] / alocacao['equipe_disponivel']
-        
+
         return alocacao
 
-    def calcular_tempo_total(self, rotas: List[Dict]) -> int:
+    def calcular_tempo_total(self, rotas: list[dict]) -> int:
         """Calcula tempo total estimado para todas as rotas"""
-        
+
         if not rotas:
             return 0
-        
+
         tempo_maximo = max(rota['tempo_estimado'] for rota in rotas)
-        
+
         return tempo_maximo
 
-    def calcular_ganho_eficiencia(self) -> Dict:
+    def calcular_ganho_eficiencia(self) -> dict:
         """Calcula ganho de eficiência com otimização"""
-        
+
         return {
             'tempo_tradicional': 180,  # minutos
             'tempo_otimizado': 120,    # minutos
@@ -288,9 +286,9 @@ class OtimizadorDistribuicaoIA:
             'satisfacao_unidades': 0.92  # score 0-1
         }
 
-    async def monitorar_distribuicao_tempo_real(self) -> Dict:
+    async def monitorar_distribuicao_tempo_real(self) -> dict:
         """Monitora distribuição em tempo real"""
-        
+
         return {
             'timestamp': datetime.now().isoformat(),
             'rotas_ativas': 3,
@@ -315,9 +313,9 @@ class OtimizadorDistribuicaoIA:
             }
         }
 
-    async def gerar_relatorio_distribuicao(self, periodo: str = '24_horas') -> Dict:
+    async def gerar_relatorio_distribuicao(self, periodo: str = '24_horas') -> dict:
         """Gera relatório de distribuição"""
-        
+
         return {
             'periodo': periodo,
             'data_relatorio': datetime.now().isoformat(),
