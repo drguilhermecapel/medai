@@ -54,7 +54,7 @@ class MonitorToxicidadeIA:
                         severidade=classificacao_severidade,
                         protocolo_tratamento=paciente.get('protocolo_atual'),
                         preferencias_paciente=paciente.get('preferencias_tratamento'),
-                        guidelines=['NCCN', 'ESMO', 'ASCO']
+                        guidelines=['NCCN 2023', 'ESMO 2023', 'ASCO 2023']
                     )
                 else:
                     intervencoes = None

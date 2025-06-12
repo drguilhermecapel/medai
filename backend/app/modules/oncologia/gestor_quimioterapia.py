@@ -67,7 +67,12 @@ class GestorQuimioterapiaInteligente:
                             'neuropatia',
                             'cardiotoxicidade',
                             'nefrotoxicidade',
-                            'hepatotoxicidade'
+                            'hepatotoxicidade',
+                            'pneumonite',
+                            'diarreia',
+                            'fadiga',
+                            'alopecia',
+                            'sindrome_maos_pes'
                         ]
                     )
 

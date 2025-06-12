@@ -51,7 +51,7 @@ class MedicinaPrecisaoOncologia:
                     mutacoes=genomica.get('mutacoes_driver') if genomica else None,
                     biomarcadores=paciente.get('biomarcadores'),
                     terapias_previas=paciente.get('tratamentos_anteriores', []),
-                    fontes=['fda', 'ema', 'anvisa', 'guidelines', 'literatura'],
+                    fontes=['fda', 'ema', 'anvisa', 'nccn_guidelines', 'esmo_guidelines', 'literatura_pubmed'],
                     nivel_evidencia_minimo='2A'
                 )
 

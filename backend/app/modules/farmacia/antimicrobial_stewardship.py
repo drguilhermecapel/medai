@@ -410,7 +410,7 @@ class AntimicrobialStewardshipIA:
                 'Implementar protocolo de descalonamento automático',
                 'Capacitar equipe sobre duração ótima de tratamento',
                 'Melhorar coleta de culturas pré-tratamento',
-                'Desenvolver guidelines locais baseados em resistência'
+                'Desenvolver guidelines locais baseados em resistência (IDSA 2023)'
             ]
         }
 

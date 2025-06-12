@@ -23,6 +23,13 @@ class ProtocolType(str, Enum):
     ACS = "acute_coronary_syndrome"
     HEART_FAILURE = "heart_failure"
     PNEUMONIA = "pneumonia"
+    DIABETES = "diabetes"
+    HYPERTENSION = "hypertension"
+    COPD = "copd"
+    ASTHMA = "asthma"
+    CKD = "chronic_kidney_disease"
+    ATRIAL_FIBRILLATION = "atrial_fibrillation"
+    PULMONARY_EMBOLISM = "pulmonary_embolism"
 
 
 class RiskLevel(str, Enum):
@@ -77,6 +84,51 @@ class ClinicalProtocolsService:
                 "scoring_system": "NIHSS",
                 "time_sensitive": True,
                 "max_response_time_minutes": 15
+            },
+            ProtocolType.DIABETES: {
+                "name": "Diabetes Management Protocol",
+                "criteria": {
+                    "diagnostic": ["fasting_glucose", "hba1c", "random_glucose"],
+                    "monitoring": ["glucose_control", "complications_screening"],
+                    "targets": ["hba1c_target", "blood_pressure", "lipid_profile"]
+                },
+                "scoring_system": "HbA1c",
+                "time_sensitive": False,
+                "guidelines": "SBD 2023"
+            },
+            ProtocolType.HYPERTENSION: {
+                "name": "Hypertension Management Protocol",
+                "criteria": {
+                    "diagnostic": ["blood_pressure_readings", "ambulatory_monitoring"],
+                    "risk_factors": ["age", "diabetes", "smoking", "family_history"],
+                    "target_organs": ["heart", "kidney", "brain", "retina"]
+                },
+                "scoring_system": "Framingham",
+                "time_sensitive": False,
+                "guidelines": "SBC 2023"
+            },
+            ProtocolType.COPD: {
+                "name": "COPD Management Protocol",
+                "criteria": {
+                    "diagnostic": ["spirometry", "symptoms", "exposure_history"],
+                    "severity": ["fev1", "symptoms_score", "exacerbations"],
+                    "treatment": ["bronchodilators", "corticosteroids", "oxygen"]
+                },
+                "scoring_system": "GOLD",
+                "time_sensitive": False,
+                "guidelines": "GOLD 2023"
+            },
+            ProtocolType.HEART_FAILURE: {
+                "name": "Heart Failure Management Protocol",
+                "criteria": {
+                    "diagnostic": ["bnp", "echocardiogram", "symptoms"],
+                    "classification": ["nyha_class", "ejection_fraction"],
+                    "treatment": ["ace_inhibitors", "beta_blockers", "diuretics"]
+                },
+                "scoring_system": "NYHA",
+                "time_sensitive": True,
+                "max_response_time_minutes": 60,
+                "guidelines": "SBC 2023"
             }
         }
 
@@ -112,6 +164,12 @@ class ClinicalProtocolsService:
                 assessment = await self._assess_chest_pain_protocol(patient_data, clinical_data, assessment)
             elif protocol_type == ProtocolType.STROKE:
                 assessment = await self._assess_stroke_protocol(patient_data, clinical_data, assessment)
+            elif protocol_type == ProtocolType.DIABETES:
+                assessment = await self._assess_diabetes_protocol(patient_data, clinical_data, assessment)
+            elif protocol_type == ProtocolType.HYPERTENSION:
+                assessment = await self._assess_hypertension_protocol(patient_data, clinical_data, assessment)
+            elif protocol_type == ProtocolType.COPD:
+                assessment = await self._assess_copd_protocol(patient_data, clinical_data, assessment)
 
             return assessment
 
@@ -294,6 +352,190 @@ class ClinicalProtocolsService:
                 "Stroke workup"
             ])
 
+        return assessment
+
+    async def _assess_diabetes_protocol(
+        self,
+        patient_data: dict[str, Any],
+        clinical_data: dict[str, Any],
+        assessment: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Assess diabetes protocol using current SBD guidelines"""
+        criteria_met = {}
+        
+        lab_values = clinical_data.get("lab_values", {})
+        
+        fasting_glucose = lab_values.get("fasting_glucose")
+        hba1c = lab_values.get("hba1c")
+        random_glucose = lab_values.get("random_glucose")
+        
+        diabetes_score = 0
+        
+        if fasting_glucose and fasting_glucose >= 126:
+            diabetes_score += 2
+            criteria_met["fasting_glucose_elevated"] = True
+        
+        if hba1c and hba1c >= 6.5:
+            diabetes_score += 2
+            criteria_met["hba1c_elevated"] = True
+        
+        if random_glucose and random_glucose >= 200:
+            diabetes_score += 2
+            criteria_met["random_glucose_elevated"] = True
+        
+        age = patient_data.get("age", 0)
+        bmi = patient_data.get("bmi", 0)
+        
+        if age >= 45:
+            diabetes_score += 1
+            criteria_met["age_risk"] = True
+        
+        if bmi >= 25:
+            diabetes_score += 1
+            criteria_met["bmi_risk"] = True
+        
+        assessment["score"] = diabetes_score
+        assessment["criteria_met"] = criteria_met
+        assessment["applicable"] = diabetes_score >= 2
+        
+        if diabetes_score >= 4:
+            assessment["risk_level"] = RiskLevel.HIGH
+            assessment["recommendations"].extend([
+                "Confirmar diagnóstico com segundo exame",
+                "Iniciar tratamento imediato",
+                "Rastreamento de complicações",
+                "Orientação nutricional e exercícios"
+            ])
+        elif diabetes_score >= 2:
+            assessment["risk_level"] = RiskLevel.MODERATE
+            assessment["recommendations"].extend([
+                "Repetir exames em 3 meses",
+                "Modificações do estilo de vida",
+                "Monitoramento regular"
+            ])
+        
+        return assessment
+
+    async def _assess_hypertension_protocol(
+        self,
+        patient_data: dict[str, Any],
+        clinical_data: dict[str, Any],
+        assessment: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Assess hypertension protocol using current SBC guidelines"""
+        criteria_met = {}
+        
+        vital_signs = clinical_data.get("vital_signs", {})
+        
+        systolic_bp = vital_signs.get("systolic_blood_pressure")
+        diastolic_bp = vital_signs.get("diastolic_blood_pressure")
+        
+        hypertension_score = 0
+        
+        if systolic_bp and systolic_bp >= 140:
+            hypertension_score += 2
+            criteria_met["systolic_elevated"] = True
+        
+        if diastolic_bp and diastolic_bp >= 90:
+            hypertension_score += 2
+            criteria_met["diastolic_elevated"] = True
+        
+        age = patient_data.get("age", 0)
+        risk_factors = patient_data.get("risk_factors", [])
+        
+        if age >= 60:
+            hypertension_score += 1
+            criteria_met["age_risk"] = True
+        
+        if "diabetes" in risk_factors:
+            hypertension_score += 1
+            criteria_met["diabetes_risk"] = True
+        
+        if "smoking" in risk_factors:
+            hypertension_score += 1
+            criteria_met["smoking_risk"] = True
+        
+        assessment["score"] = hypertension_score
+        assessment["criteria_met"] = criteria_met
+        assessment["applicable"] = hypertension_score >= 2
+        
+        if hypertension_score >= 4:
+            assessment["risk_level"] = RiskLevel.HIGH
+            assessment["recommendations"].extend([
+                "Iniciar tratamento anti-hipertensivo imediato",
+                "Avaliação de lesão de órgão-alvo",
+                "Monitoramento domiciliar da PA",
+                "Modificações do estilo de vida"
+            ])
+        elif hypertension_score >= 2:
+            assessment["risk_level"] = RiskLevel.MODERATE
+            assessment["recommendations"].extend([
+                "Confirmar com MAPA ou MRPA",
+                "Modificações do estilo de vida",
+                "Reavaliação em 3-6 meses"
+            ])
+        
+        return assessment
+
+    async def _assess_copd_protocol(
+        self,
+        patient_data: dict[str, Any],
+        clinical_data: dict[str, Any],
+        assessment: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Assess COPD protocol using GOLD guidelines"""
+        criteria_met = {}
+        
+        pulmonary_function = clinical_data.get("pulmonary_function", {})
+        symptoms = clinical_data.get("symptoms", [])
+        
+        copd_score = 0
+        
+        fev1 = pulmonary_function.get("fev1_percent")
+        if fev1:
+            if fev1 < 30:
+                copd_score += 4
+                criteria_met["very_severe_obstruction"] = True
+            elif fev1 < 50:
+                copd_score += 3
+                criteria_met["severe_obstruction"] = True
+            elif fev1 < 80:
+                copd_score += 2
+                criteria_met["moderate_obstruction"] = True
+        
+        if "dyspnea" in symptoms:
+            copd_score += 1
+            criteria_met["dyspnea"] = True
+        
+        if "chronic_cough" in symptoms:
+            copd_score += 1
+            criteria_met["chronic_cough"] = True
+        
+        smoking_history = patient_data.get("smoking_pack_years", 0)
+        if smoking_history >= 20:
+            copd_score += 1
+            criteria_met["smoking_history"] = True
+        
+        assessment["score"] = copd_score
+        assessment["criteria_met"] = criteria_met
+        assessment["applicable"] = copd_score >= 2
+        
+        if copd_score >= 5:
+            assessment["risk_level"] = RiskLevel.HIGH
+            assessment["recommendations"].extend([
+                "Broncodilatadores de longa duração",
+                "Corticosteroides inalatórios",
+                "Oxigenoterapia se indicada",
+                "Reabilitação pulmonar"
+            ])
+        elif copd_score >= 2:
+            assessment["risk_level"] = RiskLevel.MODERATE
+            assessment["recommendations"].extend([
+                "Broncodilatadores de curta duração",
+                "Cessação do tabagismo",
+                "Vacinação pneumocócica e influenza"
+            ])
+        
         return assessment
 
     async def get_applicable_protocols(

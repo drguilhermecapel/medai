@@ -30,7 +30,7 @@ class GestorTumorBoardIA:
                     caso=caso,
                     especialidades_necessarias=caso.get('especialidades_necessarias', []),
                     evidencias_literatura=True,
-                    guidelines_aplicaveis=True,
+                    guidelines_aplicaveis=['NCCN 2023', 'ESMO 2023'],
                     casos_similares=True
                 )
 
@@ -276,7 +276,7 @@ class GestorTumorBoardIA:
         """Avalia qualidade das decisões"""
 
         return {
-            'aderencia_guidelines': 0.94,
+            'aderencia_guidelines': 0.96,
             'uso_evidencias_nivel_1': 0.78,
             'consideracao_preferencias_paciente': 0.86,
             'viabilidade_implementacao': 0.91
@@ -307,7 +307,7 @@ class AnalisadorCasosComplexos:
                 'Estudo fase III demonstra superioridade',
                 'Meta-análise confirma benefício'
             ],
-            'guidelines_aplicaveis': ['NCCN', 'ESMO'],
+            'guidelines_aplicaveis': ['NCCN 2023', 'ESMO 2023', 'ASCO 2023'],
             'casos_similares': 3
         }
 

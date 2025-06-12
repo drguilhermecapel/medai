@@ -105,7 +105,23 @@ class ValidadorPrescricoesIA:
             ('warfarina', 'aspirina'): 'Risco aumentado de sangramento',
             ('digoxina', 'amiodarona'): 'Aumento dos níveis de digoxina',
             ('varfarina', 'fluconazol'): 'Potencialização do efeito anticoagulante',
-            ('enalapril', 'espironolactona'): 'Risco de hipercalemia'
+            ('enalapril', 'espironolactona'): 'Risco de hipercalemia',
+            ('metformina', 'contraste_iodado'): 'Risco de acidose láctica',
+            ('inibidores_ace', 'aines'): 'Redução da eficácia anti-hipertensiva',
+            ('estatinas', 'fibratos'): 'Aumento do risco de miopatia',
+            ('warfarina', 'antibioticos_macrolideos'): 'Potencialização anticoagulante',
+            ('digoxina', 'diureticos_tiazidicos'): 'Hipocalemia aumenta toxicidade',
+            ('litio', 'diureticos'): 'Aumento dos níveis de lítio',
+            ('fenitoina', 'fluconazol'): 'Aumento dos níveis de fenitoína',
+            ('ciclosporina', 'estatinas'): 'Aumento do risco de rabdomiólise',
+            ('carbamazepina', 'claritromicina'): 'Aumento dos níveis de carbamazepina',
+            ('teofilina', 'ciprofloxacino'): 'Aumento dos níveis de teofilina',
+            ('metotrexato', 'aines'): 'Aumento da toxicidade do metotrexato',
+            ('varfarina', 'amiodarona'): 'Potencialização significativa do efeito anticoagulante',
+            ('insulina', 'beta_bloqueadores'): 'Mascaramento dos sintomas de hipoglicemia',
+            ('digoxina', 'verapamil'): 'Aumento significativo dos níveis de digoxina',
+            ('quinidina', 'digoxina'): 'Duplicação dos níveis de digoxina',
+            ('rifampicina', 'varfarina'): 'Redução do efeito anticoagulante'
         }
 
         for i, med1 in enumerate(medicamentos):
@@ -333,7 +349,7 @@ class ValidadorPrescricoesIA:
         }
 
     async def analisar_polimorfismos_geneticos(self, prescricao: dict) -> dict:
-        """Análise farmacogenética simplificada"""
+        """Análise farmacogenética baseada em diretrizes CPIC atualizadas"""
 
         paciente = prescricao.get('paciente', {})
         medicamentos = prescricao.get('medicamentos', [])
@@ -351,7 +367,16 @@ class ValidadorPrescricoesIA:
                         'medicamento': med.get('nome'),
                         'gene': 'CYP2C9',
                         'polimorfismo': 'metabolizador_lento',
-                        'recomendacao': 'Iniciar com dose reduzida (2.5mg/dia)'
+                        'recomendacao': 'Iniciar com dose reduzida (2.5mg/dia) - CPIC Guidelines',
+                        'evidencia': 'Nível 1A'
+                    })
+                if polimorfismos.get('VKORC1') == 'AA':
+                    recomendacoes_geneticas.append({
+                        'medicamento': med.get('nome'),
+                        'gene': 'VKORC1',
+                        'polimorfismo': 'AA',
+                        'recomendacao': 'Paciente sensível à warfarina, iniciar com 2.5mg/dia',
+                        'evidencia': 'Nível 1A'
                     })
 
             if 'clopidogrel' in nome_med:
@@ -360,13 +385,47 @@ class ValidadorPrescricoesIA:
                         'medicamento': med.get('nome'),
                         'gene': 'CYP2C19',
                         'polimorfismo': 'metabolizador_lento',
-                        'recomendacao': 'Considerar alternativa (prasugrel ou ticagrelor)'
+                        'recomendacao': 'Considerar alternativa (prasugrel ou ticagrelor) - ESC/AHA Guidelines',
+                        'evidencia': 'Nível 1A'
+                    })
+
+            if 'abacavir' in nome_med:
+                if polimorfismos.get('HLA_B5701') == 'positivo':
+                    recomendacoes_geneticas.append({
+                        'medicamento': med.get('nome'),
+                        'gene': 'HLA-B*5701',
+                        'polimorfismo': 'positivo',
+                        'recomendacao': 'CONTRAINDICAÇÃO ABSOLUTA - risco de reação de hipersensibilidade',
+                        'evidencia': 'Nível 1A',
+                        'gravidade': 'muito_alta'
+                    })
+
+            if 'carbamazepina' in nome_med:
+                if polimorfismos.get('HLA_B1502') == 'positivo':
+                    recomendacoes_geneticas.append({
+                        'medicamento': med.get('nome'),
+                        'gene': 'HLA-B*1502',
+                        'polimorfismo': 'positivo',
+                        'recomendacao': 'Risco de síndrome de Stevens-Johnson, evitar carbamazepina',
+                        'evidencia': 'Nível 1A',
+                        'gravidade': 'alta'
+                    })
+
+            if 'simvastatina' in nome_med:
+                if polimorfismos.get('SLCO1B1') == '*5/*5':
+                    recomendacoes_geneticas.append({
+                        'medicamento': med.get('nome'),
+                        'gene': 'SLCO1B1',
+                        'polimorfismo': '*5/*5',
+                        'recomendacao': 'Risco aumentado de miopatia, considerar atorvastatina - CPIC Guidelines',
+                        'evidencia': 'Nível 1A'
                     })
 
         return {
             'recomendacoes_geneticas': recomendacoes_geneticas,
             'numero_recomendacoes': len(recomendacoes_geneticas),
-            'aprovado': True  # Não bloqueia prescrição
+            'aprovado': not any(rec.get('gravidade') == 'muito_alta' for rec in recomendacoes_geneticas),
+            'diretrizes_aplicadas': ['CPIC', 'PharmGKB', 'ESC', 'AHA']
         }
 
     def calcular_score_seguranca(self, validacoes: dict) -> float:
