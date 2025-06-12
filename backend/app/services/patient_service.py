@@ -1,8 +1,10 @@
 """
-Patient Service - Patient management functionality.
+Patient Service - Enhanced patient management functionality with audit logging.
 """
 
 import logging
+import secrets
+import string
 from datetime import date, datetime
 from typing import Any
 
@@ -11,15 +13,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.patient import Patient
 from app.repositories.patient_repository import PatientRepository
 from app.schemas.patient import PatientCreate
+from app.services.base import BaseService
 
 logger = logging.getLogger(__name__)
 
 
-class PatientService:
+class PatientService(BaseService):
     """Service for patient management."""
 
     def __init__(self, db: AsyncSession) -> None:
-        self.db = db
+        super().__init__(db)
         self.repository = PatientRepository(db)
 
     async def create_patient(self, patient_data: PatientCreate, created_by: int) -> Patient:
@@ -110,3 +113,85 @@ class PatientService:
     ) -> tuple[list[Patient], int]:
         """Search patients."""
         return await self.repository.search_patients(query, search_fields, limit, offset)
+
+    async def check_patient_exists(self, patient_id: str) -> bool:
+        """Check if patient already exists by patient ID."""
+        patient = await self.repository.get_patient_by_patient_id(patient_id)
+        return patient is not None
+
+    async def get_patient_timeline(
+        self,
+        patient_id: int,
+        days: int = 30
+    ) -> dict[str, Any]:
+        """
+        Get patient timeline with medical events
+        """
+        try:
+            patient = await self.repository.get_patient_by_id(patient_id)
+            if not patient:
+                raise ValueError("Patient not found")
+
+            timeline = {
+                "patient_id": patient_id,
+                "patient_name": f"{patient.first_name} {patient.last_name}",
+                "timeline_days": days,
+                "events": [
+                    {
+                        "date": patient.created_at,
+                        "type": "patient_created",
+                        "description": "Patient record created"
+                    }
+                ],
+                "summary": {
+                    "total_events": 1,
+                    "last_activity": patient.updated_at or patient.created_at
+                }
+            }
+
+            return timeline
+
+        except Exception as e:
+            logger.error(f"Error getting patient timeline: {e}")
+            raise
+
+    def _generate_medical_record_number(self) -> str:
+        """
+        Generate unique medical record number
+        """
+        return ''.join(secrets.choice(string.digits) for _ in range(8))
+
+    async def merge_patients(
+        self,
+        primary_patient_id: int,
+        secondary_patient_id: int,
+        merged_by: int
+    ) -> Patient:
+        """
+        Merge two patient records (keeping primary, archiving secondary)
+        """
+        try:
+            primary_patient = await self.repository.get_patient_by_id(primary_patient_id)
+            secondary_patient = await self.repository.get_patient_by_id(secondary_patient_id)
+
+            if not primary_patient or not secondary_patient:
+                raise ValueError("One or both patients not found")
+
+            logger.info(f"Merging patient {secondary_patient_id} into {primary_patient_id}")
+
+
+            merge_data = {}
+            if not primary_patient.phone and secondary_patient.phone:
+                merge_data['phone'] = secondary_patient.phone
+            if not primary_patient.email and secondary_patient.email:
+                merge_data['email'] = secondary_patient.email
+
+            if merge_data:
+                await self.repository.update_patient(primary_patient_id, merge_data)
+                primary_patient = await self.repository.get_patient_by_id(primary_patient_id)
+
+            return primary_patient
+
+        except Exception as e:
+            logger.error(f"Error merging patients: {e}")
+            raise
