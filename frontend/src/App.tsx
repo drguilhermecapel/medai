@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter as Router } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import {
   Calendar,
   FileText,
@@ -31,6 +31,8 @@ import {
 import { AuthProvider } from './contexts/AuthContext'
 import { useAuth } from './hooks/useAuth'
 import LoginPage from './pages/LoginPage'
+import Layout from './components/Layout'
+import InterfaceAutomacaoMedica from './pages/InterfaceAutomacaoMedica'
 
 const SPEIApp = (): JSX.Element => {
   const [activeModule, setActiveModule] = useState('dashboard')
@@ -771,7 +773,15 @@ function App(): JSX.Element {
     return <LoginPage />
   }
 
-  return <SPEIApp />
+  return (
+    <Routes>
+      <Route path="/" element={<Layout />}>
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route path="dashboard" element={<SPEIApp />} />
+        <Route path="automacao-medica" element={<InterfaceAutomacaoMedica />} />
+      </Route>
+    </Routes>
+  )
 }
 
 function AppWithAuth(): JSX.Element {

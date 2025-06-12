@@ -10,19 +10,27 @@ const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault()
+    console.log('LoginPage handleSubmit called with:', { username, password: '***' })
     if (username && password) {
       setIsLoading(true)
       setError('')
+      console.log('Calling login function...')
       try {
         const success = await login(username, password)
+        console.log('Login function returned:', success)
         if (!success) {
           setError('Credenciais inválidas')
+          console.log('Login failed - setting error message')
         }
-      } catch {
+      } catch (error) {
+        console.error('Login exception caught:', error)
         setError('Credenciais inválidas')
       } finally {
         setIsLoading(false)
+        console.log('Login process completed')
       }
+    } else {
+      console.log('Username or password missing:', { username: !!username, password: !!password })
     }
   }
 

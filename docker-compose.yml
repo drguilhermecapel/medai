@@ -45,6 +45,7 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - ENVIRONMENT=${ENVIRONMENT}
       - LOG_LEVEL=${LOG_LEVEL}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
     volumes:
       - ./backend:/app
       - ./models:/app/models
