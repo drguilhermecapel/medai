@@ -174,7 +174,11 @@ class MLModelService:
             if sample_rate != target_sample_rate:
                 from scipy import signal
                 num_samples = int(ecg_data.shape[0] * target_sample_rate / sample_rate)
-                ecg_data = signal.resample(ecg_data, num_samples, axis=0)
+                resampled = signal.resample(ecg_data, num_samples, axis=0)
+                if isinstance(resampled, tuple):
+                    ecg_data = resampled[0].astype(np.float32)
+                else:
+                    ecg_data = resampled.astype(np.float32)
 
             ecg_data = (ecg_data - np.mean(ecg_data, axis=0)) / (np.std(ecg_data, axis=0) + 1e-8)
 
