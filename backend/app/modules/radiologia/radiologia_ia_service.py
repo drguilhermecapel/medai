@@ -79,7 +79,7 @@ class RadiologiaInteligenteMedIA:
                 'Tumor': 0.02
             }
 
-            predicted_class = max(predictions, key=predictions.get)
+            predicted_class = max(predictions.keys(), key=lambda k: predictions[k])
             confidence = predictions[predicted_class]
 
             findings = []
