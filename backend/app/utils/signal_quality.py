@@ -215,3 +215,30 @@ class SignalQualityAnalyzer:
         except Exception as e:
             logger.error("SNR calculation failed: %s", str(e))
             return 20.0
+
+    def analyze(self, signal: NDArray[np.float64]) -> dict[str, Any]:
+        """Synchronous wrapper for analyze_quality method."""
+        try:
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(self.analyze_quality(signal))
+            loop.close()
+            
+            if 'quality_issues' in result:
+                result['issues'] = result['quality_issues']
+            elif 'issues' not in result:
+                result['issues'] = []
+                
+            return result
+        except Exception as e:
+            logger.error(f"Signal analysis failed: {e}")
+            return {
+                "overall_score": 0.5,
+                "noise_level": 0.0,
+                "baseline_wander": 0.0,
+                "signal_to_noise_ratio": 0.0,
+                "artifacts_detected": [],
+                "quality_issues": ["Analysis failed"],
+                "issues": ["Analysis failed"]
+            }

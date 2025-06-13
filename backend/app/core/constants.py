@@ -55,6 +55,10 @@ class DiagnosisCategory(str, Enum):
     CONDUCTION_DISORDER = "conduction_disorder"
     ISCHEMIA = "ischemia"
     HYPERTROPHY = "hypertrophy"
+    MYOCARDIAL_INFARCTION = "myocardial_infarction"
+    ST_CHANGES = "st_changes"
+    BUNDLE_BRANCH_BLOCK = "bundle_branch_block"
+    ATRIAL_FIBRILLATION = "atrial_fibrillation"
     OTHER = "other"
 
 
@@ -132,6 +136,18 @@ class ModelStatus(str, Enum):
     INACTIVE = "inactive"
     TRAINING = "training"
     DEPRECATED = "deprecated"
+
+
+class SCPCategory(str, Enum):
+    """SCP-ECG diagnostic categories."""
+    NORMAL = "normal"
+    ARRHYTHMIA = "arrhythmia"
+    CONDUCTION_ABNORMALITIES = "conduction_abnormalities"
+    ISCHEMIC_CHANGES = "ischemic_changes"
+    HYPERTROPHY = "hypertrophy"
+    MYOCARDIAL_INFARCTION = "myocardial_infarction"
+    ST_T_CHANGES = "st_t_changes"
+    ATRIAL_FIBRILLATION = "atrial_fibrillation"
 
 
 ECG_SAMPLE_RATES = [250, 500, 1000]

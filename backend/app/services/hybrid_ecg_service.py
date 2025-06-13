@@ -537,6 +537,21 @@ class FeatureExtractor:
 
 class MultiPathologyService:
     """Service for detecting multiple pathologies in ECG data."""
+    
+    def __init__(self):
+        """Initialize the multi-pathology service."""
+        self.scp_conditions = {
+            'NORM': 'Normal ECG',
+            'MI': 'Myocardial Infarction',
+            'STTC': 'ST/T Change',
+            'CD': 'Conduction Disturbance',
+            'HYP': 'Hypertrophy',
+            'AF': 'Atrial Fibrillation',
+            'AFIB': 'Atrial Fibrillation',
+            'AFL': 'Atrial Flutter',
+            'STEMI': 'ST Elevation MI',
+            'NSTEMI': 'Non-ST Elevation MI'
+        }
 
     def detect_multi_pathology(self, ecg_data: Any, **kwargs: Any) -> dict[str, Any]:
         """Implementar o método que está faltando"""
