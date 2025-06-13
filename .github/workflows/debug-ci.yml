@@ -1,6 +1,11 @@
 name: CI Debug Analysis
 on:
   workflow_dispatch:
+    inputs:
+      debug_level:
+        description: 'Debug level (basic/full)'
+        required: false
+        default: 'basic'
 
 jobs:
   diagnose:
