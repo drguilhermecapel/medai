@@ -477,9 +477,6 @@ class TestDatasetServiceComprehensive:
         assert service.metadata is not None
 
 
-import asyncio
-
-
 class TestAsyncMethodsComprehensive:
     """Comprehensive tests for all async methods"""
 

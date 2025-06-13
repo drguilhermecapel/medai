@@ -313,7 +313,7 @@ async def test_ecg_service_error_handling(ecg_service):
     with patch('app.repositories.ecg_repository.ECGRepository.create_analysis') as mock_create:
         mock_create.side_effect = Exception("Database error")
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError):
             await ecg_service.create_analysis(
                 patient_id=1,
                 file_path="/tmp/nonexistent.txt",
@@ -328,7 +328,7 @@ async def test_validation_service_error_handling(validation_service):
     with patch('app.repositories.validation_repository.ValidationRepository.create_validation') as mock_create:
         mock_create.side_effect = Exception("Database error")
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError):
             await validation_service.create_validation(
                 analysis_id=1,
                 validator_id=1,
@@ -352,7 +352,7 @@ async def test_user_service_error_handling(user_service):
             role=UserRoles.PHYSICIAN
         )
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError):
             await user_service.create_user(user_data)
 
 
@@ -386,7 +386,7 @@ async def test_patient_service_error_handling(patient_service):
             gender="male"
         )
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError):
             await patient_service.create_patient(
                 patient_data,
                 created_by="test_user_id"

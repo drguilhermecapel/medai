@@ -288,7 +288,7 @@ class TestECGProcessorCorrectedCoverage:
         processor = ECGProcessor()
 
         with patch('pathlib.Path.exists', return_value=False):
-            with pytest.raises(Exception):
+            with pytest.raises(FileNotFoundError):
                 await processor.load_ecg_file("nonexistent.csv")
 
     @pytest.mark.asyncio

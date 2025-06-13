@@ -163,7 +163,7 @@ async def test_calculate_file_info_file_not_found(ecg_service):
         mock_file.exists.return_value = False
         mock_path.return_value = mock_file
 
-        with pytest.raises(Exception):
+        with pytest.raises(FileNotFoundError):
             await ecg_service._calculate_file_info("/nonexistent/file.txt")
 
 

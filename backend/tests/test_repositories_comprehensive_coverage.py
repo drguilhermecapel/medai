@@ -281,7 +281,7 @@ async def test_repository_error_handling_coverage(ecg_repository, mock_db):
 
     mock_analysis = Mock(spec=ECGAnalysis)
 
-    with pytest.raises(Exception):
+    with pytest.raises(RuntimeError):
         await ecg_repository.create_analysis(mock_analysis)
 
     mock_db.rollback = AsyncMock()
