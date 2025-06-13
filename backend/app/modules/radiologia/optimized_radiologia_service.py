@@ -4,7 +4,7 @@ Optimized Radiologia Service integrating all technical report recommendations
 
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional, Tuple, List
+from typing import Any, Optional
 import asyncio
 
 import numpy as np
@@ -44,7 +44,7 @@ class OptimizedRadiologiaService:
         
         logger.info("Optimized Radiologia Service initialized with medical-specific components")
     
-    def _initialize_medical_models(self) -> Dict[str, torch.nn.Module]:
+    def _initialize_medical_models(self) -> dict[str, torch.nn.Module]:
         """Initialize medical-specific neural network models"""
         models = {}
         
@@ -75,7 +75,7 @@ class OptimizedRadiologiaService:
         
         return models
     
-    def _create_fallback_models(self) -> Dict[str, torch.nn.Module]:
+    def _create_fallback_models(self) -> dict[str, torch.nn.Module]:
         """Create simple fallback models if advanced models fail"""
         import torch.nn as nn
         
@@ -91,7 +91,7 @@ class OptimizedRadiologiaService:
         return {'fallback': simple_model}
     
     async def analyze_medical_image(self, image_data: bytes, filename: str, 
-                                  modality: Optional[str] = None) -> Dict[str, Any]:
+                                  modality: Optional[str] = None) -> dict[str, Any]:
         """
         Comprehensive medical image analysis with optimized pipeline
         
@@ -148,7 +148,7 @@ class OptimizedRadiologiaService:
                 'timestamp': datetime.utcnow().isoformat()
             }
     
-    async def _process_dicom_image(self, image_data: bytes) -> Tuple[np.ndarray, DICOMMetadata]:
+    async def _process_dicom_image(self, image_data: bytes) -> tuple[np.ndarray, DICOMMetadata]:
         """Process DICOM image with proper medical preprocessing"""
         from io import BytesIO
         import pydicom
@@ -158,7 +158,7 @@ class OptimizedRadiologiaService:
         
         return processed_image, metadata
     
-    async def _process_standard_image(self, image_data: bytes, filename: str) -> Tuple[np.ndarray, Optional[DICOMMetadata]]:
+    async def _process_standard_image(self, image_data: bytes, filename: str) -> tuple[np.ndarray, Optional[DICOMMetadata]]:
         """Process standard image formats"""
         from PIL import Image
         from io import BytesIO
@@ -171,7 +171,7 @@ class OptimizedRadiologiaService:
         
         return image_array, None
     
-    def _select_optimal_model(self, modality: str, image_shape: Tuple[int, ...]) -> str:
+    def _select_optimal_model(self, modality: str, image_shape: tuple[int, ...]) -> str:
         """Select optimal model based on modality and image characteristics"""
         if modality in ['CR', 'DX'] and 'chest_xray' in self.models:
             return 'chest_xray'
@@ -180,7 +180,7 @@ class OptimizedRadiologiaService:
         else:
             return 'fallback'
     
-    async def _run_inference_with_uncertainty(self, image: np.ndarray, model_name: str) -> Tuple[Dict[str, float], float]:
+    async def _run_inference_with_uncertainty(self, image: np.ndarray, model_name: str) -> tuple[dict[str, float], float]:
         """Run model inference with uncertainty quantification"""
         try:
             model = self.models[model_name]
@@ -216,8 +216,8 @@ class OptimizedRadiologiaService:
             logger.error(f"Inference error: {e}")
             return {'Normal': 0.5, 'Pneumonia': 0.2, 'COVID-19': 0.2, 'Tumor': 0.1}, 0.8
     
-    async def _clinical_validation(self, predictions: Dict[str, float], 
-                                 uncertainty: float, modality: str) -> Dict[str, Any]:
+    async def _clinical_validation(self, predictions: dict[str, float], 
+                                 uncertainty: float, modality: str) -> dict[str, Any]:
         """Perform clinical validation of AI predictions"""
         validation_results = {
             'confidence_level': 'high' if uncertainty < 0.3 else 'medium' if uncertainty < 0.6 else 'low',
@@ -249,7 +249,7 @@ class OptimizedRadiologiaService:
         
         return validation_results
     
-    async def _assess_image_quality(self, image: np.ndarray) -> Dict[str, float]:
+    async def _assess_image_quality(self, image: np.ndarray) -> dict[str, float]:
         """Assess medical image quality metrics"""
         try:
             mean_intensity = float(np.mean(image))
@@ -273,7 +273,7 @@ class OptimizedRadiologiaService:
             logger.error(f"Quality assessment error: {e}")
             return {'quality_score': 0.5}
     
-    async def _generate_clinical_recommendations(self, clinical_results: Dict[str, Any]) -> List[str]:
+    async def _generate_clinical_recommendations(self, clinical_results: dict[str, Any]) -> list[str]:
         """Generate clinical recommendations based on analysis"""
         recommendations = []
         
@@ -292,7 +292,7 @@ class OptimizedRadiologiaService:
         
         return recommendations
     
-    def get_system_status(self) -> Dict[str, Any]:
+    def get_system_status(self) -> dict[str, Any]:
         """Get comprehensive system status"""
         return {
             'models_loaded': list(self.models.keys()),
@@ -311,7 +311,7 @@ class RadiologiaInteligenteMedIA:
         self.optimized_service = OptimizedRadiologiaService()
         logger.info("Radiologia service initialized with optimized backend")
     
-    def analyze_image(self, image_array: np.ndarray) -> Dict[str, Any]:
+    def analyze_image(self, image_array: np.ndarray) -> dict[str, Any]:
         """Synchronous wrapper for compatibility"""
         try:
             from PIL import Image

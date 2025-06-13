@@ -4,7 +4,7 @@ Based on technical analysis recommendations for medical imaging
 """
 
 import logging
-from typing import Optional, Tuple, Dict, Any
+from typing import Any, Optional
 
 import torch
 import torch.nn as nn
@@ -255,7 +255,7 @@ class UncertaintyQuantifier:
         self.model = model
         self.num_samples = num_samples
         
-    def predict_with_uncertainty(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def predict_with_uncertainty(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Predict with uncertainty estimation using Monte Carlo Dropout
         

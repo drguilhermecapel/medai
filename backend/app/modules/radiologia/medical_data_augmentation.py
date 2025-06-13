@@ -4,7 +4,7 @@ Implements safe augmentations that preserve anatomical validity
 """
 
 import logging
-from typing import Tuple, Dict, Any, Optional
+from typing import Any, Optional
 import numpy as np
 from PIL import Image, ImageEnhance, ImageFilter
 import random
@@ -102,7 +102,7 @@ class MedicalDataAugmentation:
         
         return augmented
     
-    def _safe_rotation(self, image: np.ndarray, rotation_range: Tuple[float, float], 
+    def _safe_rotation(self, image: np.ndarray, rotation_range: tuple[float, float], 
                       severity: float) -> np.ndarray:
         """Apply small, anatomically safe rotations"""
         min_angle, max_angle = rotation_range
@@ -113,7 +113,7 @@ class MedicalDataAugmentation:
         
         return np.array(rotated).astype(np.float32) / 255.0
     
-    def _adjust_brightness(self, image: np.ndarray, brightness_range: Tuple[float, float],
+    def _adjust_brightness(self, image: np.ndarray, brightness_range: tuple[float, float],
                           severity: float) -> np.ndarray:
         """Adjust brightness while preserving medical image characteristics"""
         min_bright, max_bright = brightness_range
@@ -125,7 +125,7 @@ class MedicalDataAugmentation:
         adjusted = image * factor
         return np.clip(adjusted, 0.0, 1.0)
     
-    def _adjust_contrast(self, image: np.ndarray, contrast_range: Tuple[float, float],
+    def _adjust_contrast(self, image: np.ndarray, contrast_range: tuple[float, float],
                         severity: float) -> np.ndarray:
         """Adjust contrast preserving diagnostic information"""
         min_contrast, max_contrast = contrast_range
@@ -197,7 +197,7 @@ class MedicalDataAugmentation:
         return pipeline
     
     def validate_augmentation(self, original: np.ndarray, augmented: np.ndarray,
-                            modality: str) -> Dict[str, Any]:
+                            modality: str) -> dict[str, Any]:
         """
         Validate that augmentation preserves medical image integrity
         

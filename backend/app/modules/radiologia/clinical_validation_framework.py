@@ -5,7 +5,7 @@ Implements comprehensive validation metrics and clinical decision support
 
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Any, Optional
 from datetime import datetime, timedelta
 import numpy as np
 
@@ -22,7 +22,7 @@ class ClinicalMetrics:
     accuracy: float
     f1_score: float
     auc_roc: float
-    confidence_interval: Tuple[float, float]
+    confidence_interval: tuple[float, float]
 
 
 @dataclass
@@ -51,8 +51,8 @@ class ClinicalValidationFramework:
     """
     
     def __init__(self):
-        self.validation_cases: List[ClinicalCase] = []
-        self.performance_history: List[Dict[str, Any]] = []
+        self.validation_cases: list[ClinicalCase] = []
+        self.performance_history: list[dict[str, Any]] = []
         
         self.clinical_thresholds = {
             'pneumonia': {
@@ -139,7 +139,7 @@ class ClinicalValidationFramework:
             confidence_interval=(ci_lower, ci_upper)
         )
     
-    def validate_clinical_performance(self, condition: str) -> Dict[str, Any]:
+    def validate_clinical_performance(self, condition: str) -> dict[str, Any]:
         """
         Comprehensive clinical performance validation
         
@@ -197,7 +197,7 @@ class ClinicalValidationFramework:
         
         return validation_report
     
-    def generate_clinical_report(self) -> Dict[str, Any]:
+    def generate_clinical_report(self) -> dict[str, Any]:
         """Generate comprehensive clinical validation report"""
         conditions = set(case.ground_truth for case in self.validation_cases)
         
@@ -233,7 +233,7 @@ class ClinicalValidationFramework:
         
         return report
     
-    def _filter_cases(self, condition: str, time_window: Optional[timedelta]) -> List[ClinicalCase]:
+    def _filter_cases(self, condition: str, time_window: Optional[timedelta]) -> list[ClinicalCase]:
         """Filter validation cases by condition and time window"""
         filtered_cases = [case for case in self.validation_cases 
                          if condition.lower() in [case.ground_truth.lower(), case.ai_prediction.lower()]]
@@ -245,7 +245,7 @@ class ClinicalValidationFramework:
         
         return filtered_cases
     
-    def _estimate_auc_roc(self, cases: List[ClinicalCase], condition: str) -> float:
+    def _estimate_auc_roc(self, cases: list[ClinicalCase], condition: str) -> float:
         """Estimate AUC-ROC using confidence scores"""
         if len(cases) < 10:
             return 0.5  # Default for insufficient data
@@ -272,7 +272,7 @@ class ClinicalValidationFramework:
             return 0.5
     
     def _calculate_confidence_interval(self, proportion: float, n: int, 
-                                     confidence_level: float = 0.95) -> Tuple[float, float]:
+                                     confidence_level: float = 0.95) -> tuple[float, float]:
         """Calculate confidence interval for a proportion"""
         if n == 0:
             return (0.0, 0.0)
@@ -285,7 +285,7 @@ class ClinicalValidationFramework:
         
         return (max(0.0, center - margin), min(1.0, center + margin))
     
-    def _assess_regulatory_compliance(self) -> Dict[str, Any]:
+    def _assess_regulatory_compliance(self) -> dict[str, Any]:
         """Assess regulatory compliance (FDA, CE marking, etc.)"""
         return {
             'fda_510k_ready': len(self.validation_cases) >= 100,
@@ -295,7 +295,7 @@ class ClinicalValidationFramework:
             'fairness_metrics': self._assess_fairness()
         }
     
-    def _assess_bias(self) -> Dict[str, Any]:
+    def _assess_bias(self) -> dict[str, Any]:
         """Assess potential bias in the validation dataset"""
         modalities = {}
         for case in self.validation_cases:
@@ -307,7 +307,7 @@ class ClinicalValidationFramework:
             'selection_bias_risk': 'MEDIUM'  # Conservative estimate
         }
     
-    def _assess_fairness(self) -> Dict[str, Any]:
+    def _assess_fairness(self) -> dict[str, Any]:
         """Assess fairness across different patient populations"""
         return {
             'demographic_parity': 'NOT_ASSESSED',
@@ -334,7 +334,7 @@ class ContinuousMonitoring:
         self.baseline_metrics[condition] = metrics
         logger.info(f"Baseline established for {condition}")
     
-    def monitor_performance(self, condition: str) -> Dict[str, Any]:
+    def monitor_performance(self, condition: str) -> dict[str, Any]:
         """Monitor current performance against baseline"""
         current_metrics = self.validation_framework.calculate_clinical_metrics(
             condition, time_window=timedelta(days=30)

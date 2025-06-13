@@ -5,7 +5,7 @@ Based on technical analysis recommendations for preserving diagnostic informatio
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
 import numpy as np
 import pydicom
@@ -23,13 +23,13 @@ class DICOMMetadata:
     patient_id: str
     acquisition_date: str
     modality: str
-    pixel_spacing: Optional[Tuple[float, float]]
+    pixel_spacing: Optional[tuple[float, float]]
     slice_thickness: Optional[float]
     window_center: float
     window_width: float
     rescale_slope: float
     rescale_intercept: float
-    original_shape: Tuple[int, ...]
+    original_shape: tuple[int, ...]
     manufacturer: Optional[str]
     model_name: Optional[str]
 
@@ -49,7 +49,7 @@ class MedicalDICOMProcessor:
             'MG': {'center': 1024, 'width': 2048},  # Mammography
         }
     
-    def process_dicom(self, dicom_data: Dataset) -> Tuple[np.ndarray, DICOMMetadata]:
+    def process_dicom(self, dicom_data: Dataset) -> tuple[np.ndarray, DICOMMetadata]:
         """
         Process DICOM data preserving medical image integrity
         
@@ -96,7 +96,7 @@ class MedicalDICOMProcessor:
             model_name=str(ds.get('ManufacturerModelName', ''))
         )
     
-    def _get_pixel_spacing(self, ds: Dataset) -> Optional[Tuple[float, float]]:
+    def _get_pixel_spacing(self, ds: Dataset) -> Optional[tuple[float, float]]:
         """Extract pixel spacing with fallback options"""
         if hasattr(ds, 'PixelSpacing') and ds.PixelSpacing:
             return (float(ds.PixelSpacing[0]), float(ds.PixelSpacing[1]))
@@ -189,7 +189,7 @@ class PatientLevelDataSplitter:
     def split_by_patient(self, metadata_list: list[DICOMMetadata], 
                         train_ratio: float = 0.7, 
                         val_ratio: float = 0.15,
-                        test_ratio: float = 0.15) -> Dict[str, list[int]]:
+                        test_ratio: float = 0.15) -> dict[str, list[int]]:
         """
         Split data by patient to prevent leakage
         
