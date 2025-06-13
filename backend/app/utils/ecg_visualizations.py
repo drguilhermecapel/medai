@@ -274,3 +274,7 @@ class ECGVisualizer:
 
         plt.tight_layout()
         return fig
+
+    def create_rhythm_strip(self, signal: np.ndarray, lead_name: str = "II", sampling_rate: int = 500) -> plt.Figure:
+        """Create rhythm strip - method expected by tests"""
+        return self.plot_rhythm_strip(signal, lead_name, sampling_rate)

@@ -303,6 +303,16 @@ class MonitorSaudeMentalContinuo:
             'regularidade_rotina': 0.7
         }
 
+    async def detectar_mudancas_comportamentais(self, paciente_id: str) -> dict:
+        """Detecta mudanças comportamentais - método esperado pelos testes"""
+        monitoramento = await self.monitorar_paciente_continuo(paciente_id)
+        return monitoramento.get('mudancas', {})
+
+    async def gerar_alertas_clinicos(self, paciente_id: str) -> list:
+        """Gera alertas clínicos - método esperado pelos testes"""
+        monitoramento = await self.monitorar_paciente_continuo(paciente_id)
+        return monitoramento.get('alertas', [])
+
 
 class ColetorDadosPassivos:
     pass

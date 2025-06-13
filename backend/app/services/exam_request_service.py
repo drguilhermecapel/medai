@@ -207,6 +207,10 @@ class ExamRequestService:
             logger.error(f"Error retrieving exam request: {str(e)}")
             raise
 
+    async def get_exam_request(self, request_id: str) -> dict[str, Any] | None:
+        """Alias for get_exam_request_by_id - method expected by tests"""
+        return await self.get_exam_request_by_id(request_id)
+
     async def update_exam_status(
         self,
         request_id: str,

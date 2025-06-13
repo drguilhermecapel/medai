@@ -838,3 +838,6 @@ class HybridECGAnalysisService:
                 'error': str(e),
                 'data': {}
             }
+
+
+HybridECGService = HybridECGAnalysisService

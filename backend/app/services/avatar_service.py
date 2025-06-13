@@ -243,5 +243,9 @@ class AvatarService:
 
         return img
 
+    async def process_avatar(self, user_id: int, file: UploadFile) -> dict[str, Any]:
+        """Process avatar - alias for upload_avatar method expected by tests"""
+        return await self.upload_avatar(user_id, file)
+
 
 avatar_service: AvatarService = AvatarService()

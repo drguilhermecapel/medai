@@ -301,3 +301,20 @@ class SaudeMentalPsiquiatriaIA:
             'indicadores_sociais': ['Relacionamentos', 'Trabalho', 'Atividades'],
             'frequencia_avaliacao': 'Semanal'
         }
+
+    async def avaliar_saude_mental_completa(self, paciente: dict) -> dict:
+        """Avaliação completa de saúde mental - método esperado pelos testes"""
+        return await self.realizar_avaliacao_completa(paciente)
+
+    async def detectar_transtornos_mentais(self, paciente: dict) -> dict:
+        """Detecta transtornos mentais - método esperado pelos testes"""
+        avaliacao = await self.realizar_avaliacao_completa(paciente)
+        return avaliacao.get('avaliacao_clinica', {})
+
+    async def gerar_plano_tratamento(self, paciente: dict) -> dict:
+        """Gera plano de tratamento - método esperado pelos testes"""
+        avaliacao = await self.realizar_avaliacao_completa(paciente)
+        return avaliacao.get('plano_tratamento', {})
+
+
+SaudeMentalInteligenteIA = SaudeMentalPsiquiatriaIA

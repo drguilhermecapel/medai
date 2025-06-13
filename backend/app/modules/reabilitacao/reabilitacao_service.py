@@ -290,3 +290,6 @@ class ReabilitacaoFisioterapiaIA:
                 'Exercícios de equilíbrio avançados'
             ]
         }
+
+
+ReabilitacaoInteligenteIA = ReabilitacaoFisioterapiaIA

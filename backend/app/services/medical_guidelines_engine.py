@@ -387,3 +387,6 @@ class ValidadorConformidadeDiretrizes:
                 "alertas": [f"Erro na validação: {str(e)}"],
                 "recomendacoes": []
             }
+
+
+MedicalGuidelinesEngine = MotorDiretrizesMedicasIA

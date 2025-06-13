@@ -333,3 +333,33 @@ class AdaptiveThresholdManager:
                 issues[parameter] = param_issues
 
         return issues
+
+    def get_threshold(self, threshold_type: ThresholdType, age: int = None, gender: str = None) -> dict:
+        """Get threshold for specific type with demographic adjustments"""
+        param_name = threshold_type.value
+        
+        if param_name not in self.thresholds:
+            return {"lower": 0.0, "upper": 100.0}
+        
+        base_thresholds = self.thresholds[param_name].copy()
+        
+        if age is not None:
+            demographics = {"age": age}
+            if gender:
+                demographics["gender"] = gender
+            adjusted = self.get_adjusted_thresholds(demographics)
+            if param_name in adjusted:
+                base_thresholds = adjusted[param_name]
+        
+        return base_thresholds
+
+    def update_threshold(self, threshold_type: ThresholdType, age: int, gender: str, value: float) -> None:
+        """Update threshold based on new data point"""
+        param_name = threshold_type.value
+        
+        if param_name in self.thresholds:
+            current = self.thresholds[param_name]
+            if value < current["lower"]:
+                current["lower"] = (1 - self.learning_rate) * current["lower"] + self.learning_rate * value
+            elif value > current["upper"]:
+                current["upper"] = (1 - self.learning_rate) * current["upper"] + self.learning_rate * value
