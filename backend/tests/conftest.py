@@ -13,7 +13,7 @@ os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///test_cardio.db"
 
 from app.db.session import get_db
 from app.main import app
-from app.models import *
+from app.models import User, Patient, ECGAnalysis, MedicalRecord, Notification
 from app.models.base import Base
 
 
