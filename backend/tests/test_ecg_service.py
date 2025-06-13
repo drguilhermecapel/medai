@@ -1,13 +1,13 @@
 """Test ECG Analysis Service."""
 
-import pytest
 from datetime import datetime
-from unittest.mock import Mock, AsyncMock, patch
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.services.ecg_service import ECGAnalysisService
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+
 from app.models.ecg_analysis import ECGAnalysis
-from app.models.patient import Patient
 from app.schemas.ecg_analysis import ECGAnalysisCreate
+from app.services.ecg_service import ECGAnalysisService
 
 
 @pytest.fixture
@@ -82,7 +82,7 @@ async def test_create_ecg_analysis_success(ecg_service, sample_ecg_data, mock_ml
 @pytest.mark.asyncio
 async def test_create_ecg_analysis_with_patient_creation(ecg_service, sample_patient_data):
     """Test ECG analysis creation with new patient."""
-    ecg_data = ECGAnalysisCreate(
+    ECGAnalysisCreate(
         patient_id=1,
         original_filename="test_ecg.txt",
         acquisition_date="2025-06-01T14:00:00Z",
@@ -93,7 +93,7 @@ async def test_create_ecg_analysis_with_patient_creation(ecg_service, sample_pat
         device_manufacturer="Test Device",
         device_model="v1.0"
     )
-    
+
     # Method process_file doesn't exist in ECGProcessor
     pytest.skip("ECGProcessor.process_file method not implemented")
 
@@ -136,9 +136,9 @@ async def test_get_analysis_by_id(ecg_service, test_db):
     test_db.add(analysis)
     await test_db.commit()
     await test_db.refresh(analysis)
-    
+
     result = await ecg_service.get_analysis_by_id(analysis.id)
-    
+
     assert result is not None
     assert result.id == analysis.id
     assert result.rhythm == "sinus"
@@ -155,7 +155,7 @@ async def test_get_analysis_by_id_not_found(ecg_service):
 async def test_get_analyses_by_patient(ecg_service, test_db):
     """Test retrieving ECG analyses by patient ID."""
     patient_id = 999  # Use unique patient ID to avoid conflicts
-    
+
     for i in range(3):
         analysis = ECGAnalysis(
             analysis_id=f"test_analysis_patient_999_{i:03d}",
@@ -176,11 +176,11 @@ async def test_get_analyses_by_patient(ecg_service, test_db):
             created_by=1
         )
         test_db.add(analysis)
-    
+
     await test_db.commit()
-    
+
     results = await ecg_service.get_analyses_by_patient(patient_id)
-    
+
     assert len(results) == 3
     assert all(r.patient_id == patient_id for r in results)
 
@@ -216,10 +216,10 @@ async def test_delete_analysis(ecg_service, test_db):
     test_db.add(analysis)
     await test_db.commit()
     await test_db.refresh(analysis)
-    
+
     success = await ecg_service.delete_analysis(analysis.id)
     assert success is True
-    
+
 
 
 @pytest.mark.asyncio
@@ -253,7 +253,6 @@ async def test_ml_service_error_handling(ecg_service, mock_ml_service, sample_ec
 @pytest.mark.asyncio
 async def test_concurrent_analysis_processing(ecg_service, sample_ecg_data):
     """Test concurrent ECG analysis processing."""
-    import asyncio
-    
+
     # Method process_file doesn't exist in ECGProcessor
     pytest.skip("ECGProcessor.process_file method not implemented")

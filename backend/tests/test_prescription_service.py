@@ -1,13 +1,13 @@
 """Test prescription service."""
 
+from unittest.mock import Mock
+
 import pytest
-from unittest.mock import AsyncMock, Mock
-from datetime import datetime
 
 from app.services.prescription_service import (
+    InteractionSeverity,
     PrescriptionService,
     PrescriptionStatus,
-    InteractionSeverity
 )
 
 
@@ -58,11 +58,11 @@ def mock_patient():
 async def test_create_prescription_success(prescription_service, mock_patient, sample_prescription_data):
     """Test successful prescription creation."""
     medications = sample_prescription_data["medications"]
-    
+
     prescription = await prescription_service.create_prescription(
         "PAT123456", 1, medications
     )
-    
+
     assert isinstance(prescription, dict)
     assert prescription["patient_id"] == "PAT123456"
     assert prescription["status"] == PrescriptionStatus.ACTIVE
@@ -76,11 +76,11 @@ async def test_create_prescription_success(prescription_service, mock_patient, s
 async def test_create_prescription_basic_functionality(prescription_service, sample_prescription_data):
     """Test basic prescription creation functionality."""
     medications = sample_prescription_data["medications"]
-    
+
     prescription = await prescription_service.create_prescription(
         "PAT123456", 1, medications
     )
-    
+
     assert isinstance(prescription, dict)
     assert "validation_results" in prescription
     assert "interaction_results" in prescription
@@ -98,9 +98,9 @@ async def test_validate_medications_success(prescription_service):
             "duration": 30
         }
     ]
-    
+
     validation = await prescription_service._validate_medications(medications, "PAT123456")
-    
+
     assert isinstance(validation, dict)
     assert "valid" in validation
     assert "warnings" in validation
@@ -116,9 +116,9 @@ async def test_validate_medications_missing_fields(prescription_service):
             "name": "Aspirin"
         }
     ]
-    
+
     validation = await prescription_service._validate_medications(medications, "PAT123456")
-    
+
     assert isinstance(validation, dict)
     assert validation["valid"] is False
     assert len(validation["errors"]) > 0
@@ -131,15 +131,15 @@ async def test_check_drug_interactions(prescription_service):
         {"name": "Warfarin", "dosage": "5mg"},
         {"name": "Aspirin", "dosage": "81mg"}
     ]
-    
+
     interactions = await prescription_service._check_drug_interactions(medications)
-    
+
     assert isinstance(interactions, dict)
     assert "has_interactions" in interactions
     assert "interactions" in interactions
     assert "severity_summary" in interactions
     assert isinstance(interactions["interactions"], list)
-    
+
     for interaction in interactions["interactions"]:
         assert "drug1" in interaction
         assert "drug2" in interaction
@@ -156,11 +156,11 @@ async def test_generate_ai_recommendations(prescription_service):
     ]
     validation_results = {"valid": True, "warnings": [], "errors": []}
     interaction_results = {"has_interactions": False, "interactions": [], "severity_summary": {"major": 0, "contraindicated": 0}}
-    
+
     recommendations = await prescription_service._generate_ai_recommendations(
         medications, validation_results, interaction_results
     )
-    
+
     assert isinstance(recommendations, list)
 
 
@@ -171,9 +171,9 @@ async def test_drug_interaction_checking(prescription_service):
         {"name": "warfarin", "dosage": "5mg"},
         {"name": "aspirin", "dosage": "81mg"}
     ]
-    
+
     interactions = await prescription_service._check_drug_interactions(medications)
-    
+
     assert isinstance(interactions, dict)
     assert "has_interactions" in interactions
     assert "interactions" in interactions
@@ -184,7 +184,7 @@ async def test_drug_interaction_checking(prescription_service):
 async def test_get_prescription_by_id(prescription_service):
     """Test getting prescription by ID."""
     prescription = await prescription_service.get_prescription_by_id("RX123456")
-    
+
     assert prescription is None
 
 
@@ -194,7 +194,7 @@ async def test_update_prescription_status(prescription_service):
     result = await prescription_service.update_prescription_status(
         "RX123456", PrescriptionStatus.COMPLETED, 1
     )
-    
+
     assert isinstance(result, dict)
     assert result["prescription_id"] == "RX123456"
     assert result["new_status"] == PrescriptionStatus.COMPLETED
@@ -204,7 +204,7 @@ async def test_update_prescription_status(prescription_service):
 async def test_get_patient_prescriptions(prescription_service):
     """Test getting patient prescriptions."""
     prescriptions = await prescription_service.get_patient_prescriptions("PAT123456")
-    
+
     assert isinstance(prescriptions, list)
 
 
@@ -212,7 +212,7 @@ async def test_get_patient_prescriptions(prescription_service):
 async def test_check_prescription_adherence(prescription_service):
     """Test prescription adherence checking."""
     adherence = await prescription_service.check_prescription_adherence("RX123456")
-    
+
     assert isinstance(adherence, dict)
     assert "prescription_id" in adherence
     assert "adherence_score" in adherence
@@ -242,11 +242,11 @@ async def test_interaction_severity_enum():
 async def test_empty_medications_handling(prescription_service):
     """Test handling of empty medications list."""
     medications = []
-    
+
     prescription = await prescription_service.create_prescription(
         "PAT123456", 1, medications
     )
-    
+
     assert isinstance(prescription, dict)
     assert len(prescription["medications"]) == 0
 

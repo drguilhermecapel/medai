@@ -2,30 +2,30 @@
 Targeted test file focusing on real implementations to achieve 80% coverage.
 Tests only what actually exists in the codebase.
 """
-import pytest
-import asyncio
+from unittest.mock import AsyncMock, Mock, patch
+
 import numpy as np
-from unittest.mock import Mock, patch, AsyncMock
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class TestSignalQualityAnalyzer:
     """Test SignalQualityAnalyzer with real methods"""
-    
+
     def test_signal_quality_analyzer_init(self):
         """Test SignalQualityAnalyzer initialization"""
         from app.utils.signal_quality import SignalQualityAnalyzer
         analyzer = SignalQualityAnalyzer()
         assert analyzer is not None
-    
+
     def test_signal_quality_analyze_sync(self):
         """Test synchronous analyze method"""
         from app.utils.signal_quality import SignalQualityAnalyzer
         analyzer = SignalQualityAnalyzer()
-        
+
         test_data = np.random.randn(1000, 12) * 0.5
         result = analyzer.analyze(test_data)
-        
+
         assert isinstance(result, dict)
         assert 'overall_score' in result
         assert 'noise_level' in result
@@ -39,28 +39,28 @@ class TestSignalQualityAnalyzer:
         """Test asynchronous analyze_quality method"""
         from app.utils.signal_quality import SignalQualityAnalyzer
         analyzer = SignalQualityAnalyzer()
-        
+
         test_data = np.random.randn(500, 6) * 0.3
         result = await analyzer.analyze_quality(test_data)
-        
+
         assert isinstance(result, dict)
         assert 'overall_score' in result
-        assert isinstance(result['overall_score'], (int, float))
+        assert isinstance(result['overall_score'], int | float)
 
 
 class TestValidationService:
     """Test ValidationService with real methods"""
-    
+
     @pytest.fixture
     def mock_db(self):
         return Mock(spec=AsyncSession)
-    
+
     @pytest.fixture
     def mock_notification_service(self):
         mock_service = Mock()
         mock_service.send_validation_assignment = AsyncMock()
         return mock_service
-    
+
     def test_validation_service_init(self, mock_db, mock_notification_service):
         """Test ValidationService initialization"""
         from app.services.validation_service import ValidationService
@@ -72,16 +72,16 @@ class TestValidationService:
     @pytest.mark.asyncio
     async def test_validation_service_create_validation(self, mock_db, mock_notification_service):
         """Test create_validation method"""
+        from app.core.constants import ClinicalUrgency, UserRoles
         from app.services.validation_service import ValidationService
-        from app.core.constants import UserRoles, ClinicalUrgency
-        
+
         service = ValidationService(mock_db, mock_notification_service)
-        
+
         service.repository = Mock()
         service.repository.get_validation_by_analysis = AsyncMock(return_value=None)
         service.repository.get_analysis_by_id = AsyncMock(return_value=Mock(clinical_urgency=ClinicalUrgency.MEDIUM))
         service.repository.create_validation = AsyncMock(return_value=Mock(id=1))
-        
+
         with patch.object(service, '_can_validate', return_value=True):
             result = await service.create_validation(
                 analysis_id=1,
@@ -93,11 +93,11 @@ class TestValidationService:
 
 class TestAuthService:
     """Test AuthService with real methods"""
-    
+
     @pytest.fixture
     def mock_db(self):
         return Mock()
-    
+
     def test_auth_service_init(self, mock_db):
         """Test AuthService initialization"""
         from app.services.auth_service import AuthService
@@ -108,19 +108,19 @@ class TestAuthService:
     @pytest.mark.asyncio
     async def test_authenticate_user(self, mock_db):
         """Test authenticate_user method"""
-        from app.services.auth_service import AuthService
         from app.models.user import User
-        
+        from app.services.auth_service import AuthService
+
         service = AuthService(mock_db)
-        
+
         mock_user = Mock(spec=User)
         mock_user.username = "testuser"
         mock_user.locked_until = None
         mock_user.is_active = True
         mock_user.id = 1
-        
+
         mock_db.query.return_value.filter.return_value.first.return_value = mock_user
-        
+
         with patch('app.services.auth_service.verify_password', return_value=True):
             with patch.object(service, 'record_login', new_callable=AsyncMock):
                 result = await service.authenticate_user("testuser", "password")
@@ -129,15 +129,15 @@ class TestAuthService:
     @pytest.mark.asyncio
     async def test_record_login(self, mock_db):
         """Test record_login method"""
-        from app.services.auth_service import AuthService
         from app.models.user import User
-        
+        from app.services.auth_service import AuthService
+
         service = AuthService(mock_db)
-        
+
         mock_user = Mock(spec=User)
         mock_user.id = 1
         mock_db.query.return_value.filter.return_value.first.return_value = mock_user
-        
+
         with patch.object(service, 'log_audit', new_callable=AsyncMock):
             await service.record_login(1)
             assert mock_user.failed_login_attempts == 0
@@ -145,7 +145,7 @@ class TestAuthService:
 
 class TestECGProcessor:
     """Test ECGProcessor with real methods"""
-    
+
     def test_ecg_processor_init(self):
         """Test ECGProcessor initialization"""
         from app.utils.ecg_processor import ECGProcessor
@@ -155,18 +155,19 @@ class TestECGProcessor:
     @pytest.mark.asyncio
     async def test_extract_metadata(self):
         """Test extract_metadata method"""
-        from app.utils.ecg_processor import ECGProcessor
-        import tempfile
         import os
-        
+        import tempfile
+
+        from app.utils.ecg_processor import ECGProcessor
+
         processor = ECGProcessor()
-        
+
         with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
             f.write("lead1,lead2,lead3\n")
             f.write("0.1,0.2,0.3\n")
             f.write("0.4,0.5,0.6\n")
             temp_file = f.name
-        
+
         try:
             metadata = await processor.extract_metadata(temp_file)
             assert isinstance(metadata, dict)
@@ -181,10 +182,10 @@ class TestECGProcessor:
     async def test_preprocess_signal(self):
         """Test preprocess_signal method"""
         from app.utils.ecg_processor import ECGProcessor
-        
+
         processor = ECGProcessor()
         test_data = np.random.randn(1000, 3) * 0.5
-        
+
         with patch('neurokit2.ecg_clean', return_value=test_data[:, 0]):
             result = await processor.preprocess_signal(test_data)
             assert result.shape == test_data.shape
@@ -192,7 +193,7 @@ class TestECGProcessor:
 
 class TestLowCoverageServices:
     """Test various low coverage services"""
-    
+
     def test_ecg_service_init(self):
         """Test ECGAnalysisService initialization"""
         from app.services.ecg_service import ECGAnalysisService
@@ -238,7 +239,7 @@ class TestLowCoverageServices:
 
 class TestUtilitiesAndProcessors:
     """Test utility classes and processors"""
-    
+
     def test_memory_monitor_init(self):
         """Test MemoryMonitor initialization"""
         from app.utils.memory_monitor import MemoryMonitor
@@ -268,7 +269,7 @@ class TestUtilitiesAndProcessors:
 
 class TestValidationModules:
     """Test validation modules"""
-    
+
     def test_clinical_validation_init(self):
         """Test ClinicalValidationFramework initialization"""
         from app.validation.clinical_validation import ClinicalValidationFramework
@@ -293,7 +294,7 @@ class TestValidationModules:
 
 class TestRepositories:
     """Test repository classes"""
-    
+
     @pytest.fixture
     def mock_db(self):
         return Mock(spec=AsyncSession)
@@ -336,38 +337,50 @@ class TestRepositories:
 
 class TestSchemas:
     """Test schema imports and basic functionality"""
-    
+
     def test_ecg_analysis_schemas(self):
         """Test ECG analysis schemas"""
-        from app.schemas.ecg_analysis import ECGAnalysisBase, ECGAnalysis, ECGAnalysisCreate
+        from app.schemas.ecg_analysis import (
+            ECGAnalysis,
+            ECGAnalysisBase,
+            ECGAnalysisCreate,
+        )
         assert ECGAnalysisBase is not None
         assert ECGAnalysis is not None
         assert ECGAnalysisCreate is not None
 
     def test_patient_schemas(self):
         """Test patient schemas"""
-        from app.schemas.patient import PatientBase, Patient, PatientCreate
+        from app.schemas.patient import Patient, PatientBase, PatientCreate
         assert PatientBase is not None
         assert Patient is not None
         assert PatientCreate is not None
 
     def test_user_schemas(self):
         """Test user schemas"""
-        from app.schemas.user import UserBase, User, UserCreate
+        from app.schemas.user import User, UserBase, UserCreate
         assert UserBase is not None
         assert User is not None
         assert UserCreate is not None
 
     def test_notification_schemas(self):
         """Test notification schemas"""
-        from app.schemas.notification import NotificationBase, Notification, NotificationCreate
+        from app.schemas.notification import (
+            Notification,
+            NotificationBase,
+            NotificationCreate,
+        )
         assert NotificationBase is not None
         assert Notification is not None
         assert NotificationCreate is not None
 
     def test_validation_schemas(self):
         """Test validation schemas"""
-        from app.schemas.validation import ValidationBase, ValidationCreate, ValidationSubmit
+        from app.schemas.validation import (
+            ValidationBase,
+            ValidationCreate,
+            ValidationSubmit,
+        )
         assert ValidationBase is not None
         assert ValidationCreate is not None
         assert ValidationSubmit is not None
@@ -375,7 +388,7 @@ class TestSchemas:
 
 class TestAPIEndpoints:
     """Test API endpoint imports"""
-    
+
     def test_ai_endpoints_import(self):
         """Test AI endpoints import"""
         from app.api.v1.endpoints import ai
@@ -419,7 +432,7 @@ class TestAPIEndpoints:
 
 class TestHighImpactServices:
     """Test high-impact services for coverage"""
-    
+
     def test_ml_model_service_init(self):
         """Test MLModelService initialization"""
         from app.services.ml_model_service import MLModelService
@@ -461,7 +474,7 @@ class TestHighImpactServices:
 
 class TestECGVisualizationsAndTasks:
     """Test ECG visualizations and tasks"""
-    
+
     def test_ecg_visualizations_init(self):
         """Test ECGVisualizationGenerator initialization - skip if not found"""
         try:
@@ -480,7 +493,7 @@ class TestECGVisualizationsAndTasks:
 
 class TestMonitoringAndLogging:
     """Test monitoring and logging modules"""
-    
+
     def test_structured_logging_init(self):
         """Test StructuredLogger initialization - skip if not found"""
         try:
@@ -495,17 +508,17 @@ class TestMonitoringAndLogging:
         """Test MemoryMonitor methods"""
         from app.utils.memory_monitor import MemoryMonitor
         monitor = MemoryMonitor()
-        
+
         assert hasattr(monitor, 'get_memory_usage')
         assert hasattr(monitor, 'log_memory_usage')
-        
+
         usage = monitor.get_memory_usage()
         assert isinstance(usage, dict)
 
 
 class TestDatabaseModules:
     """Test database-related modules"""
-    
+
     def test_session_import(self):
         """Test database session import"""
         from app.db import session
@@ -520,7 +533,7 @@ class TestDatabaseModules:
 
 class TestCoreModules:
     """Test core modules"""
-    
+
     def test_constants_import(self):
         """Test constants import"""
         from app.core import constants

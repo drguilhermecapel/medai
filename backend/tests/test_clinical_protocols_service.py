@@ -1,13 +1,12 @@
 """Test clinical protocols service."""
 
+
 import pytest
-from unittest.mock import AsyncMock, Mock
-from datetime import datetime
 
 from app.services.clinical_protocols_service import (
     ClinicalProtocolsService,
     ProtocolType,
-    RiskLevel
+    RiskLevel,
 )
 
 
@@ -84,7 +83,7 @@ async def test_assess_sepsis_protocol(protocols_service, sample_patient_data, se
     assessment = await protocols_service.assess_protocol(
         ProtocolType.SEPSIS, sample_patient_data, sepsis_clinical_data
     )
-    
+
     assert isinstance(assessment, dict)
     assert "protocol_type" in assessment
     assert "risk_level" in assessment
@@ -100,7 +99,7 @@ async def test_assess_chest_pain_protocol(protocols_service, sample_patient_data
     assessment = await protocols_service.assess_protocol(
         ProtocolType.CHEST_PAIN, sample_patient_data, chest_pain_clinical_data
     )
-    
+
     assert isinstance(assessment, dict)
     assert "protocol_type" in assessment
     assert "risk_level" in assessment
@@ -116,7 +115,7 @@ async def test_assess_stroke_protocol(protocols_service, sample_patient_data, st
     assessment = await protocols_service.assess_protocol(
         ProtocolType.STROKE, sample_patient_data, stroke_clinical_data
     )
-    
+
     assert isinstance(assessment, dict)
     assert "protocol_type" in assessment
     assert "risk_level" in assessment
@@ -132,7 +131,7 @@ async def test_assess_protocol_generic(protocols_service, sample_patient_data, s
     assessment = await protocols_service.assess_protocol(
         ProtocolType.SEPSIS, sample_patient_data, sepsis_clinical_data
     )
-    
+
     assert isinstance(assessment, dict)
     assert "protocol_type" in assessment
     assert assessment["protocol_type"] == ProtocolType.SEPSIS.value
@@ -144,7 +143,7 @@ async def test_get_applicable_protocols(protocols_service, sample_patient_data, 
     protocols = await protocols_service.get_applicable_protocols(
         sample_patient_data, sepsis_clinical_data
     )
-    
+
     assert isinstance(protocols, list)
     for protocol in protocols:
         assert "protocol_type" in protocol
@@ -177,11 +176,11 @@ async def test_sepsis_assessment_with_high_risk(protocols_service):
             "white_blood_cell_count": 16000
         }
     }
-    
+
     assessment = await protocols_service.assess_protocol(
         ProtocolType.SEPSIS, patient_data, clinical_data
     )
-    
+
     assert assessment["applicable"] is True
     assert assessment["risk_level"] in [RiskLevel.HIGH.value, RiskLevel.MODERATE.value]
     assert len(assessment["recommendations"]) > 0
@@ -196,11 +195,11 @@ async def test_chest_pain_assessment_with_risk_factors(protocols_service):
             "st_elevation": True
         }
     }
-    
+
     assessment = await protocols_service.assess_protocol(
         ProtocolType.CHEST_PAIN, patient_data, clinical_data
     )
-    
+
     assert assessment["applicable"] is True
     assert assessment["risk_level"] in [RiskLevel.HIGH.value, RiskLevel.MODERATE.value]
 
@@ -219,11 +218,11 @@ async def test_stroke_assessment_with_symptoms(protocols_service):
             "symptom_onset": 2.0
         }
     }
-    
+
     assessment = await protocols_service.assess_protocol(
         ProtocolType.STROKE, patient_data, clinical_data
     )
-    
+
     assert assessment["applicable"] is True
     assert assessment["risk_level"] in [RiskLevel.HIGH.value, RiskLevel.MODERATE.value]
 
@@ -249,7 +248,7 @@ async def test_risk_level_enum():
 async def test_empty_data_handling(protocols_service):
     """Test handling of empty data."""
     assessment = await protocols_service.assess_protocol(ProtocolType.SEPSIS, {}, {})
-    
+
     assert isinstance(assessment, dict)
     assert "protocol_type" in assessment
     assert "risk_level" in assessment
@@ -261,6 +260,6 @@ async def test_invalid_protocol_type_handling(protocols_service, sample_patient_
     assessment = await protocols_service.assess_protocol(
         "invalid_protocol", sample_patient_data, sepsis_clinical_data
     )
-    
+
     assert "error" in assessment
     assert "Unknown protocol type" in assessment["error"]
