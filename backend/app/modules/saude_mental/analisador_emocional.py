@@ -258,6 +258,18 @@ class AnalisadorEmocionalMultimodal:
             'duracao_media_pausas': pause_duration
         }
 
+    async def analisar_emocoes_multimodal(self, paciente: dict) -> dict:
+        """Análise multimodal de emoções - método esperado pelos testes"""
+        return await self.analisar_estado_emocional(paciente)
+
+    async def processar_video_facial(self, video_data: bytes) -> dict:
+        """Processa vídeo facial - método esperado pelos testes"""
+        return await self.analisar_expressoes_faciais(video_data)
+
+    async def analisar_audio_emocional(self, audio_data: bytes) -> dict:
+        """Analisa áudio emocional - método esperado pelos testes"""
+        return await self.analisar_emocoes_voz(audio_data)
+
 
 class AnalisadorExpressaoFacial:
     pass

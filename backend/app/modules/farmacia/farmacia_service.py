@@ -370,3 +370,6 @@ class FarmaciaHospitalarIA:
                 'Capacitar equipe em farmacogenética'
             ]
         }
+
+
+FarmaciaInteligenteIA = FarmaciaHospitalarIA

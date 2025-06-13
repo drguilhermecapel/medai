@@ -251,8 +251,8 @@ Recommendations:
 
     def generate_explanation_string(self, features: dict, diagnosis: str = None) -> str:
         """Generate explanation as string - método esperado pelos testes"""
-        explanation_dict = self.generate_explanation(features, diagnosis)
-        return explanation_dict.get('summary', 'No explanation available')
+        explanation_str = self.generate_explanation(features, diagnosis)
+        return explanation_str if isinstance(explanation_str, str) else 'No explanation available'
 
     def generate_explanation_old(self, features_or_diagnosis: dict[str, Any], diagnosis: str = None) -> dict[str, Any]:
         """Original generate_explanation method that returns dict"""
