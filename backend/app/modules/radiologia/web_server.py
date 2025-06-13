@@ -27,20 +27,26 @@ def create_radiologia_app():
         """Inicializa o sistema MedAI"""
         nonlocal medai_system
         try:
-            from .radiologia_ia_service import RadiologiaInteligenteMedIA
+            from .optimized_radiologia_service import RadiologiaInteligenteMedIA
             medai_system = RadiologiaInteligenteMedIA()
-            logger.info("Sistema MedAI inicializado com sucesso")
+            logger.info("Sistema MedAI otimizado inicializado com sucesso")
         except ImportError:
-            logger.warning("Sistema MedAI não disponível, usando mock")
-            medai_system = type('MockSystem', (), {
-                'analyze_image': lambda self, img: {
-                    'predicted_class': 'Normal',
-                    'confidence': 0.95,
-                    'predictions': {'Normal': 0.95, 'Pneumonia': 0.05},
-                    'findings': ['Sem achados patológicos'],
-                    'recommendations': ['Exame dentro dos limites da normalidade']
-                }
-            })()
+            try:
+                from .radiologia_ia_service import RadiologiaInteligenteMedIA
+                medai_system = RadiologiaInteligenteMedIA()
+                logger.info("Sistema MedAI básico inicializado com sucesso")
+            except ImportError:
+                logger.warning("Sistema MedAI não disponível, usando mock")
+                class MockSystem:
+                    def analyze_image(self, img):
+                        return {
+                            'predicted_class': 'Normal',
+                            'confidence': 0.95,
+                            'predictions': {'Normal': 0.95, 'Pneumonia': 0.05},
+                            'findings': ['Sem achados patológicos'],
+                            'recommendations': ['Exame dentro dos limites da normalidade']
+                        }
+                medai_system = MockSystem()
 
     @app.route('/')
     def index():
@@ -76,17 +82,29 @@ def create_radiologia_app():
             if file.filename.lower().endswith('.dcm'):
                 try:
                     from io import BytesIO
-
                     import pydicom
+                    
                     dicom_data = pydicom.dcmread(BytesIO(image_data), force=True)
-                    image_array = dicom_data.pixel_array
-
-                    if image_array.max() > 255:
-                        image_array = ((image_array - image_array.min()) /
-                                     (image_array.max() - image_array.min()) * 255).astype(np.uint8)
-
-                    if len(image_array.shape) == 2:
-                        image_array = np.stack([image_array] * 3, axis=-1)
+                    image_array = dicom_data.pixel_array.astype(np.float32)
+                    
+                    if hasattr(dicom_data, 'RescaleSlope') and hasattr(dicom_data, 'RescaleIntercept'):
+                        image_array = image_array * float(dicom_data.RescaleSlope) + float(dicom_data.RescaleIntercept)
+                    
+                    window_center = float(dicom_data.WindowCenter[0]) if hasattr(dicom_data, 'WindowCenter') else 40
+                    window_width = float(dicom_data.WindowWidth[0]) if hasattr(dicom_data, 'WindowWidth') else 400
+                    
+                    img_min = window_center - window_width / 2
+                    img_max = window_center + window_width / 2
+                    image_array = np.clip(image_array, img_min, img_max)
+                    
+                    image_array = (image_array - img_min) / window_width
+                    
+                    display_array = (image_array * 255).astype(np.uint8)
+                    
+                    if len(display_array.shape) == 2:
+                        image_array = np.stack([display_array] * 3, axis=-1)
+                    else:
+                        image_array = display_array
 
                 except Exception as e:
                     return jsonify({'error': f'Erro ao processar DICOM: {str(e)}'}), 400
