@@ -17,7 +17,7 @@ class ValidationBase(BaseModel):
 
 class ValidationCreate(ValidationBase):
     """Validation creation schema."""
-    pass
+    status: ValidationStatus = ValidationStatus.PENDING
 
 
 class ValidationUpdate(BaseModel):

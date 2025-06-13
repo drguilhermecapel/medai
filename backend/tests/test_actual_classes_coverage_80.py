@@ -333,12 +333,14 @@ class TestSchemasCoverageActual:
     def test_notification_schema(self):
         """Test notification schema"""
         from app.schemas.notification import NotificationCreate
+        from app.core.constants import NotificationType, NotificationPriority
 
         data = {
             "title": "Test Notification",
             "message": "Test message",
             "user_id": 1,
-            "type": "info"
+            "notification_type": NotificationType.ANALYSIS_COMPLETE,
+            "priority": NotificationPriority.LOW
         }
         schema = NotificationCreate(**data)
         assert schema.title == "Test Notification"
