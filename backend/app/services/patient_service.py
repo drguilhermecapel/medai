@@ -90,6 +90,14 @@ class PatientService(BaseService):
         """Get patient by patient ID."""
         return await self.repository.get_patient_by_patient_id(patient_id)
 
+    async def get_by_id(self, patient_id: int) -> Patient | None:
+        """Get patient by ID - alias for repository method."""
+        return await self.repository.get_patient_by_id(patient_id)
+
+    async def get_patient(self, patient_id: int) -> Patient | None:
+        """Get patient by ID - alias for test compatibility."""
+        return await self.repository.get_patient_by_id(patient_id)
+
     async def update_patient(self, patient_id: int, update_data: dict[str, Any]) -> Patient | None:
         """Update patient information."""
         if 'height_cm' in update_data or 'weight_kg' in update_data:

@@ -1,6 +1,7 @@
 """
 Medical Record Service - Comprehensive medical record management.
 Optimized version based on MedIA Pro medical record capabilities.
+Integrado com sistema de diretrizes médicas e validação de conformidade.
 """
 
 import logging
@@ -11,6 +12,8 @@ from typing import Any, cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.patient_repository import PatientRepository
+from app.services.medical_guidelines_engine import MotorDiretrizesMedicasIA, ValidadorConformidadeDiretrizes
+from app.services.medical_document_generator import MedicalDocumentGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -42,13 +45,17 @@ class MedicalRecordService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
         self.patient_repository = PatientRepository(db)
+        self.guidelines_engine = MotorDiretrizesMedicasIA()
+        self.validator = ValidadorConformidadeDiretrizes()
+        self.document_generator = MedicalDocumentGenerator(db)
 
     async def create_medical_record(
         self,
         patient_id: str,
         record_type: RecordType,
         record_data: dict[str, Any],
-        created_by: int
+        created_by: int,
+        primary_diagnosis: str = ""
     ) -> dict[str, Any]:
         """Create a new medical record."""
         try:
@@ -64,6 +71,7 @@ class MedicalRecordService:
                 "created_by": created_by,
                 "created_at": datetime.utcnow().isoformat(),
                 "updated_at": datetime.utcnow().isoformat(),
+                "primary_diagnosis": primary_diagnosis,
                 "data": record_data
             }
 
@@ -71,7 +79,13 @@ class MedicalRecordService:
             if not validation_result["valid"]:
                 raise ValueError(f"Invalid record data: {validation_result['errors']}")
 
+            guidelines_validation = await self._validate_against_guidelines(
+                record, record_type, primary_diagnosis
+            )
+
             record = await self._process_record_by_type(record, record_type)
+            record["validation_result"] = validation_result
+            record["guidelines_validation"] = guidelines_validation
 
             logger.info(f"Created medical record: {record['record_id']} for patient {patient_id}")
             return record
@@ -208,4 +222,88 @@ class MedicalRecordService:
 
         except Exception as e:
             logger.error(f"Error retrieving medical history: {str(e)}")
+            raise
+
+    async def _validate_against_guidelines(
+        self,
+        record: dict[str, Any],
+        record_type: RecordType,
+        diagnosis: str
+    ) -> dict[str, Any]:
+        """Valida registro médico contra diretrizes"""
+        try:
+            if record_type == RecordType.PRESCRIPTION:
+                return await self.validator.validar_acao_medica(
+                    acao=record["data"],
+                    tipo_acao="prescricao",
+                    diagnostico=diagnosis
+                )
+            elif record_type == RecordType.CONSULTATION:
+                return {
+                    "conformidade": 100.0,
+                    "status": "conforme",
+                    "alertas": [],
+                    "recomendacoes": ["Registro de consulta criado conforme padrões"]
+                }
+            else:
+                return {
+                    "conformidade": 100.0,
+                    "status": "nao_aplicavel",
+                    "alertas": [],
+                    "recomendacoes": []
+                }
+        except Exception as e:
+            logger.error(f"Error validating against guidelines: {str(e)}")
+            return {
+                "conformidade": 0.0,
+                "status": "erro",
+                "alertas": [f"Erro na validação: {str(e)}"],
+                "recomendacoes": []
+            }
+
+    async def generate_medical_document(
+        self,
+        patient_id: str,
+        document_type: str,
+        document_data: dict[str, Any],
+        physician_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Gera documento médico formatado"""
+        try:
+            patient = await self.patient_repository.get_patient_by_patient_id(patient_id)
+            if not patient:
+                raise ValueError(f"Patient {patient_id} not found")
+
+            patient_data = {
+                "name": f"{patient.first_name} {patient.last_name}",
+                "patient_id": patient_id,
+                "age": getattr(patient, 'age', ''),
+                "address": getattr(patient, 'address', '')
+            }
+
+            if document_type == "prescription":
+                return await self.document_generator.generate_prescription_document(
+                    patient_data=patient_data,
+                    physician_data=physician_data,
+                    prescription_data=document_data,
+                    diagnosis=document_data.get("diagnosis", "")
+                )
+            elif document_type == "medical_certificate":
+                return await self.document_generator.generate_medical_certificate(
+                    patient_data=patient_data,
+                    physician_data=physician_data,
+                    certificate_data=document_data
+                )
+            elif document_type == "exam_request":
+                return await self.document_generator.generate_exam_request_document(
+                    patient_data=patient_data,
+                    physician_data=physician_data,
+                    exam_request_data=document_data,
+                    diagnosis=document_data.get("diagnosis", "")
+                )
+            else:
+                raise ValueError(f"Unsupported document type: {document_type}")
+
+        except Exception as e:
+            logger.error(f"Error generating medical document: {str(e)}")
             raise

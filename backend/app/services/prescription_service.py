@@ -1,6 +1,7 @@
 """
 Prescription Service - Enhanced prescription management with AI validation.
 Optimized version based on MedIA Pro prescription capabilities.
+Integrado com sistema de diretrizes médicas atualizadas.
 """
 
 import logging
@@ -9,6 +10,7 @@ from enum import Enum
 from typing import Any, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.services.medical_guidelines_engine import MotorDiretrizesMedicasIA, ValidadorConformidadeDiretrizes
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +39,8 @@ class PrescriptionService:
         self.db = db
         self.drug_database = self._initialize_drug_database()
         self.interaction_rules = self._initialize_interaction_rules()
+        self.motor_diretrizes = MotorDiretrizesMedicasIA()
+        self.validador_conformidade = ValidadorConformidadeDiretrizes()
 
     def _initialize_drug_database(self) -> dict[str, dict[str, Any]]:
         """Initialize drug database with common medications."""
@@ -99,15 +103,20 @@ class PrescriptionService:
         patient_id: str,
         prescriber_id: int,
         medications: list[dict[str, Any]],
-        diagnosis_codes: list[str] | None = None
+        diagnosis_codes: list[str] | None = None,
+        primary_diagnosis: str = ""
     ) -> dict[str, Any]:
-        """Create a new prescription with AI validation."""
+        """Create a new prescription with AI validation and guidelines compliance."""
         try:
             prescription_id = f"RX_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{patient_id}"
 
             validation_results = await self._validate_medications(medications, patient_id)
 
             interaction_results = await self._check_drug_interactions(medications)
+
+            guidelines_validation = await self._validate_against_guidelines(
+                medications, primary_diagnosis
+            )
 
             prescription = {
                 "prescription_id": prescription_id,
@@ -117,10 +126,12 @@ class PrescriptionService:
                 "created_at": datetime.utcnow().isoformat(),
                 "medications": medications,
                 "diagnosis_codes": diagnosis_codes or [],
+                "primary_diagnosis": primary_diagnosis,
                 "validation_results": validation_results,
                 "interaction_results": interaction_results,
+                "guidelines_validation": guidelines_validation,
                 "ai_recommendations": await self._generate_ai_recommendations(
-                    medications, validation_results, interaction_results
+                    medications, validation_results, interaction_results, guidelines_validation
                 )
             }
 
@@ -229,11 +240,33 @@ class PrescriptionService:
 
         return interaction_results
 
+    async def _validate_against_guidelines(
+        self,
+        medications: list[dict[str, Any]],
+        diagnosis: str
+    ) -> dict[str, Any]:
+        """Valida prescrição contra diretrizes médicas atualizadas"""
+        if not diagnosis:
+            return {
+                "conformidade": 0.0,
+                "status": "sem_diagnostico",
+                "alertas": ["Diagnóstico não informado para validação"],
+                "recomendacoes": []
+            }
+        
+        prescription_data = {"medications": medications}
+        return await self.validador_conformidade.validar_acao_medica(
+            acao=prescription_data,
+            tipo_acao="prescricao",
+            diagnostico=diagnosis
+        )
+
     async def _generate_ai_recommendations(
         self,
         medications: list[dict[str, Any]],
         validation_results: dict[str, Any],
-        interaction_results: dict[str, Any]
+        interaction_results: dict[str, Any],
+        guidelines_validation: dict[str, Any] | None = None
     ) -> list[str]:
         """Generate AI-powered recommendations for the prescription."""
         recommendations = []
@@ -249,6 +282,20 @@ class PrescriptionService:
                 recommendations.append("CRITICAL: Contraindicated drug combinations detected - do not dispense")
             elif major_interactions > 0:
                 recommendations.append("Major drug interactions detected - consider alternative medications")
+
+        if guidelines_validation:
+            conformidade = guidelines_validation.get("conformidade", 0)
+            status = guidelines_validation.get("status", "")
+            
+            if status == "nao_conforme":
+                recommendations.append(f"⚠️ BAIXA CONFORMIDADE ({conformidade}%) com diretrizes médicas")
+            elif status == "parcialmente_conforme":
+                recommendations.append(f"⚡ Conformidade parcial ({conformidade}%) com diretrizes")
+            elif status == "conforme":
+                recommendations.append(f"✅ Prescrição conforme diretrizes médicas ({conformidade}%)")
+            
+            for recomendacao in guidelines_validation.get("recomendacoes", []):
+                recommendations.append(f"📋 Diretriz: {recomendacao}")
 
         if len(medications) > 5:
             recommendations.append("Consider medication reconciliation due to polypharmacy")

@@ -4,6 +4,7 @@ Notification Service - Real-time notifications and alerts.
 
 import logging
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -350,3 +351,23 @@ class NotificationService:
     async def get_unread_count(self, user_id: int) -> int:
         """Get unread notification count for a user."""
         return await self.repository.get_unread_count(user_id)
+
+    async def mark_as_read(self, notification_id: int, user_id: int) -> bool:
+        """Mark notification as read."""
+        return await self.mark_notification_read(notification_id, user_id)
+
+    async def delete_notification(self, notification_id: int, user_id: int) -> bool:
+        """Delete a notification."""
+        try:
+            return await self.repository.delete_notification(notification_id, user_id)
+        except Exception as e:
+            logger.error(f"Failed to delete notification {notification_id}: {e}")
+            return False
+
+    async def update_preferences(self, user_id: int, preferences: dict[str, Any]) -> bool:
+        """Update notification preferences for a user."""
+        try:
+            return await self.repository.update_user_preferences(user_id, preferences)
+        except Exception as e:
+            logger.error(f"Failed to update preferences for user {user_id}: {e}")
+            return False
