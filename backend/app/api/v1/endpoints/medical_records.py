@@ -7,12 +7,9 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 
-from app.db.session import get_db
-from app.services.user_service import UserService
 from app.models.user import User
-
+from app.services.user_service import UserService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -38,7 +35,7 @@ async def list_medical_records(
                 "updated_at": "2024-06-12T10:30:00Z"
             }
         ]
-        
+
         return records
 
     except Exception as e:
@@ -66,7 +63,7 @@ async def create_medical_record(
             "updated_at": "2024-06-12T10:30:00Z",
             "created_by": current_user.id
         }
-        
+
         return record
 
     except ValueError as e:
@@ -99,7 +96,7 @@ async def get_medical_record(
             "created_at": "2024-06-12T10:30:00Z",
             "updated_at": "2024-06-12T10:30:00Z"
         }
-        
+
         return record
 
     except HTTPException:
@@ -131,7 +128,7 @@ async def update_medical_record(
             "updated_at": "2024-06-12T10:35:00Z",
             "updated_by": current_user.id
         }
-        
+
         return record
 
     except HTTPException:
@@ -154,7 +151,7 @@ async def add_evolution(
     """
     try:
         evolution_id = 1
-        
+
         return {
             "message": "Evolution added successfully",
             "evolution_id": evolution_id,
@@ -193,7 +190,7 @@ async def transcribe_voice(
             "processed_at": "2024-06-12T10:30:00Z",
             "created_by": current_user.id
         }
-        
+
         return result
 
     except ValueError as e:
@@ -225,7 +222,7 @@ async def get_ai_summary(
             "risk_stratification": "High risk",
             "generated_at": "2024-06-12T10:30:00Z"
         }
-        
+
         return {
             "record_id": record_id,
             "summary": summary,

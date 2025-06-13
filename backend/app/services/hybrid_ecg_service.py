@@ -537,7 +537,7 @@ class FeatureExtractor:
 
 class MultiPathologyService:
     """Service for detecting multiple pathologies in ECG data."""
-    
+
     def __init__(self):
         """Initialize the multi-pathology service."""
         self.scp_conditions = {

@@ -129,11 +129,11 @@ class MemoryMonitor:
         try:
             current_memory = self.get_memory_usage()
             current_mb = current_memory.get("process_memory_mb", 0)
-            
+
             has_leak = current_mb > threshold_mb
-            
+
             logger.info(f"Memory leak detection: threshold={threshold_mb}MB, current={current_mb}MB, has_leak={has_leak}")
-            
+
             return {
                 "has_leak": has_leak,
                 "current_memory_mb": current_mb,

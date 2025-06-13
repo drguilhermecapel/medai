@@ -12,8 +12,11 @@ from typing import Any, cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.patient_repository import PatientRepository
-from app.services.medical_guidelines_engine import MotorDiretrizesMedicasIA, ValidadorConformidadeDiretrizes
 from app.services.medical_document_generator import MedicalDocumentGenerator
+from app.services.medical_guidelines_engine import (
+    MotorDiretrizesMedicasIA,
+    ValidadorConformidadeDiretrizes,
+)
 
 logger = logging.getLogger(__name__)
 

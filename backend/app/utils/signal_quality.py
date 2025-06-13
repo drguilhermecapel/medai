@@ -224,12 +224,12 @@ class SignalQualityAnalyzer:
             asyncio.set_event_loop(loop)
             result = loop.run_until_complete(self.analyze_quality(signal))
             loop.close()
-            
+
             if 'quality_issues' in result:
                 result['issues'] = result['quality_issues']
             elif 'issues' not in result:
                 result['issues'] = []
-                
+
             return result
         except Exception as e:
             logger.error(f"Signal analysis failed: {e}")
