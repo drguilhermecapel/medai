@@ -7,12 +7,9 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 
-from app.db.session import get_db
-from app.services.user_service import UserService
 from app.models.user import User
-
+from app.services.user_service import UserService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -38,7 +35,7 @@ async def list_medical_records(
                 "updated_at": "2024-06-12T10:30:00Z"
             }
         ]
-        
+
         return records
 
     except Exception as e:
@@ -46,7 +43,7 @@ async def list_medical_records(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error retrieving medical records"
-        )
+        ) from e
 
 @router.post("/")
 async def create_medical_record(
@@ -66,7 +63,7 @@ async def create_medical_record(
             "updated_at": "2024-06-12T10:30:00Z",
             "created_by": current_user.id
         }
-        
+
         return record
 
     except ValueError as e:
@@ -79,7 +76,7 @@ async def create_medical_record(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error creating medical record"
-        )
+        ) from e
 
 @router.get("/{record_id}")
 async def get_medical_record(
@@ -99,7 +96,7 @@ async def get_medical_record(
             "created_at": "2024-06-12T10:30:00Z",
             "updated_at": "2024-06-12T10:30:00Z"
         }
-        
+
         return record
 
     except HTTPException:
@@ -109,7 +106,7 @@ async def get_medical_record(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error retrieving medical record"
-        )
+        ) from e
 
 @router.put("/{record_id}")
 async def update_medical_record(
@@ -131,7 +128,7 @@ async def update_medical_record(
             "updated_at": "2024-06-12T10:35:00Z",
             "updated_by": current_user.id
         }
-        
+
         return record
 
     except HTTPException:
@@ -141,7 +138,7 @@ async def update_medical_record(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error updating medical record"
-        )
+        ) from e
 
 @router.post("/{record_id}/evolutions")
 async def add_evolution(
@@ -154,7 +151,7 @@ async def add_evolution(
     """
     try:
         evolution_id = 1
-        
+
         return {
             "message": "Evolution added successfully",
             "evolution_id": evolution_id,
@@ -173,7 +170,7 @@ async def add_evolution(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error adding evolution"
-        )
+        ) from e
 
 @router.post("/{record_id}/transcribe-voice")
 async def transcribe_voice(
@@ -193,7 +190,7 @@ async def transcribe_voice(
             "processed_at": "2024-06-12T10:30:00Z",
             "created_by": current_user.id
         }
-        
+
         return result
 
     except ValueError as e:
@@ -206,7 +203,7 @@ async def transcribe_voice(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error transcribing voice"
-        )
+        ) from e
 
 @router.post("/{record_id}/ai-summary")
 async def get_ai_summary(
@@ -225,7 +222,7 @@ async def get_ai_summary(
             "risk_stratification": "High risk",
             "generated_at": "2024-06-12T10:30:00Z"
         }
-        
+
         return {
             "record_id": record_id,
             "summary": summary,
@@ -243,4 +240,4 @@ async def get_ai_summary(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error generating AI summary"
-        )
+        ) from e

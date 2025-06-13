@@ -1,6 +1,5 @@
-
-import React from 'react';
-import { Brain, Activity, Zap } from 'lucide-react';
+import React from 'react'
+import { Brain, Activity, Zap } from 'lucide-react'
 
 const AIDiagnosticsPage = (): React.ReactElement => {
   return (
@@ -11,11 +10,9 @@ const AIDiagnosticsPage = (): React.ReactElement => {
             <Brain className="w-8 h-8 mr-3 text-purple-600" />
             IA Diagnóstica
           </h1>
-          <p className="text-gray-600 mt-2">
-            Diagnósticos assistidos por inteligência artificial
-          </p>
+          <p className="text-gray-600 mt-2">Diagnósticos assistidos por inteligência artificial</p>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center">
@@ -26,7 +23,7 @@ const AIDiagnosticsPage = (): React.ReactElement => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center">
               <Activity className="w-8 h-8 text-green-600" />
@@ -36,7 +33,7 @@ const AIDiagnosticsPage = (): React.ReactElement => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center">
               <Zap className="w-8 h-8 text-yellow-600" />
@@ -47,14 +44,12 @@ const AIDiagnosticsPage = (): React.ReactElement => {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Sistema de IA Diagnóstica
-          </h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Sistema de IA Diagnóstica</h2>
           <p className="text-gray-600 mb-4">
-            Nossa inteligência artificial analisa dados médicos para fornecer sugestões 
-            diagnósticas precisas e rápidas, auxiliando profissionais de saúde na tomada de decisões.
+            Nossa inteligência artificial analisa dados médicos para fornecer sugestões diagnósticas
+            precisas e rápidas, auxiliando profissionais de saúde na tomada de decisões.
           </p>
           <div className="text-center py-8">
             <Brain className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -65,7 +60,7 @@ const AIDiagnosticsPage = (): React.ReactElement => {
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default AIDiagnosticsPage;
+export default AIDiagnosticsPage

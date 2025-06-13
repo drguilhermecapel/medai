@@ -58,7 +58,7 @@ class AvaliadorFuncionalIA:
         """Medição automatizada do Timed Up and Go com visão computacional"""
 
         try:
-            video_data = await self.simular_captura_video_tug()
+            await self.simular_captura_video_tug()
 
             tempos = {
                 'levantar': 2.1,

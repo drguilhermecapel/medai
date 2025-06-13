@@ -202,7 +202,7 @@ class OtimizadorDistribuicaoIA:
         grupo_ordenado = sorted(grupo_unidades, key=lambda x: x['score_prioridade'], reverse=True)
 
         tempo_total = 0
-        for i, unidade in enumerate(grupo_ordenado):
+        for i, _ in enumerate(grupo_ordenado):
             tempo_preparacao = 10  # minutos base
             tempo_deslocamento = 5 if i > 0 else 0  # minutos entre unidades
             tempo_entrega = 3  # minutos para entrega

@@ -8,13 +8,12 @@ from typing import Any
 
 from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile, status
 
-from app.services.user_service import UserService
 from app.models.user import User
 from app.modules.farmacia import FarmaciaHospitalarIA
 from app.modules.oncologia import OncologiaInteligenteIA
 from app.modules.reabilitacao import ReabilitacaoFisioterapiaIA
 from app.modules.saude_mental import SaudeMentalPsiquiatriaIA
-
+from app.services.user_service import UserService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -29,8 +28,8 @@ async def analyze_medical_text(
     """
     try:
         text = request.get("text", "")
-        context_type = request.get("context_type", "general")
-        
+        _ = request.get("context_type", "general")
+
         return {
             "processed_text": {"original": text, "processed": text.lower()},
             "entities": ["symptom", "medication", "diagnosis"],
@@ -44,7 +43,7 @@ async def analyze_medical_text(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing text: {str(e)}"
-        )
+        ) from e
 
 @router.post("/suggest-diagnoses")
 async def suggest_diagnoses(
@@ -55,14 +54,14 @@ async def suggest_diagnoses(
     Sugerir diagnósticos baseados em sintomas e dados clínicos
     """
     try:
-        symptoms = request.get("symptoms", [])
-        
+        _ = request.get("symptoms", [])
+
         suggestions = [
             {"diagnosis": "Hypertension", "confidence": 0.8, "icd10": "I10"},
             {"diagnosis": "Diabetes Type 2", "confidence": 0.7, "icd10": "E11"},
             {"diagnosis": "Anxiety Disorder", "confidence": 0.6, "icd10": "F41"}
         ]
-        
+
         return {
             "suggestions": suggestions,
             "total_found": len(suggestions)
@@ -73,7 +72,7 @@ async def suggest_diagnoses(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error generating diagnosis suggestions"
-        )
+        ) from e
 
 @router.post("/predict-outcomes")
 async def predict_clinical_outcomes(
@@ -84,14 +83,14 @@ async def predict_clinical_outcomes(
     Predizer desfechos clínicos usando modelos de IA
     """
     try:
-        patient_data = request.get("patient_data", {})
-        
+        _ = request.get("patient_data", {})
+
         predictions = {
             "recovery_probability": 0.75,
             "readmission_risk": 0.25,
             "complications_risk": 0.15
         }
-        
+
         return {
             "predictions": predictions,
             "confidence_intervals": {"recovery": [0.65, 0.85], "readmission": [0.15, 0.35]},
@@ -103,7 +102,7 @@ async def predict_clinical_outcomes(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error generating clinical predictions"
-        )
+        ) from e
 
 @router.post("/extract-voice")
 async def extract_from_voice(
@@ -115,8 +114,8 @@ async def extract_from_voice(
     Extrair informações médicas de áudio
     """
     try:
-        audio_content = await audio_file.read()
-        
+        _ = await audio_file.read()
+
         return {
             "transcription": "Paciente apresenta dor no peito e falta de ar",
             "medical_entities": ["dor no peito", "falta de ar"],
@@ -129,7 +128,7 @@ async def extract_from_voice(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error processing voice input"
-        )
+        ) from e
 
 @router.post("/clinical-summary")
 async def generate_clinical_summary(
@@ -148,7 +147,7 @@ async def generate_clinical_summary(
             "prognosis": "Good with proper treatment",
             "generated_at": "2024-06-12T10:30:00Z"
         }
-        
+
         return {
             "patient_id": patient_id,
             "summary": summary,
@@ -162,7 +161,7 @@ async def generate_clinical_summary(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error generating clinical summary"
-        )
+        ) from e
 
 @router.post("/drug-interactions")
 async def check_drug_interactions(
@@ -176,7 +175,7 @@ async def check_drug_interactions(
         farmacia_ai = FarmaciaHospitalarIA()
 
         medications = request.get("medications", [])
-        
+
         interactions = await farmacia_ai.analisar_interacoes_medicamentosas(
             medicamentos=medications,
             paciente_contexto=request.get("patient_context", {}),
@@ -195,7 +194,7 @@ async def check_drug_interactions(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error checking drug interactions"
-        )
+        ) from e
 
 @router.post("/analyze-image")
 async def analyze_medical_image(
@@ -207,8 +206,8 @@ async def analyze_medical_image(
     Analisar imagens médicas usando IA
     """
     try:
-        image_content = await image_file.read()
-        
+        _ = await image_file.read()
+
         analysis = {
             "findings": ["Normal cardiac silhouette", "Clear lung fields"],
             "confidence_scores": {"cardiac": 0.92, "pulmonary": 0.88},
@@ -229,7 +228,7 @@ async def analyze_medical_image(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error analyzing medical image"
-        )
+        ) from e
 
 @router.get("/metrics")
 async def get_ai_metrics(
@@ -260,7 +259,7 @@ async def get_ai_metrics(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error retrieving AI metrics"
-        )
+        ) from e
 
 @router.post("/mental-health/assess")
 async def assess_mental_health(
@@ -291,7 +290,7 @@ async def assess_mental_health(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error performing mental health assessment"
-        )
+        ) from e
 
 @router.post("/oncology/analyze")
 async def analyze_oncology_case(
@@ -322,7 +321,7 @@ async def analyze_oncology_case(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error performing oncology analysis"
-        )
+        ) from e
 
 @router.post("/rehabilitation/plan")
 async def create_rehabilitation_plan(
@@ -353,4 +352,4 @@ async def create_rehabilitation_plan(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error creating rehabilitation plan"
-        )
+        ) from e

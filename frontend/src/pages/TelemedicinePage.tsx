@@ -1,6 +1,5 @@
-
-import React from 'react';
-import { Video, Phone, Calendar, Users } from 'lucide-react';
+import React from 'react'
+import { Video, Phone, Calendar, Users } from 'lucide-react'
 
 const TelemedicinePage = (): React.ReactElement => {
   return (
@@ -11,11 +10,9 @@ const TelemedicinePage = (): React.ReactElement => {
             <Video className="w-8 h-8 mr-3 text-indigo-600" />
             Telemedicina
           </h1>
-          <p className="text-gray-600 mt-2">
-            Consultas médicas remotas e acompanhamento virtual
-          </p>
+          <p className="text-gray-600 mt-2">Consultas médicas remotas e acompanhamento virtual</p>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center">
@@ -26,7 +23,7 @@ const TelemedicinePage = (): React.ReactElement => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center">
               <Phone className="w-8 h-8 text-green-600" />
@@ -36,7 +33,7 @@ const TelemedicinePage = (): React.ReactElement => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center">
               <Calendar className="w-8 h-8 text-blue-600" />
@@ -46,7 +43,7 @@ const TelemedicinePage = (): React.ReactElement => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center">
               <Users className="w-8 h-8 text-purple-600" />
@@ -57,14 +54,12 @@ const TelemedicinePage = (): React.ReactElement => {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Plataforma de Telemedicina
-          </h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Plataforma de Telemedicina</h2>
           <p className="text-gray-600 mb-4">
-            Sistema integrado para consultas médicas remotas, permitindo atendimento 
-            seguro e eficiente à distância.
+            Sistema integrado para consultas médicas remotas, permitindo atendimento seguro e
+            eficiente à distância.
           </p>
           <div className="text-center py-8">
             <Video className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -75,7 +70,7 @@ const TelemedicinePage = (): React.ReactElement => {
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default TelemedicinePage;
+export default TelemedicinePage

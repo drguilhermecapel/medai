@@ -1,6 +1,5 @@
-
-import React from 'react';
-import { FileText, Search, Plus } from 'lucide-react';
+import React from 'react'
+import { FileText, Search, Plus } from 'lucide-react'
 
 const MedicalRecordsPage = (): React.ReactElement => {
   return (
@@ -11,11 +10,9 @@ const MedicalRecordsPage = (): React.ReactElement => {
             <FileText className="w-8 h-8 mr-3 text-green-600" />
             Prontuários Médicos
           </h1>
-          <p className="text-gray-600 mt-2">
-            Gestão de prontuários eletrônicos
-          </p>
+          <p className="text-gray-600 mt-2">Gestão de prontuários eletrônicos</p>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center space-x-4">
@@ -33,12 +30,10 @@ const MedicalRecordsPage = (): React.ReactElement => {
               Novo Prontuário
             </button>
           </div>
-          
+
           <div className="text-center py-12">
             <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Sistema de Prontuários
-            </h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Sistema de Prontuários</h3>
             <p className="text-gray-600">
               Funcionalidade em desenvolvimento para gestão completa de prontuários médicos
             </p>
@@ -46,7 +41,7 @@ const MedicalRecordsPage = (): React.ReactElement => {
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default MedicalRecordsPage;
+export default MedicalRecordsPage

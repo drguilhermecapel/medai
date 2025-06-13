@@ -86,9 +86,9 @@ class DashboardFarmaciaExecutivo:
             }
         }
 
-        for categoria, metricas in kpis.items():
+        for _, metricas in kpis.items():
             for metrica, valor in metricas.items():
-                if isinstance(valor, (int, float)) and metrica != 'meta':
+                if isinstance(valor, int | float) and metrica != 'meta':
                     variacao = self.simular_variacao_periodo_anterior()
                     metricas[f'{metrica}_variacao'] = variacao
 

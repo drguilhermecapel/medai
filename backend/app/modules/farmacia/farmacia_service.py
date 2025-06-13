@@ -70,7 +70,7 @@ class FarmaciaHospitalarIA:
         interacoes_detectadas = []
 
         for i, med1 in enumerate(medicamentos):
-            for j, med2 in enumerate(medicamentos[i+1:], i+1):
+            for _, med2 in enumerate(medicamentos[i+1:], i+1):
                 interacao = self.verificar_interacao_par(med1, med2)
                 if interacao['existe_interacao']:
                     interacoes_detectadas.append(interacao)

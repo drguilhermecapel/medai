@@ -1,13 +1,13 @@
 """Test medical record service."""
 
-import pytest
 from unittest.mock import AsyncMock, Mock
-from datetime import datetime
+
+import pytest
 
 from app.services.medical_record_service import (
     MedicalRecordService,
+    RecordStatus,
     RecordType,
-    RecordStatus
 )
 
 
@@ -68,11 +68,11 @@ def mock_patient():
 async def test_create_consultation_record(medical_record_service, mock_patient, sample_consultation_data):
     """Test creating a consultation record."""
     medical_record_service.patient_repository.get_patient_by_patient_id = AsyncMock(return_value=mock_patient)
-    
+
     record = await medical_record_service.create_medical_record(
         "PAT123456", RecordType.CONSULTATION, sample_consultation_data, 1
     )
-    
+
     assert isinstance(record, dict)
     assert record["patient_id"] == "PAT123456"
     assert record["record_type"] == RecordType.CONSULTATION
@@ -87,11 +87,11 @@ async def test_create_consultation_record(medical_record_service, mock_patient, 
 async def test_create_prescription_record(medical_record_service, mock_patient, sample_prescription_data):
     """Test creating a prescription record."""
     medical_record_service.patient_repository.get_patient_by_patient_id = AsyncMock(return_value=mock_patient)
-    
+
     record = await medical_record_service.create_medical_record(
         "PAT123456", RecordType.PRESCRIPTION, sample_prescription_data, 1
     )
-    
+
     assert isinstance(record, dict)
     assert record["patient_id"] == "PAT123456"
     assert record["record_type"] == RecordType.PRESCRIPTION
@@ -105,7 +105,7 @@ async def test_create_prescription_record(medical_record_service, mock_patient, 
 async def test_create_record_patient_not_found(medical_record_service, sample_consultation_data):
     """Test creating record for non-existent patient."""
     medical_record_service.patient_repository.get_patient_by_patient_id = AsyncMock(return_value=None)
-    
+
     with pytest.raises(ValueError, match="Patient .* not found"):
         await medical_record_service.create_medical_record(
             "NONEXISTENT", RecordType.CONSULTATION, sample_consultation_data, 1
@@ -121,9 +121,9 @@ async def test_validate_consultation_record_data(medical_record_service):
         "assessment": "Possible angina",
         "plan": "ECG, cardiac enzymes"
     }
-    
+
     result = await medical_record_service._validate_record_data(RecordType.CONSULTATION, valid_data)
-    
+
     assert result["valid"] is True
     assert len(result["errors"]) == 0
 
@@ -134,9 +134,9 @@ async def test_validate_consultation_record_missing_fields(medical_record_servic
     invalid_data = {
         "chief_complaint": "chest pain"
     }
-    
+
     result = await medical_record_service._validate_record_data(RecordType.CONSULTATION, invalid_data)
-    
+
     assert result["valid"] is False
     assert len(result["errors"]) > 0
 
@@ -154,9 +154,9 @@ async def test_validate_prescription_record_data(medical_record_service):
             }
         ]
     }
-    
+
     result = await medical_record_service._validate_record_data(RecordType.PRESCRIPTION, valid_data)
-    
+
     assert result["valid"] is True
     assert len(result["errors"]) == 0
 
@@ -165,9 +165,9 @@ async def test_validate_prescription_record_data(medical_record_service):
 async def test_validate_prescription_record_missing_medications(medical_record_service):
     """Test prescription record validation with missing medications."""
     invalid_data = {}
-    
+
     result = await medical_record_service._validate_record_data(RecordType.PRESCRIPTION, invalid_data)
-    
+
     assert result["valid"] is False
     assert len(result["errors"]) > 0
 
@@ -184,9 +184,9 @@ async def test_process_consultation_record(medical_record_service):
             "plan": "ECG, cardiac enzymes"
         }
     }
-    
+
     processed = await medical_record_service._process_consultation_record(record)
-    
+
     assert "clinical_summary" in processed
     assert processed["clinical_summary"]["chief_complaint"] == "chest pain"
 
@@ -207,9 +207,9 @@ async def test_process_prescription_record(medical_record_service):
             ]
         }
     }
-    
+
     processed = await medical_record_service._process_prescription_record(record)
-    
+
     assert len(processed["data"]["medications"]) == 1
     assert processed["data"]["medications"][0]["status"] == "active"
     assert "prescribed_at" in processed["data"]["medications"][0]
@@ -219,9 +219,9 @@ async def test_process_prescription_record(medical_record_service):
 async def test_get_patient_medical_history(medical_record_service, mock_patient):
     """Test getting patient medical history."""
     medical_record_service.patient_repository.get_patient_by_patient_id = AsyncMock(return_value=mock_patient)
-    
+
     history = await medical_record_service.get_patient_medical_history("PAT123456")
-    
+
     assert isinstance(history, dict)
     assert history["patient_id"] == "PAT123456"
     assert history["patient_name"] == "John Doe"
@@ -234,7 +234,7 @@ async def test_get_patient_medical_history(medical_record_service, mock_patient)
 async def test_get_medical_history_patient_not_found(medical_record_service):
     """Test getting medical history for non-existent patient."""
     medical_record_service.patient_repository.get_patient_by_patient_id = AsyncMock(return_value=None)
-    
+
     with pytest.raises(ValueError, match="Patient .* not found"):
         await medical_record_service.get_patient_medical_history("NONEXISTENT")
 
@@ -243,13 +243,13 @@ async def test_get_medical_history_patient_not_found(medical_record_service):
 async def test_get_medical_history_with_filters(medical_record_service, mock_patient):
     """Test getting medical history with record type filters."""
     medical_record_service.patient_repository.get_patient_by_patient_id = AsyncMock(return_value=mock_patient)
-    
+
     history = await medical_record_service.get_patient_medical_history(
-        "PAT123456", 
+        "PAT123456",
         record_types=[RecordType.CONSULTATION, RecordType.PRESCRIPTION],
         limit=50
     )
-    
+
     assert isinstance(history, dict)
     assert history["patient_id"] == "PAT123456"
 

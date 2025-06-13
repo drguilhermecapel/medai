@@ -1,8 +1,9 @@
-from fastapi import FastAPI, Request, HTTPException
+import os
+
+import uvicorn
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import uvicorn
-import os
 
 app = FastAPI(title="SPEI Medical Backend", version="1.0.0")
 
@@ -24,10 +25,10 @@ async def health_check():
 
 @app.post("/auth/login")
 async def login(request: Request):
-    print(f"Login request received")
-    
+    print("Login request received")
+
     content_type = request.headers.get("content-type", "")
-    
+
     if "application/json" in content_type:
         data = await request.json()
         username = data.get("username")
@@ -36,15 +37,15 @@ async def login(request: Request):
         form_data = await request.form()
         username = form_data.get("username")
         password = form_data.get("password")
-    
+
     print(f"Login attempt: username={username}")
-    
+
     demo_username_1 = os.getenv("DEMO_USERNAME_1")
     demo_password_1 = os.getenv("DEMO_PASSWORD_1")
     demo_username_2 = os.getenv("DEMO_USERNAME_2")
     demo_password_2 = os.getenv("DEMO_PASSWORD_2")
-    
-    if ((demo_username_1 and demo_password_1 and username == demo_username_1 and password == demo_password_1) or 
+
+    if ((demo_username_1 and demo_password_1 and username == demo_username_1 and password == demo_password_1) or
         (demo_username_2 and demo_password_2 and username == demo_username_2 and password == demo_password_2)):
         response_data = {
             "access_token": "demo_token_12345",

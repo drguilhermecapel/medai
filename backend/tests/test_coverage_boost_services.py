@@ -1,19 +1,17 @@
 """Comprehensive test coverage boost for services to reach 80%."""
 
-import pytest
-from datetime import datetime, date, timezone
-from unittest.mock import Mock, AsyncMock, patch
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, Mock, patch
 
-from app.services.ecg_service import ECGAnalysisService
-from app.services.validation_service import ValidationService
-from app.services.user_service import UserService
+import pytest
+
 from app.core.constants import UserRoles
-from app.schemas.user import UserCreate
 from app.models.ecg_analysis import ECGAnalysis
-from app.models.patient import Patient
-from app.models.user import User
 from app.models.validation import Validation
+from app.schemas.user import UserCreate
+from app.services.ecg_service import ECGAnalysisService
+from app.services.user_service import UserService
+from app.services.validation_service import ValidationService
 
 
 @pytest.fixture
@@ -67,7 +65,6 @@ def validation_service(test_db, mock_notification_service):
 @pytest.fixture
 def user_service(test_db):
     """User service."""
-    from app.services.user_service import UserService
     return UserService(db=test_db)
 
 
@@ -77,7 +74,7 @@ async def test_ecg_service_create_analysis_comprehensive(ecg_service, test_db):
     with patch('app.utils.ecg_processor.ECGProcessor') as mock_processor, \
          patch('app.services.ecg_service.ECGAnalysisService._calculate_file_info') as mock_file_info, \
          patch('os.path.exists', return_value=True):
-        
+
         mock_file_info.return_value = ("test_hash", 1024)
         mock_processor.return_value.extract_metadata.return_value = {
             "sample_rate": 500,
@@ -85,14 +82,14 @@ async def test_ecg_service_create_analysis_comprehensive(ecg_service, test_db):
             "leads_count": 12,
             "leads_names": ["I", "II", "III", "aVR", "aVL", "aVF", "V1", "V2", "V3", "V4", "V5", "V6"]
         }
-        
+
         result = await ecg_service.create_analysis(
             patient_id=1,
             file_path="/tmp/test_ecg.txt",
             original_filename="test_ecg.txt",
             created_by=1
         )
-        
+
         assert result is not None
         assert result.patient_id == 1
 
@@ -108,7 +105,7 @@ async def test_ecg_service_search_analyses_comprehensive(ecg_service, test_db):
             original_filename=f"test_{i}.txt",
             file_hash=f"hash_{i}",
             file_size=1024,
-            acquisition_date=datetime.now(timezone.utc),
+            acquisition_date=datetime.now(UTC),
             sample_rate=500,
             duration_seconds=10.0,
             leads_count=12,
@@ -120,15 +117,15 @@ async def test_ecg_service_search_analyses_comprehensive(ecg_service, test_db):
             created_by=1
         )
         test_db.add(analysis)
-    
+
     await test_db.commit()
-    
+
     results, total = await ecg_service.search_analyses(
         filters={"status": "completed"},
         limit=10,
         offset=0
     )
-    
+
     assert len(results) >= 5
 
 
@@ -144,7 +141,7 @@ async def test_ecg_service_get_analysis_statistics(ecg_service, test_db):
             original_filename=f"stats_{i}.txt",
             file_hash=f"stats_hash_{i}",
             file_size=1024,
-            acquisition_date=datetime.now(timezone.utc),
+            acquisition_date=datetime.now(UTC),
             sample_rate=500,
             duration_seconds=10.0,
             leads_count=12,
@@ -156,11 +153,11 @@ async def test_ecg_service_get_analysis_statistics(ecg_service, test_db):
             created_by=1
         )
         test_db.add(analysis)
-    
+
     await test_db.commit()
-    
+
     analyses = await ecg_service.get_analyses_by_patient(patient_id=1, limit=10, offset=0)
-    
+
     assert len(analyses) >= 3
 
 
@@ -174,7 +171,7 @@ async def test_validation_service_create_validation_comprehensive(validation_ser
         original_filename="validation_test.txt",
         file_hash="validation_hash",
         file_size=1024,
-        acquisition_date=datetime.now(timezone.utc),
+        acquisition_date=datetime.now(UTC),
         sample_rate=500,
         duration_seconds=10.0,
         leads_count=12,
@@ -188,14 +185,14 @@ async def test_validation_service_create_validation_comprehensive(validation_ser
     test_db.add(analysis)
     await test_db.commit()
     await test_db.refresh(analysis)
-    
+
     result = await validation_service.create_validation(
         analysis_id=analysis.id,
         validator_id=1,
         validator_role=UserRoles.PHYSICIAN,
         validator_experience_years=5
     )
-    
+
     assert result is not None
     assert result.analysis_id == analysis.id
 
@@ -210,7 +207,7 @@ async def test_validation_service_get_pending_validations(validation_service, te
         original_filename="pending.txt",
         file_hash="pending_hash",
         file_size=1024,
-        acquisition_date=datetime.now(timezone.utc),
+        acquisition_date=datetime.now(UTC),
         sample_rate=500,
         duration_seconds=10.0,
         leads_count=12,
@@ -224,7 +221,7 @@ async def test_validation_service_get_pending_validations(validation_service, te
     test_db.add(analysis)
     await test_db.commit()
     await test_db.refresh(analysis)
-    
+
     validation = Validation(
         analysis_id=analysis.id,
         validator_id=1,
@@ -233,7 +230,7 @@ async def test_validation_service_get_pending_validations(validation_service, te
     )
     test_db.add(validation)
     await test_db.commit()
-    
+
     result = await validation_service.submit_validation(
         validation_id=validation.id,
         validator_id=1,
@@ -244,7 +241,7 @@ async def test_validation_service_get_pending_validations(validation_service, te
             "signal_quality_rating": 4
         }
     )
-    
+
     assert result is not None
     assert result.status == "approved"
 
@@ -260,9 +257,9 @@ async def test_user_service_create_user_comprehensive(user_service, test_db):
         password="SecurePass123!",
         role=UserRoles.PHYSICIAN
     )
-    
+
     result = await user_service.create_user(user_data)
-    
+
     assert result is not None
     assert result.username == "testuser_comprehensive"
     assert result.email == "test_comprehensive@example.com"
@@ -279,11 +276,11 @@ async def test_user_service_authenticate_user(user_service, test_db):
         password="Password123!",
         role=UserRoles.PHYSICIAN
     )
-    
-    created_user = await user_service.create_user(user_data)
-    
+
+    await user_service.create_user(user_data)
+
     authenticated = await user_service.authenticate_user("authtest", "Password123!")
-    
+
     assert authenticated is not None
     assert authenticated.username == "authtest"
 
@@ -299,11 +296,11 @@ async def test_user_service_get_user_by_email(user_service, test_db):
         password="Password123!",
         role=UserRoles.PHYSICIAN
     )
-    
-    created_user = await user_service.create_user(user_data)
-    
+
+    await user_service.create_user(user_data)
+
     found_user = await user_service.get_user_by_email("updatetest@example.com")
-    
+
     assert found_user is not None
     assert found_user.email == "updatetest@example.com"
 
@@ -315,15 +312,15 @@ async def test_user_service_get_user_by_username(user_service, test_db):
         user_data = UserCreate(
             username=f"statsuser_{i}",
             email=f"stats_{i}@example.com",
-            first_name=f"Stats",
+            first_name="Stats",
             last_name=f"User{i}",
             password="Password123!",
             role=UserRoles.PHYSICIAN if i % 2 == 0 else UserRoles.TECHNICIAN
         )
         await user_service.create_user(user_data)
-    
+
     found_user = await user_service.get_user_by_username("statsuser_0")
-    
+
     assert found_user is not None
     assert found_user.username == "statsuser_0"
 
@@ -339,9 +336,9 @@ async def test_user_service_update_last_login(user_service, test_db):
         password="Password123!",
         role=UserRoles.PHYSICIAN
     )
-    
+
     created_user = await user_service.create_user(user_data)
-    
+
     await user_service.update_last_login(created_user.id)
-    
+
     assert True

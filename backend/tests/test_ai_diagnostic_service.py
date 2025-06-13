@@ -1,13 +1,12 @@
 """Test AI diagnostic service."""
 
+
 import pytest
-from unittest.mock import AsyncMock, Mock
-from datetime import datetime
 
 from app.services.ai_diagnostic_service import (
     AIDiagnosticService,
+    DiagnosticCategory,
     DiagnosticConfidence,
-    DiagnosticCategory
 )
 
 
@@ -55,7 +54,7 @@ async def test_generate_diagnostic_suggestions_success(ai_diagnostic_service, sa
     result = await ai_diagnostic_service.generate_diagnostic_suggestions(
         sample_patient_data, sample_clinical_presentation
     )
-    
+
     assert isinstance(result, dict)
     assert "patient_id" in result
     assert "analysis_timestamp" in result
@@ -76,9 +75,9 @@ async def test_analyze_symptom_patterns(ai_diagnostic_service, sample_patient_da
     patterns = await ai_diagnostic_service._analyze_symptom_patterns(
         symptoms, sample_patient_data, sample_clinical_presentation
     )
-    
+
     assert isinstance(patterns, dict)
-    for pattern_name, pattern_data in patterns.items():
+    for _pattern_name, pattern_data in patterns.items():
         assert "match_score" in pattern_data
         assert "matched_symptoms" in pattern_data
         assert "urgency" in pattern_data
@@ -94,11 +93,11 @@ async def test_generate_category_suggestions(ai_diagnostic_service, sample_patie
         "common_diagnoses": ["myocardial_infarction", "angina"],
         "confidence_threshold": 0.3
     }
-    
+
     suggestions = await ai_diagnostic_service._generate_category_suggestions(
         "cardiovascular", model_config, symptoms, sample_patient_data, sample_clinical_presentation
     )
-    
+
     assert isinstance(suggestions, list)
     for suggestion in suggestions:
         assert "diagnosis" in suggestion
@@ -118,11 +117,11 @@ async def test_apply_pattern_boost(ai_diagnostic_service):
         ]
     }
     pattern_data = {"confidence_boost": 0.2}
-    
+
     await ai_diagnostic_service._apply_pattern_boost(
         diagnostic_result, "myocardial", pattern_data
     )
-    
+
     assert diagnostic_result["differential_diagnoses"][0]["confidence"] == 0.8
 
 
@@ -132,11 +131,11 @@ async def test_generate_test_recommendations(ai_diagnostic_service, sample_clini
     primary_suggestions = [
         {"category": "cardiovascular", "diagnosis": "myocardial_infarction", "confidence": 0.8}
     ]
-    
+
     tests = await ai_diagnostic_service._generate_test_recommendations(
         primary_suggestions, sample_clinical_presentation
     )
-    
+
     assert isinstance(tests, list)
     assert len(tests) > 0
     for test in tests:
@@ -154,11 +153,11 @@ async def test_identify_red_flags(ai_diagnostic_service):
         "oxygen_saturation": 85  # Hypoxemia
     }
     physical_exam = {}
-    
+
     red_flags = await ai_diagnostic_service._identify_red_flags(
         symptoms, vital_signs, physical_exam
     )
-    
+
     assert isinstance(red_flags, list)
     assert len(red_flags) > 0
     for flag in red_flags:
@@ -173,9 +172,9 @@ async def test_calculate_confidence_summary(ai_diagnostic_service):
         {"confidence": 0.6},
         {"confidence": 0.4}
     ]
-    
+
     summary = await ai_diagnostic_service._calculate_confidence_summary(differential_diagnoses)
-    
+
     assert isinstance(summary, dict)
     assert "overall_confidence" in summary
     assert "model_agreement" in summary
@@ -188,7 +187,7 @@ async def test_get_icd10_code(ai_diagnostic_service):
     """Test ICD-10 code mapping."""
     code = ai_diagnostic_service._get_icd10_code("myocardial_infarction")
     assert code == "I21.9"
-    
+
     code = ai_diagnostic_service._get_icd10_code("unknown_diagnosis")
     assert code == "Z00.00"
 
@@ -198,7 +197,7 @@ async def test_determine_urgency(ai_diagnostic_service):
     """Test urgency level determination."""
     urgency = ai_diagnostic_service._determine_urgency("myocardial_infarction", 0.8)
     assert urgency == "critical"
-    
+
     urgency = ai_diagnostic_service._determine_urgency("common_cold", 0.5)
     assert urgency == "low"
 
@@ -207,7 +206,7 @@ async def test_determine_urgency(ai_diagnostic_service):
 async def test_empty_patient_data_handling(ai_diagnostic_service):
     """Test handling of empty patient data."""
     result = await ai_diagnostic_service.generate_diagnostic_suggestions({}, {})
-    
+
     assert isinstance(result, dict)
     assert "primary_suggestions" in result
     assert "differential_diagnoses" in result
@@ -250,10 +249,10 @@ async def test_error_handling(ai_diagnostic_service):
     """Test error handling in diagnostic suggestions."""
     invalid_patient_data = {"age": "invalid"}
     invalid_clinical_data = {"symptoms": "not_a_list"}
-    
+
     result = await ai_diagnostic_service.generate_diagnostic_suggestions(
         invalid_patient_data, invalid_clinical_data
     )
-    
+
     assert isinstance(result, dict)
     assert "error" in result or "primary_suggestions" in result

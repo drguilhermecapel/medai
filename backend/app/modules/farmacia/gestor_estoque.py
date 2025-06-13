@@ -94,13 +94,6 @@ class GestorEstoqueInteligente:
     def combinar_previsoes(self, modelos: dict) -> dict:
         """Combina previsões de diferentes modelos"""
 
-        pesos = {
-            'prophet': 0.3,
-            'lstm': 0.25,
-            'xgboost': 0.25,
-            'arima': 0.2
-        }
-
         previsao_combinada = {}
 
         medicamentos_exemplo = ['omeprazol', 'paracetamol', 'insulina']

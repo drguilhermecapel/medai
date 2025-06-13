@@ -40,7 +40,7 @@ class MonitorProgressoInteligente:
                     resultados_sessao['fadiga_detectada'] = True
                     exercicio = self.ajustar_carga_fadiga(exercicio)
 
-                feedback = self.gerar_feedback_tempo_real(qualidade)
+                self.gerar_feedback_tempo_real(qualidade)
 
                 resultados_sessao['exercicios_realizados'].append(execucao)
                 resultados_sessao['qualidade_execucao'].append(qualidade)
