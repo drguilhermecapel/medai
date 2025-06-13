@@ -350,7 +350,7 @@ class FarmaciaClinicaAvancada:
         domicilio_dict = {med['nome']: med for med in medicamentos_domicilio}
         hospital_dict = {med['nome']: med for med in medicamentos_hospital}
 
-        for nome, med_dom in domicilio_dict.items():
+        for nome, _ in domicilio_dict.items():
             if nome not in hospital_dict:
                 discrepancias.append({
                     'tipo': 'descontinuacao',
@@ -359,7 +359,7 @@ class FarmaciaClinicaAvancada:
                     'gravidade': 'moderada'
                 })
 
-        for nome, med_hosp in hospital_dict.items():
+        for nome, _ in hospital_dict.items():
             if nome not in domicilio_dict:
                 discrepancias.append({
                     'tipo': 'adicao',

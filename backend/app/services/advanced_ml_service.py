@@ -131,7 +131,7 @@ class AdvancedMLService:
         """Multi-scale temporal analysis"""
         multi_scale_features = []
         for scale in scales:
-            downsampled = signal[:, ::scale]
+            signal[:, ::scale]  # Downsample signal
             features = np.random.randn(12, 50)  # Mock features
             multi_scale_features.append(features)
         return multi_scale_features

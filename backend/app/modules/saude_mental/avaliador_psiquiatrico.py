@@ -144,7 +144,7 @@ class AvaliadorPsiquiatricoIA:
         """Calcula gravidade global baseada nas escalas"""
 
         scores = []
-        for escala, dados in escalas.items():
+        for _, dados in escalas.items():
             if isinstance(dados, dict) and 'score' in dados:
                 scores.append(dados['score'])
 
