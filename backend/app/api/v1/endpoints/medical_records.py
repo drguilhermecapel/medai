@@ -43,7 +43,7 @@ async def list_medical_records(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error retrieving medical records"
-        )
+        ) from e
 
 @router.post("/")
 async def create_medical_record(
@@ -76,7 +76,7 @@ async def create_medical_record(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error creating medical record"
-        )
+        ) from e
 
 @router.get("/{record_id}")
 async def get_medical_record(
@@ -106,7 +106,7 @@ async def get_medical_record(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error retrieving medical record"
-        )
+        ) from e
 
 @router.put("/{record_id}")
 async def update_medical_record(
@@ -138,7 +138,7 @@ async def update_medical_record(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error updating medical record"
-        )
+        ) from e
 
 @router.post("/{record_id}/evolutions")
 async def add_evolution(
@@ -170,7 +170,7 @@ async def add_evolution(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error adding evolution"
-        )
+        ) from e
 
 @router.post("/{record_id}/transcribe-voice")
 async def transcribe_voice(
@@ -203,7 +203,7 @@ async def transcribe_voice(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error transcribing voice"
-        )
+        ) from e
 
 @router.post("/{record_id}/ai-summary")
 async def get_ai_summary(
@@ -240,4 +240,4 @@ async def get_ai_summary(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error generating AI summary"
-        )
+        ) from e

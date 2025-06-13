@@ -202,7 +202,7 @@ class ECGVisualizer:
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=time_axis, y=signal,
                                mode='lines', name=f'Lead {lead_name}',
-                               line=dict(color='blue', width=1)))
+                               line={'color': 'blue', 'width': 1}))
 
         fig.update_layout(
             title=f"Interactive ECG - Lead {lead_name}",

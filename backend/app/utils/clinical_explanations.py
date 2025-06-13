@@ -99,7 +99,7 @@ class ClinicalExplanationGenerator:
         for feature, value in features.items():
             if isinstance(value, bool) and value:
                 findings.append(f"Presence of {feature.replace('_', ' ')}")
-            elif isinstance(value, (int, float)):
+            elif isinstance(value, int | float):
                 findings.append(f"{feature.replace('_', ' ').title()}: {value}")
 
         return findings
@@ -210,7 +210,6 @@ Recommendations:
 
     def generate_follow_up_plan(self, diagnosis: dict[str, Any]) -> dict[str, Any]:
         """Generate follow-up plan"""
-        condition = diagnosis.get('condition', '')
         urgency = self.classify_urgency(diagnosis)
 
         follow_up_plans = {
