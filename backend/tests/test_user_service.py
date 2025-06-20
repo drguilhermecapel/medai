@@ -2,8 +2,8 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock
 from app.services.user_service import UserService
 from app.repositories.user_repository import UserRepository
-from app.schemas.user import UserCreate, User
-from app.models.user import User as UserModel  # Importar o modelo SQLAlchemy, não o schema
+from app.schemas.user import UserCreate
+from app.models.user import User  # Importar o modelo SQLAlchemy, não o schema
 from app.core.security import get_password_hash
 from datetime import datetime
 from app.core.constants import UserRoles
@@ -21,7 +21,7 @@ def user_service(mock_db_session):
 async def test_create_user(user_service, mock_db_session):
     user_data = UserCreate(
         email="test@example.com",
-        password="password123",
+        password="Password123!",
         username="testuser",
         first_name="Test",
         last_name="User",
@@ -35,7 +35,7 @@ async def test_create_user(user_service, mock_db_session):
     
     mock_user_repo = MagicMock(spec=UserRepository)
     # Criar um objeto User do modelo SQLAlchemy
-    mock_user = UserModel(
+    mock_user = User(
         id=1,
         email=user_data.email,
         hashed_password=hashed_password,
@@ -50,20 +50,11 @@ async def test_create_user(user_service, mock_db_session):
         license_number=user_data.license_number,
         specialty=user_data.specialty,
         institution=user_data.institution,
-        experience_years=user_data.experience_years,
-        created_at=datetime.now(),
-        updated_at=datetime.now(),
-        last_login=None,
-        failed_login_attempts=0,
-        locked_until=None,
-        digital_signature_key=None,
-        signature_created_at=None,
-        notification_preferences=None,
-        ui_preferences=None
+        experience_years=user_data.experience_years
     )
     
     mock_user_repo.create_user.return_value = mock_user
-    user_service.user_repository = mock_user_repo
+    user_service.repository = mock_user_repo # Corrigido: usar .repository ao invés de .user_repository
 
     user = await user_service.create_user(user_data)
 
@@ -75,7 +66,7 @@ async def test_get_user_by_email(user_service, mock_db_session):
     email = "test@example.com"
     
     mock_user_repo = MagicMock(spec=UserRepository)
-    mock_user = UserModel(
+    mock_user = User(
         id=1,
         email=email,
         hashed_password="hashed_password",
@@ -90,20 +81,11 @@ async def test_get_user_by_email(user_service, mock_db_session):
         license_number="LIC123",
         specialty="Cardiology",
         institution="Test Hospital",
-        experience_years=5,
-        created_at=datetime.now(),
-        updated_at=datetime.now(),
-        last_login=None,
-        failed_login_attempts=0,
-        locked_until=None,
-        digital_signature_key=None,
-        signature_created_at=None,
-        notification_preferences=None,
-        ui_preferences=None
+        experience_years=5
     )
     
     mock_user_repo.get_user_by_email.return_value = mock_user
-    user_service.user_repository = mock_user_repo
+    user_service.repository = mock_user_repo
 
     user = await user_service.get_user_by_email(email)
 

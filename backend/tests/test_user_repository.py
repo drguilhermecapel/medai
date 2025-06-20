@@ -19,7 +19,7 @@ def user_repository(mock_db_session):
 async def test_create_user_repository(user_repository, mock_db_session):
     user_data = UserCreate(
         email="test@example.com",
-        password="password123",
+        password="Password123!", # Corrigido: Adicionado caractere especial
         username="testuser",
         first_name="Test",
         last_name="User",
@@ -45,19 +45,10 @@ async def test_create_user_repository(user_repository, mock_db_session):
         license_number=user_data.license_number,
         specialty=user_data.specialty,
         institution=user_data.institution,
-        experience_years=user_data.experience_years,
-        created_at=datetime.now(), 
-        updated_at=datetime.now(), 
-        last_login=None,
-        failed_login_attempts=0,
-        locked_until=None,
-        digital_signature_key=None,
-        signature_created_at=None,
-        notification_preferences=None,
-        ui_preferences=None
+        experience_years=user_data.experience_years
     )
     
-    mock_db_session.add.return_value = None
+    # mock_db_session.add.return_value = None # Removido, pois add não retorna nada
     mock_db_session.commit.return_value = None
     mock_db_session.refresh.side_effect = lambda obj: setattr(obj, 'id', 1)
 
@@ -71,24 +62,38 @@ async def test_create_user_repository(user_repository, mock_db_session):
 @pytest.mark.asyncio
 async def test_get_user_by_email_repository(user_repository, mock_db_session):
     email = "test@example.com"
-    fixed_datetime = datetime(2023, 1, 1, 10, 0, 0)
-    expected_user = UserModel(id=1, email=email, hashed_password="hashed_password", username="testuser", first_name="Test", last_name="User", is_active=True, is_verified=True, is_superuser=False, last_login=fixed_datetime, created_at=fixed_datetime, updated_at=fixed_datetime, role=UserRoles.VIEWER, phone="1234567890", license_number="LIC123", specialty="Cardiology", institution="Test Hospital", experience_years=5,
-        failed_login_attempts=0,
-        locked_until=None,
-        digital_signature_key=None,
-        signature_created_at=None,
-        notification_preferences=None,
-        ui_preferences=None
+    
+    mock_user = UserModel(
+        id=1,
+        email=email,
+        hashed_password="hashed_password",
+        username="testuser",
+        first_name="Test",
+        last_name="User",
+        is_active=True,
+        is_verified=True,
+        is_superuser=False,
+        role=UserRoles.VIEWER,
+        phone="1234567890",
+        license_number="LIC123",
+        specialty="Cardiology",
+        institution="Test Hospital",
+        experience_years=5
     )
     
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = expected_user
-    mock_db_session.execute.return_value = mock_result
+    # Mockando o resultado da execução da query
+    # mock_execute_result = AsyncMock()
+    # mock_execute_result.scalar_one_or_none.return_value = mock_user
+    # mock_db_session.execute.return_value = mock_execute_result
+
+    # O método get_user_by_email já retorna o resultado de scalar_one_or_none
+    # então o mock_db_session.execute.return_value deve ser um mock que tenha
+    # o método scalar_one_or_none que retorna o mock_user.
+    mock_db_session.execute.return_value = MagicMock(scalar_one_or_none=MagicMock(return_value=mock_user))
 
     user = await user_repository.get_user_by_email(email)
 
     mock_db_session.execute.assert_called_once()
     assert user.email == email
-
 
 
