@@ -39,7 +39,7 @@ class TestPatientService:
         }
         
         if hasattr(patient_service, 'create_patient'):
-            result = await patient_service.create_patient(patient_data)
+            result = await patient_service.create_patient(patient_data, created_by=1)
             assert result is not None
 
     @pytest.mark.asyncio

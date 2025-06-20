@@ -7,10 +7,10 @@ from datetime import datetime
 from pydantic import ValidationError
 
 from app.schemas.user import UserCreate, UserUpdate, User
-from app.schemas.patient import PatientCreate, PatientUpdate, PatientResponse
-from app.schemas.ecg_analysis import ECGAnalysisCreate, ECGAnalysisResponse
-from app.schemas.notification import NotificationCreate, NotificationResponse
-from app.schemas.validation import ValidationCreate, ValidationResponse
+from app.schemas.patient import PatientCreate, PatientUpdate, Patient
+from app.schemas.ecg_analysis import ECGAnalysisCreate, ECGAnalysis
+from app.schemas.notification import NotificationCreate, Notification
+from app.schemas.validation import ValidationCreate, Validation
 
 
 class TestUserSchemas:
