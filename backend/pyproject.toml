@@ -1,0 +1,18 @@
+[tool.pytest.ini_options]
+# Configurações do pytest
+minversion = "6.0"
+addopts = "-ra -q --strict-markers"
+testpaths = [
+    "tests",
+]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+# Marcadores customizados
+markers = [
+    "unit: marks tests as unit tests (no external dependencies)",
+    "integration: marks tests as integration tests (may use external services/DB)",
+    "slow: marks tests as slow (takes longer to run)",
+]
+
