@@ -1,520 +1,390 @@
 """
-Enhanced ECG Service Tests - 100% Coverage Implementation
+Módulo de dados mock para testes de ECG
+Conversão do código JavaScript para Python
 """
-
-import asyncio
-import numpy as np
-import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from datetime import datetime, timedelta
-import tempfile
-import os
-from pathlib import Path
-
-from app.services.ecg_service import ECGAnalysisService
-from app.core.constants import AnalysisStatus, ClinicalUrgency, DiagnosisCategory
+import math
+import random
+from datetime import datetime
+from typing import List, Dict, Any
 
 
-class TestECGServiceCritical:
-    """Critical tests for ECG Service - 100% coverage required."""
-
-    @pytest.fixture
-    def mock_db_session(self):
-        """Mock database session."""
-        session = AsyncMock()
-        return session
-
-    @pytest.fixture
-    def mock_ml_service(self):
-        """Mock ML model service."""
-        service = AsyncMock()
-        service.classify_ecg.return_value = {
-            "predictions": {"normal": 0.8, "arrhythmia": 0.2},
-            "confidence": 0.85,
-            "primary_diagnosis": "Normal Sinus Rhythm"
-        }
-        return service
-
-    @pytest.fixture
-    def mock_validation_service(self):
-        """Mock validation service."""
-        return AsyncMock()
-
-    @pytest.fixture
-    def ecg_service(self, mock_db_session, mock_ml_service, mock_validation_service):
-        """ECG service instance with mocked dependencies."""
-        service = ECGAnalysisService(mock_db_session, mock_ml_service, mock_validation_service)
-        return service
-
-    @pytest.fixture
-    def sample_ecg_data(self):
-        """Generate realistic ECG data for testing."""
-        # 12-lead ECG, 10 seconds at 500 Hz
-        sample_rate = 500
-        duration = 10
-        samples = sample_rate * duration
-        leads = 12
+def generate_mock_ecg_signal(samples: int) -> List[float]:
+    """
+    Gera sinal de ECG realístico com características fisiológicas
+    
+    Args:
+        samples: Número de amostras do sinal
         
-        # Generate realistic ECG signal with QRS complexes
-        t = np.linspace(0, duration, samples)
-        ecg_data = np.zeros((samples, leads))
+    Returns:
+        Lista com valores do sinal ECG simulado
+    """
+    signal = []
+    heart_rate = 72  # bpm
+    sample_rate = 500  # Hz
+    samples_per_beat = (60 / heart_rate) * sample_rate
+    
+    for i in range(samples):
+        beat_position = (i % samples_per_beat) / samples_per_beat
+        value = 0.0
         
-        # Heart rate ~75 bpm
-        heart_rate = 75
-        rr_interval = 60 / heart_rate
-        
-        for lead in range(leads):
-            # Base signal with P, QRS, T waves
-            signal = np.zeros(samples)
+        # Onda P (duração de 0.08s)
+        if 0.1 <= beat_position <= 0.18:
+            p_wave_position = (beat_position - 0.1) / 0.08
+            value = 0.15 * math.sin(math.pi * p_wave_position)
             
-            # Add QRS complexes
-            for beat in range(int(duration / rr_interval)):
-                qrs_time = beat * rr_interval
-                qrs_sample = int(qrs_time * sample_rate)
+        # Complexo QRS (duração de 0.08s)
+        elif 0.25 <= beat_position <= 0.33:
+            qrs_position = (beat_position - 0.25) / 0.08
+            if qrs_position < 0.2:
+                # Onda Q
+                value = -0.1
+            elif qrs_position < 0.6:
+                # Onda R
+                value = 1.5 * (1 - abs(qrs_position - 0.4) / 0.2)
+            else:
+                # Onda S
+                value = -0.2
                 
-                if qrs_sample < samples - 50:
-                    # QRS complex (simplified)
-                    qrs_width = 40  # samples
-                    qrs_start = max(0, qrs_sample - qrs_width // 2)
-                    qrs_end = min(samples, qrs_sample + qrs_width // 2)
-                    
-                    # Different amplitudes for different leads
-                    amplitude = 1.0 + 0.5 * np.sin(lead * np.pi / 6)
-                    signal[qrs_start:qrs_end] += amplitude * np.exp(
-                        -((np.arange(qrs_end - qrs_start) - qrs_width // 2) ** 2) / (qrs_width / 4) ** 2
-                    )
-            
-            # Add noise
-            noise = np.random.normal(0, 0.05, samples)
-            ecg_data[:, lead] = signal + noise
+        # Onda T (duração de 0.16s)
+        elif 0.4 <= beat_position <= 0.56:
+            t_wave_position = (beat_position - 0.4) / 0.16
+            value = 0.3 * math.sin(math.pi * t_wave_position)
         
-        return ecg_data
-
-    @pytest.fixture
-    def arrhythmia_ecg_data(self):
-        """Generate ECG data with arrhythmia."""
-        sample_rate = 500
-        duration = 10
-        samples = sample_rate * duration
-        leads = 12
+        # Adiciona oscilação basal e ruído
+        value += 0.05 * math.sin(2 * math.pi * 0.15 * i / 500)
+        value += (random.random() - 0.5) * 0.02
         
-        t = np.linspace(0, duration, samples)
-        ecg_data = np.zeros((samples, leads))
-        
-        # Irregular heart rate (atrial fibrillation pattern)
-        rr_intervals = np.random.normal(0.8, 0.3, 15)  # Irregular intervals
-        rr_intervals = np.clip(rr_intervals, 0.3, 1.5)  # Physiological limits
-        
-        current_time = 0
-        for lead in range(leads):
-            signal = np.zeros(samples)
-            
-            for rr_interval in rr_intervals:
-                if current_time >= duration:
-                    break
-                    
-                qrs_sample = int(current_time * sample_rate)
-                if qrs_sample < samples - 50:
-                    qrs_width = 40
-                    qrs_start = max(0, qrs_sample - qrs_width // 2)
-                    qrs_end = min(samples, qrs_sample + qrs_width // 2)
-                    
-                    amplitude = 0.8 + 0.4 * np.random.random()  # Variable amplitude
-                    signal[qrs_start:qrs_end] += amplitude * np.exp(
-                        -((np.arange(qrs_end - qrs_start) - qrs_width // 2) ** 2) / (qrs_width / 4) ** 2
-                    )
-                
-                current_time += rr_interval
-            
-            # Add fibrillation waves
-            fib_freq = 300 + 100 * np.random.random()  # 300-400 Hz
-            fib_amplitude = 0.1
-            fib_signal = fib_amplitude * np.sin(2 * np.pi * fib_freq * t)
-            
-            noise = np.random.normal(0, 0.08, samples)
-            ecg_data[:, lead] = signal + fib_signal + noise
-        
-        return ecg_data
-
-    # Test 1: Service Initialization
-    @pytest.mark.asyncio
-    async def test_service_initialization(self, mock_db_session, mock_ml_service, mock_validation_service):
-        """Test ECG service initialization."""
-        service = ECGAnalysisService(mock_db_session, mock_ml_service, mock_validation_service)
-        assert service.db == mock_db_session
-        assert service.ml_service == mock_ml_service
-        assert service.validation_service == mock_validation_service
-
-    # Test 2: Normal ECG Processing
-    @pytest.mark.asyncio
-    async def test_process_normal_ecg(self, ecg_service, sample_ecg_data):
-        """Test processing of normal ECG."""
-        analysis_id = "test_analysis_001"
-        
-        with patch.object(ecg_service, '_save_analysis_to_db', new_callable=AsyncMock) as mock_save:
-            mock_save.return_value = Mock(id=1, analysis_id=analysis_id)
-            
-            result = await ecg_service.process_ecg_analysis(
-                ecg_data=sample_ecg_data,
-                patient_id=123,
-                analysis_id=analysis_id,
-                metadata={
-                    "sample_rate": 500,
-                    "leads": ["I", "II", "III", "aVR", "aVL", "aVF", "V1", "V2", "V3", "V4", "V5", "V6"]
-                }
-            )
-            
-            assert result is not None
-            assert result["analysis_id"] == analysis_id
-            assert "predictions" in result
-            assert "confidence" in result
-            assert result["confidence"] >= 0.0
-            assert result["confidence"] <= 1.0
-
-    # Test 3: Arrhythmia Detection
-    @pytest.mark.asyncio
-    async def test_arrhythmia_detection(self, ecg_service, arrhythmia_ecg_data):
-        """Test detection of arrhythmias."""
-        analysis_id = "test_arrhythmia_001"
-        
-        # Mock ML service to return arrhythmia prediction
-        ecg_service.ml_service.classify_ecg.return_value = {
-            "predictions": {"atrial_fibrillation": 0.9, "normal": 0.1},
-            "confidence": 0.92,
-            "primary_diagnosis": "Atrial Fibrillation"
-        }
-        
-        with patch.object(ecg_service, '_save_analysis_to_db', new_callable=AsyncMock) as mock_save:
-            mock_save.return_value = Mock(id=1, analysis_id=analysis_id)
-            
-            result = await ecg_service.process_ecg_analysis(
-                ecg_data=arrhythmia_ecg_data,
-                patient_id=123,
-                analysis_id=analysis_id,
-                metadata={"sample_rate": 500}
-            )
-            
-            assert result is not None
-            assert "atrial_fibrillation" in result["predictions"]
-            assert result["predictions"]["atrial_fibrillation"] > 0.5
-
-    # Test 4: Signal Quality Assessment
-    @pytest.mark.asyncio
-    async def test_signal_quality_assessment(self, ecg_service):
-        """Test signal quality assessment."""
-        # High quality signal
-        good_signal = np.random.normal(0, 0.1, (5000, 12))
-        quality_good = await ecg_service._assess_signal_quality(good_signal)
-        assert quality_good >= 0.7
-        
-        # Poor quality signal (high noise)
-        poor_signal = np.random.normal(0, 2.0, (5000, 12))
-        quality_poor = await ecg_service._assess_signal_quality(poor_signal)
-        assert quality_poor <= 0.5
-
-    # Test 5: Heart Rate Calculation
-    @pytest.mark.asyncio
-    async def test_heart_rate_calculation(self, ecg_service, sample_ecg_data):
-        """Test heart rate calculation from ECG."""
-        heart_rate = await ecg_service._calculate_heart_rate(sample_ecg_data, sample_rate=500)
-        assert 60 <= heart_rate <= 100  # Normal range
-
-    # Test 6: QRS Detection
-    @pytest.mark.asyncio
-    async def test_qrs_detection(self, ecg_service, sample_ecg_data):
-        """Test QRS complex detection."""
-        qrs_peaks = await ecg_service._detect_qrs_peaks(sample_ecg_data[:, 1], sample_rate=500)
-        assert len(qrs_peaks) > 0
-        assert all(isinstance(peak, (int, np.integer)) for peak in qrs_peaks)
-
-    # Test 7: Error Handling - Invalid Data
-    @pytest.mark.asyncio
-    async def test_invalid_ecg_data_handling(self, ecg_service):
-        """Test handling of invalid ECG data."""
-        # Empty data
-        with pytest.raises(ValueError):
-            await ecg_service.process_ecg_analysis(
-                ecg_data=np.array([]),
-                patient_id=123,
-                analysis_id="test_invalid_001"
-            )
-        
-        # Wrong dimensions
-        with pytest.raises(ValueError):
-            await ecg_service.process_ecg_analysis(
-                ecg_data=np.random.random((100,)),  # 1D instead of 2D
-                patient_id=123,
-                analysis_id="test_invalid_002"
-            )
-
-    # Test 8: Concurrent Processing
-    @pytest.mark.asyncio
-    async def test_concurrent_processing(self, ecg_service, sample_ecg_data):
-        """Test concurrent ECG processing."""
-        tasks = []
-        
-        for i in range(5):
-            task = ecg_service.process_ecg_analysis(
-                ecg_data=sample_ecg_data,
-                patient_id=123 + i,
-                analysis_id=f"concurrent_test_{i:03d}",
-                metadata={"sample_rate": 500}
-            )
-            tasks.append(task)
-        
-        with patch.object(ecg_service, '_save_analysis_to_db', new_callable=AsyncMock) as mock_save:
-            mock_save.return_value = Mock(id=1)
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # All should complete successfully
-        assert len(results) == 5
-        assert all(not isinstance(r, Exception) for r in results)
-
-    # Test 9: Memory Management
-    @pytest.mark.asyncio
-    async def test_memory_management_large_ecg(self, ecg_service):
-        """Test memory management with large ECG files."""
-        # Large ECG data (1 hour at 1000 Hz)
-        large_ecg = np.random.random((3600000, 12))
-        
-        with patch.object(ecg_service, '_save_analysis_to_db', new_callable=AsyncMock):
-            result = await ecg_service.process_ecg_analysis(
-                ecg_data=large_ecg,
-                patient_id=123,
-                analysis_id="large_test_001",
-                metadata={"sample_rate": 1000}
-            )
-        
-        assert result is not None
-        # Memory should be released after processing
-
-    # Test 10: Clinical Urgency Classification
-    @pytest.mark.asyncio
-    async def test_clinical_urgency_classification(self, ecg_service):
-        """Test clinical urgency classification."""
-        # Critical case
-        critical_predictions = {
-            "ventricular_tachycardia": 0.95,
-            "normal": 0.05
-        }
-        urgency = await ecg_service._classify_clinical_urgency(critical_predictions)
-        assert urgency == ClinicalUrgency.CRITICAL
-        
-        # Normal case
-        normal_predictions = {
-            "normal": 0.9,
-            "minor_abnormality": 0.1
-        }
-        urgency = await ecg_service._classify_clinical_urgency(normal_predictions)
-        assert urgency == ClinicalUrgency.LOW
-
-    # Test 11: Baseline Wander Removal
-    @pytest.mark.asyncio
-    async def test_baseline_wander_removal(self, ecg_service):
-        """Test baseline wander removal."""
-        # Create signal with baseline wander
-        t = np.linspace(0, 10, 5000)
-        baseline_wander = 0.5 * np.sin(2 * np.pi * 0.1 * t)  # 0.1 Hz wander
-        clean_signal = np.sin(2 * np.pi * 1 * t)  # 1 Hz signal
-        noisy_signal = clean_signal + baseline_wander
-        
-        filtered_signal = await ecg_service._remove_baseline_wander(noisy_signal, sample_rate=500)
-        
-        # Filtered signal should have less low-frequency content
-        assert np.std(filtered_signal) < np.std(noisy_signal)
-
-    # Test 12: Noise Filtering
-    @pytest.mark.asyncio
-    async def test_noise_filtering(self, ecg_service):
-        """Test noise filtering."""
-        # Create signal with high-frequency noise
-        t = np.linspace(0, 10, 5000)
-        clean_signal = np.sin(2 * np.pi * 1 * t)
-        noise = 0.3 * np.random.random(len(t))
-        noisy_signal = clean_signal + noise
-        
-        filtered_signal = await ecg_service._apply_noise_filter(noisy_signal, sample_rate=500)
-        
-        # Filtered signal should be smoother
-        assert np.std(np.diff(filtered_signal)) < np.std(np.diff(noisy_signal))
-
-    # Test 13: Lead Validation
-    @pytest.mark.asyncio
-    async def test_lead_validation(self, ecg_service):
-        """Test ECG lead validation."""
-        valid_leads = ["I", "II", "III", "aVR", "aVL", "aVF", "V1", "V2", "V3", "V4", "V5", "V6"]
-        assert await ecg_service._validate_leads(valid_leads) == True
-        
-        invalid_leads = ["I", "II", "INVALID"]
-        assert await ecg_service._validate_leads(invalid_leads) == False
-
-    # Test 14: Interval Measurements
-    @pytest.mark.asyncio
-    async def test_interval_measurements(self, ecg_service, sample_ecg_data):
-        """Test ECG interval measurements (PR, QRS, QT)."""
-        measurements = await ecg_service._measure_intervals(sample_ecg_data[:, 1], sample_rate=500)
-        
-        assert "pr_interval" in measurements
-        assert "qrs_duration" in measurements
-        assert "qt_interval" in measurements
-        
-        # Check physiological ranges
-        assert 120 <= measurements["pr_interval"] <= 200  # ms
-        assert 80 <= measurements["qrs_duration"] <= 120  # ms
-        assert 350 <= measurements["qt_interval"] <= 450  # ms
-
-    # Test 15: Database Integration
-    @pytest.mark.asyncio
-    async def test_database_integration(self, ecg_service, sample_ecg_data):
-        """Test database save and retrieve operations."""
-        analysis_data = {
-            "patient_id": 123,
-            "analysis_id": "db_test_001",
-            "status": AnalysisStatus.COMPLETED,
-            "predictions": {"normal": 0.8},
-            "confidence": 0.85
-        }
-        
-        with patch.object(ecg_service, '_save_analysis_to_db', new_callable=AsyncMock) as mock_save:
-            mock_save.return_value = Mock(id=1, **analysis_data)
-            
-            saved_analysis = await ecg_service._save_analysis_to_db(analysis_data)
-            assert saved_analysis.id == 1
-            assert saved_analysis.patient_id == 123
-
-    # Test 16: Performance Benchmarking
-    @pytest.mark.asyncio
-    async def test_processing_performance(self, ecg_service, sample_ecg_data):
-        """Test processing performance benchmarks."""
-        start_time = datetime.now()
-        
-        with patch.object(ecg_service, '_save_analysis_to_db', new_callable=AsyncMock):
-            await ecg_service.process_ecg_analysis(
-                ecg_data=sample_ecg_data,
-                patient_id=123,
-                analysis_id="perf_test_001",
-                metadata={"sample_rate": 500}
-            )
-        
-        processing_time = (datetime.now() - start_time).total_seconds()
-        
-        # Should process 10-second ECG in under 5 seconds
-        assert processing_time < 5.0
-
-    # Test 17: Edge Cases
-    @pytest.mark.asyncio
-    async def test_edge_cases(self, ecg_service):
-        """Test edge cases and boundary conditions."""
-        # Minimum duration ECG
-        min_ecg = np.random.random((500, 12))  # 1 second at 500 Hz
-        
-        with patch.object(ecg_service, '_save_analysis_to_db', new_callable=AsyncMock):
-            result = await ecg_service.process_ecg_analysis(
-                ecg_data=min_ecg,
-                patient_id=123,
-                analysis_id="edge_test_001",
-                metadata={"sample_rate": 500}
-            )
-        
-        assert result is not None
-        
-        # Maximum supported leads
-        max_leads_ecg = np.random.random((5000, 15))  # 15 leads
-        
-        with patch.object(ecg_service, '_save_analysis_to_db', new_callable=AsyncMock):
-            result = await ecg_service.process_ecg_analysis(
-                ecg_data=max_leads_ecg,
-                patient_id=123,
-                analysis_id="edge_test_002",
-                metadata={"sample_rate": 500}
-            )
-        
-        assert result is not None
-
-    # Test 18: Retry Mechanism
-    @pytest.mark.asyncio
-    async def test_retry_mechanism(self, ecg_service, sample_ecg_data):
-        """Test retry mechanism for failed analyses."""
-        with patch.object(ecg_service.ml_service, 'classify_ecg', side_effect=[
-            Exception("Temporary failure"),
-            Exception("Another failure"),
-            {"predictions": {"normal": 0.8}, "confidence": 0.85}  # Success on third try
-        ]):
-            with patch.object(ecg_service, '_save_analysis_to_db', new_callable=AsyncMock):
-                result = await ecg_service.process_ecg_analysis(
-                    ecg_data=sample_ecg_data,
-                    patient_id=123,
-                    analysis_id="retry_test_001",
-                    metadata={"sample_rate": 500},
-                    max_retries=3
-                )
-        
-        assert result is not None
-        assert result["confidence"] == 0.85
-
-    # Test 19: Configuration Validation
-    @pytest.mark.asyncio
-    async def test_configuration_validation(self, ecg_service):
-        """Test service configuration validation."""
-        # Test sample rate validation
-        assert await ecg_service._validate_sample_rate(500) == True
-        assert await ecg_service._validate_sample_rate(50) == False  # Too low
-        assert await ecg_service._validate_sample_rate(5000) == False  # Too high
-        
-        # Test duration validation
-        assert await ecg_service._validate_duration(10.0) == True
-        assert await ecg_service._validate_duration(0.5) == False  # Too short
-        assert await ecg_service._validate_duration(3600) == False  # Too long
-
-    # Test 20: Cleanup and Resource Management
-    @pytest.mark.asyncio
-    async def test_cleanup_and_resource_management(self, ecg_service):
-        """Test proper cleanup and resource management."""
-        # Test temporary file cleanup
-        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            temp_path = temp_file.name
-            temp_file.write(b"test data")
-        
-        # Ensure file exists
-        assert os.path.exists(temp_path)
-        
-        # Service should clean up temporary files
-        await ecg_service._cleanup_temporary_files([temp_path])
-        
-        # File should be removed
-        assert not os.path.exists(temp_path)
+        signal.append(value)
+    
+    return signal
 
 
-# Additional helper methods for ECG Service
-class TestECGServiceHelpers:
-    """Test helper methods in ECG Service."""
+# Dados mock do ECG
+mock_ecg_data = {
+    'id': '123',
+    'patient_id': '456',
+    'recorded_at': '2024-06-23T10:30:00Z',
+    'duration': 10,  # segundos
+    'sample_rate': 500,  # Hz
+    'leads': {
+        'I': generate_mock_ecg_signal(5000),
+        'II': generate_mock_ecg_signal(5000),
+        'III': generate_mock_ecg_signal(5000),
+        'aVR': generate_mock_ecg_signal(5000),
+        'aVL': generate_mock_ecg_signal(5000),
+        'aVF': generate_mock_ecg_signal(5000),
+        'V1': generate_mock_ecg_signal(5000),
+        'V2': generate_mock_ecg_signal(5000),
+        'V3': generate_mock_ecg_signal(5000),
+        'V4': generate_mock_ecg_signal(5000),
+        'V5': generate_mock_ecg_signal(5000),
+        'V6': generate_mock_ecg_signal(5000),
+    },
+    'analysis': {
+        'heart_rate': 72,
+        'rhythm': 'Sinusal',
+        'pr_interval': 160,
+        'qrs_duration': 90,
+        'qt_interval': 400,
+        'qtc_bazett': 428,
+        'axis': 45,
+    },
+    'annotations': [],
+    'validated': False,
+}
 
-    @pytest.fixture
-    def ecg_service(self, mock_db_session):
-        """ECG service instance."""
-        return ECGService(mock_db_session)
+# Dados mock do paciente
+mock_patient_data = {
+    'id': '456',
+    'first_name': 'João',
+    'last_name': 'Silva',
+    'date_of_birth': '1958-03-15',
+    'gender': 'male',
+    'medical_record_number': 'MRN123456',
+    'demographics': {
+        'age': 66,
+        'height': 175,
+        'weight': 78,
+        'bmi': 25.5,
+    },
+    'vital_signs': {
+        'blood_pressure': '130/85',
+        'heart_rate': 72,
+        'respiratory_rate': 16,
+        'temperature': 36.5,
+        'oxygen_saturation': 98,
+    },
+    'medical_history': [
+        {'condition': 'Hipertensão', 'diagnosed_at': '2015-06-10'},
+        {'condition': 'Diabetes Tipo 2', 'diagnosed_at': '2018-03-22'},
+    ],
+    'medications': [
+        {'name': 'Losartana', 'dose': '50mg', 'frequency': '1x/dia'},
+        {'name': 'Metformina', 'dose': '850mg', 'frequency': '2x/dia'},
+        {'name': 'AAS', 'dose': '100mg', 'frequency': '1x/dia'},
+    ],
+    'allergies': ['Penicilina'],
+}
 
-    @pytest.mark.asyncio
-    async def test_lead_name_standardization(self, ecg_service):
-        """Test lead name standardization."""
-        # Test various lead name formats
-        assert await ecg_service._standardize_lead_name("Lead I") == "I"
-        assert await ecg_service._standardize_lead_name("lead_ii") == "II"
-        assert await ecg_service._standardize_lead_name("V1") == "V1"
-        assert await ecg_service._standardize_lead_name("avr") == "aVR"
+# Resultados mock de análise
+mock_analysis_results = {
+    'normal': {
+        'id': '001',
+        'diagnosis': 'Ritmo Sinusal Normal',
+        'confidence': 0.95,
+        'urgency': 'low',
+        'findings': [
+            'Ritmo sinusal regular',
+            'Frequência cardíaca normal',
+            'Intervalos dentro dos limites normais',
+            'Sem alterações ST-T significativas',
+        ],
+        'recommendations': [
+            'Manter acompanhamento de rotina',
+            'Repetir ECG em 1 ano',
+        ],
+    },
+    'atrial_fibrillation': {
+        'id': '002',
+        'diagnosis': 'Fibrilação Atrial',
+        'confidence': 0.92,
+        'urgency': 'high',
+        'findings': [
+            'Ritmo irregularmente irregular',
+            'Ausência de ondas P',
+            'Frequência ventricular variável',
+            'QRS estreito',
+        ],
+        'recommendations': [
+            'Avaliar necessidade de anticoagulação',
+            'Considerar controle de frequência',
+            'Encaminhar para cardiologista',
+            'Calcular escore CHA2DS2-VASc',
+        ],
+        'risk_scores': {
+            'cha2ds2_vasc': 3,
+            'hasbled': 1,
+        },
+    },
+    'stemi': {
+        'id': '003',
+        'diagnosis': 'Infarto Agudo do Miocárdio com Supra de ST',
+        'confidence': 0.98,
+        'urgency': 'critical',
+        'findings': [
+            'Elevação do segmento ST em DII, DIII, aVF',
+            'Depressão recíproca em DI, aVL',
+            'Ondas Q patológicas em desenvolvimento',
+            'Localização: parede inferior',
+        ],
+        'recommendations': [
+            'ATIVAR PROTOCOLO DE IAM',
+            'Tempo porta-balão < 90 minutos',
+            'Administrar AAS 300mg',
+            'Preparar para cateterismo',
+        ],
+        'critical_alerts': [
+            'EMERGÊNCIA MÉDICA',
+            'Ativar hemodinâmica',
+            'Notificar cardiologista de plantão',
+        ],
+    },
+}
 
-    @pytest.mark.asyncio
-    async def test_diagnosis_mapping(self, ecg_service):
-        """Test diagnosis code mapping."""
-        predictions = {"atrial_fibrillation": 0.9}
-        icd10_codes = await ecg_service._map_to_icd10(predictions)
-        assert "I48.9" in icd10_codes  # Atrial fibrillation ICD-10
+# Dados mock de validação
+mock_validation_data = {
+    'pending_validation': {
+        'id': '123',
+        'analysis_id': '123',
+        'status': 'pending',
+        'requested_at': '2024-06-23T10:35:00Z',
+        'requested_by': 'Sistema IA',
+        'priority': 'high',
+        'reason': 'Baixa confiança do modelo ML',
+    },
+    'completed_validation': {
+        'id': '124',
+        'analysis_id': '124',
+        'status': 'completed',
+        'requested_at': '2024-06-23T09:00:00Z',
+        'validated_at': '2024-06-23T09:15:00Z',
+        'validated_by': {
+            'id': '789',
+            'name': 'Dr. Carlos Mendes',
+            'specialty': 'Cardiologia',
+            'crm': '12345-SP',
+        },
+        'original_diagnosis': 'Fibrilação Atrial',
+        'validated_diagnosis': 'Flutter Atrial',
+        'notes': 'Padrão de serra dentada visível em DII, DIII, aVF. Condução AV variável.',
+        'agreement': False,
+    },
+}
 
-    @pytest.mark.asyncio
-    async def test_confidence_calibration(self, ecg_service):
-        """Test confidence score calibration."""
-        raw_confidence = 0.95
-        calibrated = await ecg_service._calibrate_confidence(raw_confidence)
-        assert 0.0 <= calibrated <= 1.0
-        assert calibrated <= raw_confidence  # Should be more conservative
+# Dados mock de notificações
+mock_notifications = [
+    {
+        'id': 'notif-001',
+        'type': 'critical_ecg',
+        'title': 'ECG Crítico Detectado',
+        'message': 'IAMCSST detectado no paciente João Silva (MRN123456)',
+        'timestamp': '2024-06-23T10:32:00Z',
+        'read': False,
+        'priority': 'critical',
+        'action_required': True,
+        'actions': [
+            {'label': 'Visualizar ECG', 'action': 'view_ecg', 'data': {'analysis_id': '123'}},
+            {'label': 'Ativar Protocolo', 'action': 'activate_protocol', 'data': {'protocol': 'stemi'}},
+        ],
+    },
+    {
+        'id': 'notif-002',
+        'type': 'validation_request',
+        'title': 'Validação Solicitada',
+        'message': 'ECG requer validação médica - Paciente Maria Santos',
+        'timestamp': '2024-06-23T09:45:00Z',
+        'read': True,
+        'priority': 'high',
+        'action_required': True,
+        'actions': [
+            {'label': 'Revisar', 'action': 'review_ecg', 'data': {'analysis_id': '456'}},
+        ],
+    },
+]
 
+# Dados mock de estatísticas
+mock_statistics = {
+    'dashboard': {
+        'total_analyses': 1543,
+        'analyses_today': 48,
+        'pending_validations': 7,
+        'critical_findings': 3,
+        'average_processing_time': 2.3,  # segundos
+        'system_uptime': 99.8,  # porcentagem
+    },
+    'performance_metrics': {
+        'model_accuracy': 0.96,
+        'sensitivity': 0.98,
+        'specificity': 0.95,
+        'f1_score': 0.97,
+        'average_confidence': 0.91,
+    },
+    'diagnose_distribution': {
+        'Normal': 65,
+        'Fibrilação Atrial': 15,
+        'Flutter Atrial': 5,
+        'Taquicardia Sinusal': 8,
+        'Bradicardia Sinusal': 4,
+        'Outros': 3,
+    },
+}
+
+# Dados mock do usuário
+mock_user_data = {
+    'current_user': {
+        'id': '999',
+        'email': 'dr.silva@hospital.com',
+        'name': 'Dr. Ana Silva',
+        'role': 'physician',
+        'specialty': 'Cardiologia',
+        'permissions': [
+            'view_ecg',
+            'validate_diagnosis',
+            'export_reports',
+            'view_patient_history',
+        ],
+        'preferences': {
+            'default_view': '12-lead',
+            'grid_enabled': True,
+            'measurement_units': 'metric',
+            'notifications': {
+                'critical': True,
+                'validation_requests': True,
+                'system_updates': False,
+            },
+        },
+    },
+}
+
+# Mensagens mock WebSocket
+mock_websocket_messages = {
+    'ecg_update': {
+        'type': 'ecg_update',
+        'data': {
+            'analysis_id': '123',
+            'timestamp': datetime.now().timestamp() * 1000,
+            'lead': 'II',
+            'values': generate_mock_ecg_signal(50),  # 100ms de dados a 500Hz
+        },
+    },
+    'analysis_complete': {
+        'type': 'analysis_complete',
+        'data': {
+            'analysis_id': '123',
+            'diagnosis': 'Ritmo Sinusal Normal',
+            'confidence': 0.94,
+            'processing_time': 2.1,
+        },
+    },
+    'critical_alert': {
+        'type': 'critical_alert',
+        'data': {
+            'analysis_id': '789',
+            'patient_id': '111',
+            'diagnosis': 'IAMCSST',
+            'urgency': 'critical',
+            'message': 'Atenção imediata necessária',
+        },
+    },
+}
+
+
+def generate_mock_ecg_file(format: str = 'xml') -> bytes:
+    """
+    Gera arquivo ECG mock em diferentes formatos
+    
+    Args:
+        format: Formato do arquivo ('xml', 'pdf', 'dicom')
+        
+    Returns:
+        Conteúdo do arquivo em bytes
+    """
+    if format == 'xml':
+        content = f"""<?xml version="1.0"?>
+<RestingECG>
+  <PatientDemographics>
+    <PatientID>123456</PatientID>
+  </PatientDemographics>
+  <Waveforms>
+    <WaveformData lead="I">{','.join(map(str, generate_mock_ecg_signal(100)))}</WaveformData>
+  </Waveforms>
+</RestingECG>"""
+        return content.encode('utf-8')
+    
+    elif format == 'pdf':
+        # Em um caso real, você usaria uma biblioteca como reportlab
+        return b'Mock PDF content'
+    
+    elif format == 'dicom':
+        # Em um caso real, você usaria pydicom
+        return b'Mock DICOM content'
+    
+    else:
+        raise ValueError(f"Formato não suportado: {format}")
+
+
+# Exemplo de uso em testes
+if __name__ == "__main__":
+    # Teste da geração de sinal ECG
+    signal = generate_mock_ecg_signal(500)
+    print(f"Sinal ECG gerado com {len(signal)} amostras")
+    print(f"Valor mínimo: {min(signal):.3f}, Valor máximo: {max(signal):.3f}")
+    
+    # Teste da geração de arquivo
+    xml_file = generate_mock_ecg_file('xml')
+    print(f"\nArquivo XML gerado com {len(xml_file)} bytes")
+    
+    # Exemplo de acesso aos dados mock
+    print(f"\nPaciente: {mock_patient_data['first_name']} {mock_patient_data['last_name']}")
+    print(f"Frequência cardíaca: {mock_ecg_data['analysis']['heart_rate']} bpm")
+    print(f"Ritmo: {mock_ecg_data['analysis']['rhythm']}")

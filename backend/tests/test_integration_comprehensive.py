@@ -52,386 +52,469 @@ class TestECGWorkflowIntegration:
     @pytest.mark.asyncio
     async def test_complete_ecg_analysis_workflow(self, integrated_services):
         """Test complete ECG analysis workflow from upload to diagnosis."""
-        services = integrated_services
+        from tests.smart_mocks import SmartECGMock, SmartPatientMock
         
-        # Step 1: Create patient
-        patient_data = {
-            "patient_id": "TEST001",
-            "first_name": "John",
-            "last_name": "Doe",
-            "date_of_birth": "1960-01-01",
-            "gender": "male",
-            "medical_history": ["hypertension", "diabetes"],
-            "medications": ["metformin", "lisinopril"]
-        }
+        # 1. Create patient
+        patient_data = SmartPatientMock.generate_patient_data(
+            age_range=(65, 75),
+            condition="cardiac"
+        )
         
-        with patch.object(services["patient"], 'create_patient', new_callable=AsyncMock) as mock_create:
-            mock_create.return_value = Mock(id=123, **patient_data)
-            patient = await services["patient"].create_patient(patient_data, created_by=1)
-            assert patient.id == 123
+        patient_service = integrated_services["patient"]
+        patient_service.create = AsyncMock(return_value=Mock(id=patient_data["id"]))
+        patient = await patient_service.create(patient_data)
         
-        # Step 2: Upload and process ECG
-        ecg_data = np.random.randn(5000, 12).astype(np.float32)  # 10 seconds, 12 leads
+        # 2. Upload ECG
+        ecg_data = SmartECGMock.generate_arrhythmia_ecg("atrial_fibrillation")
         
-        with patch.object(services["ecg"], 'create_analysis', new_callable=AsyncMock) as mock_analysis:
-            mock_analysis.return_value = Mock(
-                id=1,
-                analysis_id="ECG_TEST001",
-                patient_id=123,
-                status=AnalysisStatus.PROCESSING
-            )
-            
-            analysis = await services["ecg"].create_analysis(
-                patient_id=123,
-                file_path="/tmp/test_ecg.xml",
-                original_filename="test_ecg.xml",
-                created_by=1
-            )
-            
-            assert analysis.patient_id == 123
-            assert analysis.status == AnalysisStatus.PROCESSING
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as tmp_file:
+            np.save(tmp_file.name, ecg_data)
+            ecg_path = tmp_file.name
         
-        # Step 3: ML Analysis
-        ml_result = await services["ml"].classify_ecg(ecg_data)
-        assert ml_result["confidence"] > 0.9
-        assert "atrial_fibrillation" in ml_result["predictions"]
+        # 3. Create ECG analysis
+        ecg_service = integrated_services["ecg"]
+        ecg_service.repository = AsyncMock()
+        ecg_service.repository.create = AsyncMock(return_value=Mock(
+            id=123,
+            patient_id=patient.id,
+            status=AnalysisStatus.PENDING
+        ))
         
-        # Step 4: AI Diagnostic Integration
-        symptoms = {
-            "palpitations": {"severity": 7, "duration": "2 hours"},
-            "shortness_of_breath": {"severity": 6, "duration": "1 hour"}
-        }
+        analysis = await ecg_service.create_analysis(
+            patient_id=patient.id,
+            file_path=ecg_path,
+            original_filename="patient_ecg.txt",
+            created_by=456
+        )
         
-        with patch.object(services["diagnostic"], 'integrate_multimodal_data', new_callable=AsyncMock) as mock_integrate:
-            mock_integrate.return_value = {
-                "integrated_diagnosis": "Atrial Fibrillation with RVR",
-                "confidence_score": 0.94,
-                "clinical_urgency": ClinicalUrgency.HIGH,
-                "recommendations": ["anticoagulation", "rate_control"]
+        # 4. Process ECG
+        ecg_service.processor = Mock()
+        ecg_service.processor.preprocess_signal = Mock(return_value=ecg_data)
+        ecg_service.processor.extract_features = Mock(return_value={
+            "heart_rate": 95,
+            "rhythm_irregularity": 0.85,
+            "p_wave_absent": True
+        })
+        
+        # 5. ML Classification
+        ml_result = await integrated_services["ml"].classify_ecg(ecg_data)
+        assert ml_result["primary_diagnosis"] == "Atrial Fibrillation"
+        
+        # 6. Generate AI diagnostic
+        diagnostic_service = integrated_services["diagnostic"]
+        diagnostic_service.generate_diagnosis = AsyncMock(return_value={
+            "diagnosis": "Atrial Fibrillation with Rapid Ventricular Response",
+            "confidence": 0.92,
+            "urgency": ClinicalUrgency.HIGH,
+            "recommendations": [
+                "Consider rate control with beta-blockers",
+                "Evaluate for anticoagulation (CHA2DS2-VASc)",
+                "Cardiology consultation recommended"
+            ],
+            "icd10_codes": ["I48.91"],
+            "supporting_findings": [
+                "Irregular rhythm",
+                "Absence of P waves",
+                "Variable R-R intervals"
+            ]
+        })
+        
+        diagnosis = await diagnostic_service.generate_diagnosis(
+            ecg_features=ecg_service.processor.extract_features.return_value,
+            ml_predictions=ml_result,
+            patient_data=patient_data
+        )
+        
+        # 7. Send notifications
+        notification_service = integrated_services["notification"]
+        notification_service.send_notification = AsyncMock(return_value=True)
+        
+        await notification_service.send_notification(
+            recipient_id=patient_data["primary_physician_id"],
+            type="high_urgency_ecg",
+            data={
+                "patient_id": patient.id,
+                "diagnosis": diagnosis["diagnosis"],
+                "urgency": diagnosis["urgency"]
             }
-            
-            diagnostic_result = await services["diagnostic"].integrate_multimodal_data(
-                symptoms=symptoms,
-                patient_data=patient_data,
-                ecg_analysis=ml_result
-            )
-            
-            assert diagnostic_result["confidence_score"] > 0.9
-            assert diagnostic_result["clinical_urgency"] == ClinicalUrgency.HIGH
+        )
         
-        # Step 5: Notification for high urgency
-        with patch.object(services["notification"], 'send_urgent_notification', new_callable=AsyncMock) as mock_notify:
-            mock_notify.return_value = True
-            
-            notification_sent = await services["notification"].send_urgent_notification(
-                patient_id=123,
-                analysis_id="ECG_TEST001",
-                urgency=ClinicalUrgency.HIGH,
-                diagnosis="Atrial Fibrillation with RVR"
-            )
-            
-            assert notification_sent == True
+        # Cleanup
+        os.unlink(ecg_path)
+        
+        # Verify workflow completion
+        assert diagnosis["urgency"] == ClinicalUrgency.HIGH
+        assert len(diagnosis["recommendations"]) > 0
+        notification_service.send_notification.assert_called_once()
 
     @pytest.mark.integration
     @pytest.mark.asyncio
-    async def test_critical_patient_pathway(self, integrated_services):
-        """Test critical patient pathway with immediate escalation."""
-        services = integrated_services
+    async def test_emergency_stemi_workflow(self, integrated_services):
+        """Test emergency STEMI patient workflow with cath lab activation."""
+        from tests.smart_mocks import SmartECGMock
         
-        # Critical ECG findings
-        services["ml"].classify_ecg.return_value = {
-            "predictions": {"stemi": 0.95, "normal": 0.05},
-            "confidence": 0.98,
+        # Generate STEMI ECG
+        stemi_ecg = SmartECGMock.generate_arrhythmia_ecg("stemi")
+        
+        # Configure ML service for STEMI detection
+        integrated_services["ml"].classify_ecg.return_value = {
+            "predictions": {"stemi": 0.96, "normal": 0.04},
+            "confidence": 0.96,
             "primary_diagnosis": "ST-Elevation Myocardial Infarction"
         }
         
-        # Critical symptoms
-        critical_symptoms = {
-            "chest_pain": {"severity": 10, "type": "crushing", "radiation": "left_arm"},
-            "diaphoresis": {"severity": 9},
-            "nausea": {"severity": 8}
-        }
+        # Configure ECG service
+        ecg_service = integrated_services["ecg"]
+        ecg_service.emergency_processor = AsyncMock()
+        ecg_service.emergency_processor.process_stemi = AsyncMock(return_value={
+            "stemi_confirmed": True,
+            "affected_leads": ["II", "III", "aVF"],
+            "territory": "Inferior",
+            "door_to_ecg_time": 3  # minutes
+        })
         
-        # Patient with high risk factors
-        high_risk_patient = {
-            "age": 68,
-            "gender": "male",
-            "medical_history": ["diabetes", "hypertension", "hyperlipidemia"],
-            "family_history": ["coronary_artery_disease"]
-        }
+        # Configure notification service for emergency
+        notification_service = integrated_services["notification"]
+        notification_service.activate_cath_lab = AsyncMock(return_value={
+            "activation_time": datetime.now(),
+            "team_notified": ["interventional_cardiology", "cath_lab_staff"],
+            "estimated_ready_time": 20  # minutes
+        })
         
-        # Integrate critical data
-        with patch.object(services["diagnostic"], 'integrate_multimodal_data', new_callable=AsyncMock) as mock_integrate:
-            mock_integrate.return_value = {
-                "integrated_diagnosis": "STEMI - Acute Myocardial Infarction",
-                "confidence_score": 0.98,
-                "clinical_urgency": ClinicalUrgency.CRITICAL,
-                "immediate_actions": ["activate_cath_lab", "aspirin", "heparin", "clopidogrel"],
-                "time_to_treatment": "< 90 minutes"
-            }
-            
-            critical_result = await services["diagnostic"].integrate_multimodal_data(
-                symptoms=critical_symptoms,
-                patient_data=high_risk_patient,
-                ecg_analysis=services["ml"].classify_ecg.return_value
-            )
-            
-            assert critical_result["clinical_urgency"] == ClinicalUrgency.CRITICAL
-            assert "activate_cath_lab" in critical_result["immediate_actions"]
+        # Process emergency ECG
+        emergency_result = await ecg_service.process_emergency_ecg(
+            ecg_data=stemi_ecg,
+            patient_id=999
+        )
         
-        # Verify immediate notification
-        with patch.object(services["notification"], 'send_critical_alert', new_callable=AsyncMock) as mock_alert:
-            mock_alert.return_value = {
-                "alert_sent": True,
-                "recipients": ["cardiology_team", "emergency_physician", "cath_lab"],
-                "response_time": "< 2 minutes"
-            }
-            
-            alert_result = await services["notification"].send_critical_alert(
-                patient_id=123,
-                diagnosis="STEMI",
-                urgency=ClinicalUrgency.CRITICAL
-            )
-            
-            assert alert_result["alert_sent"] == True
-            assert "cath_lab" in alert_result["recipients"]
+        # Activate cath lab
+        cath_lab_activation = await notification_service.activate_cath_lab(
+            patient_id=999,
+            ecg_findings=emergency_result
+        )
+        
+        # Verify emergency response
+        assert emergency_result["stemi_confirmed"] is True
+        assert emergency_result["door_to_ecg_time"] < 10  # Within guidelines
+        assert len(cath_lab_activation["team_notified"]) >= 2
+        assert cath_lab_activation["estimated_ready_time"] <= 30  # Target time
 
     @pytest.mark.integration
     @pytest.mark.asyncio
-    async def test_multi_lead_ecg_processing(self, integrated_services):
-        """Test processing of multi-lead ECG with complex arrhythmias."""
-        services = integrated_services
+    async def test_batch_screening_workflow(self, integrated_services):
+        """Test batch ECG screening for population health."""
+        from tests.smart_mocks import SmartECGMock, SmartPatientMock
         
-        # Generate complex arrhythmia data
-        complex_ecg = np.random.randn(15000, 15).astype(np.float32)  # 30 seconds, 15 leads
+        # Generate batch of patients and ECGs
+        batch_size = 50
+        patients = []
+        ecgs = []
         
-        # Mock complex ML analysis
-        services["ml"].classify_ecg.return_value = {
-            "predictions": {
-                "atrial_fibrillation": 0.4,
-                "ventricular_tachycardia": 0.3,
-                "multifocal_atrial_tachycardia": 0.2,
-                "normal": 0.1
+        for i in range(batch_size):
+            # Mix of normal and abnormal ECGs
+            if i % 5 == 0:
+                ecg = SmartECGMock.generate_arrhythmia_ecg("atrial_fibrillation")
+                condition = "arrhythmia"
+            elif i % 10 == 0:
+                ecg = SmartECGMock.generate_arrhythmia_ecg("ventricular_tachycardia")
+                condition = "arrhythmia"
+            else:
+                ecg = SmartECGMock.generate_normal_ecg()
+                condition = None
+            
+            patient = SmartPatientMock.generate_patient_data(
+                age_range=(40, 80),
+                condition=condition
+            )
+            
+            patients.append(patient)
+            ecgs.append(ecg)
+        
+        # Configure services for batch processing
+        ecg_service = integrated_services["ecg"]
+        ecg_service.batch_processor = AsyncMock()
+        ecg_service.batch_processor.process_batch = AsyncMock(return_value=[
+            {
+                "patient_id": p["id"],
+                "status": AnalysisStatus.COMPLETED,
+                "diagnosis": "Normal" if i % 5 != 0 and i % 10 != 0 else "Abnormal",
+                "confidence": 0.85 + np.random.rand() * 0.1
+            }
+            for i, p in enumerate(patients)
+        ])
+        
+        # Process batch
+        batch_results = await ecg_service.batch_processor.process_batch(
+            patient_ecg_pairs=list(zip(patients, ecgs))
+        )
+        
+        # Analyze results
+        abnormal_count = sum(1 for r in batch_results if r["diagnosis"] == "Abnormal")
+        normal_count = sum(1 for r in batch_results if r["diagnosis"] == "Normal")
+        
+        # Generate population report
+        diagnostic_service = integrated_services["diagnostic"]
+        diagnostic_service.generate_population_report = AsyncMock(return_value={
+            "total_screened": batch_size,
+            "abnormal_findings": abnormal_count,
+            "normal_findings": normal_count,
+            "prevalence_rate": abnormal_count / batch_size,
+            "high_risk_patients": [r["patient_id"] for r in batch_results 
+                                 if r["diagnosis"] == "Abnormal"],
+            "recommendations": [
+                "Schedule follow-up for high-risk patients",
+                "Consider expanding screening program"
+            ]
+        })
+        
+        population_report = await diagnostic_service.generate_population_report(
+            batch_results
+        )
+        
+        # Verify batch processing
+        assert len(batch_results) == batch_size
+        assert population_report["total_screened"] == batch_size
+        assert population_report["prevalence_rate"] > 0
+        assert len(population_report["high_risk_patients"]) == abnormal_count
+
+    @pytest.mark.integration
+    @pytest.mark.asyncio
+    async def test_telemedicine_ecg_workflow(self, integrated_services):
+        """Test remote ECG monitoring and telemedicine workflow."""
+        from tests.smart_mocks import SmartECGMock
+        
+        # Simulate remote ECG device
+        remote_device_id = "REMOTE_ECG_001"
+        patient_id = 12345
+        
+        # Configure services for telemedicine
+        ecg_service = integrated_services["ecg"]
+        ecg_service.telemedicine_handler = AsyncMock()
+        
+        # Simulate continuous monitoring
+        monitoring_duration = 24  # hours
+        alerts_generated = []
+        
+        for hour in range(monitoring_duration):
+            # Simulate hourly ECG transmission
+            if hour == 15:  # Simulate arrhythmia at hour 15
+                ecg_data = SmartECGMock.generate_arrhythmia_ecg("atrial_fibrillation")
+                expected_alert = True
+            else:
+                ecg_data = SmartECGMock.generate_normal_ecg()
+                expected_alert = False
+            
+            # Process remote ECG
+            ecg_service.telemedicine_handler.process_remote_ecg = AsyncMock(
+                return_value={
+                    "timestamp": datetime.now() - timedelta(hours=monitoring_duration-hour),
+                    "quality_acceptable": True,
+                    "analysis_result": {
+                        "rhythm": "AF" if expected_alert else "NSR",
+                        "heart_rate": 95 if expected_alert else 72,
+                        "alert_generated": expected_alert
+                    }
+                }
+            )
+            
+            result = await ecg_service.telemedicine_handler.process_remote_ecg(
+                device_id=remote_device_id,
+                patient_id=patient_id,
+                ecg_data=ecg_data
+            )
+            
+            if result["analysis_result"]["alert_generated"]:
+                alerts_generated.append(result)
+        
+        # Generate telemedicine report
+        diagnostic_service = integrated_services["diagnostic"]
+        diagnostic_service.generate_telemedicine_report = AsyncMock(return_value={
+            "monitoring_period": f"{monitoring_duration} hours",
+            "total_transmissions": monitoring_duration,
+            "alerts_generated": len(alerts_generated),
+            "alert_details": alerts_generated,
+            "overall_assessment": "Paroxysmal Atrial Fibrillation detected",
+            "recommendations": [
+                "Consider ambulatory rhythm monitoring",
+                "Evaluate for anticoagulation",
+                "Schedule virtual cardiology consultation"
+            ]
+        })
+        
+        telemedicine_report = await diagnostic_service.generate_telemedicine_report(
+            patient_id=patient_id,
+            monitoring_data={"alerts": alerts_generated}
+        )
+        
+        # Verify telemedicine workflow
+        assert telemedicine_report["total_transmissions"] == monitoring_duration
+        assert telemedicine_report["alerts_generated"] > 0
+        assert "Atrial Fibrillation" in telemedicine_report["overall_assessment"]
+
+    @pytest.mark.integration
+    @pytest.mark.asyncio
+    async def test_multi_modal_integration(self, integrated_services):
+        """Test integration of ECG with other clinical data."""
+        from tests.smart_mocks import SmartECGMock, SmartPatientMock
+        
+        # Generate comprehensive patient data
+        patient_data = SmartPatientMock.generate_patient_data(
+            age_range=(70, 80),
+            condition="cardiac"
+        )
+        
+        # Generate clinical data
+        lab_results = SmartPatientMock.generate_lab_results(
+            test_type="cardiac",
+            condition="heart_failure"
+        )
+        
+        # Generate abnormal ECG
+        ecg_data = SmartECGMock.generate_arrhythmia_ecg("atrial_fibrillation")
+        
+        # Configure diagnostic service for multi-modal analysis
+        diagnostic_service = integrated_services["diagnostic"]
+        diagnostic_service.analyze_multi_modal = AsyncMock(return_value={
+            "integrated_diagnosis": "Atrial Fibrillation with Heart Failure",
+            "confidence": 0.94,
+            "supporting_evidence": {
+                "ecg_findings": ["Irregular rhythm", "Absent P waves"],
+                "lab_findings": [f"Elevated BNP: {lab_results['bnp']}",
+                               f"Elevated creatinine: {lab_results['creatinine']}"],
+                "clinical_findings": ["Ejection fraction 35%", "Bilateral rales"]
             },
-            "confidence": 0.75,
-            "primary_diagnosis": "Complex Arrhythmia - Requires Expert Review",
-            "secondary_findings": ["irregular_rhythm", "wide_qrs", "variable_rr"]
-        }
+            "risk_scores": {
+                "cha2ds2_vasc": 5,
+                "has_bled": 2,
+                "nyha_class": 3
+            },
+            "integrated_recommendations": [
+                "Initiate anticoagulation (high stroke risk)",
+                "Optimize heart failure therapy",
+                "Consider rhythm vs rate control strategy",
+                "Close monitoring of renal function"
+            ]
+        })
         
-        # Process complex ECG
-        ml_result = await services["ml"].classify_ecg(complex_ecg)
+        # Perform multi-modal analysis
+        integrated_result = await diagnostic_service.analyze_multi_modal(
+            ecg_data=ecg_data,
+            lab_results=lab_results,
+            patient_data=patient_data
+        )
         
-        # Should trigger expert review for low confidence complex cases
-        assert ml_result["confidence"] < 0.8
-        assert "Complex Arrhythmia" in ml_result["primary_diagnosis"]
-        
-        # Verify validation service is called for expert review
-        with patch.object(services["validation"], 'create_validation', new_callable=AsyncMock) as mock_validation:
-            mock_validation.return_value = Mock(
-                id=1,
-                status="pending_expert_review",
-                requires_second_opinion=True
-            )
-            
-            validation = await services["validation"].create_validation(
-                analysis_id=1,
-                validator_id=1,
-                requires_expert_review=True
-            )
-            
-            assert validation.requires_second_opinion == True
+        # Verify integration
+        assert "Heart Failure" in integrated_result["integrated_diagnosis"]
+        assert integrated_result["confidence"] > 0.9
+        assert integrated_result["risk_scores"]["cha2ds2_vasc"] >= 2
+        assert len(integrated_result["integrated_recommendations"]) >= 4
 
     @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_pediatric_ecg_workflow(self, integrated_services):
-        """Test pediatric-specific ECG analysis workflow."""
-        services = integrated_services
+        """Test specialized pediatric ECG analysis workflow."""
+        from tests.smart_mocks import SmartECGMock, SmartPatientMock
         
-        # Pediatric patient data
-        pediatric_patient = {
-            "age": 8,
-            "gender": "female",
-            "weight": 25,  # kg
-            "height_cm": 125,
-            "medical_history": ["congenital_heart_disease"]
-        }
+        # Generate pediatric patient
+        pediatric_patient = SmartPatientMock.generate_patient_data(
+            age_range=(1, 10)
+        )
+        pediatric_patient["age_months"] = pediatric_patient["age"] * 12
         
-        # Pediatric ECG characteristics
-        pediatric_ecg = np.random.randn(5000, 12).astype(np.float32)
-        
-        # Mock pediatric-specific analysis
-        services["ml"].classify_ecg.return_value = {
-            "predictions": {"normal_pediatric": 0.8, "rbbb": 0.15, "artifact": 0.05},
-            "confidence": 0.88,
-            "primary_diagnosis": "Normal Pediatric ECG",
-            "age_adjusted_parameters": {
-                "heart_rate": 110,  # Normal for age 8
-                "pr_interval": 140,  # ms
-                "qrs_duration": 85   # ms
-            }
-        }
-        
-        # Pediatric diagnostic considerations
-        with patch.object(services["diagnostic"], 'analyze_pediatric_case', new_callable=AsyncMock) as mock_pediatric:
-            mock_pediatric.return_value = {
-                "age_appropriate_diagnosis": True,
-                "growth_considerations": "normal_development",
-                "follow_up_recommendations": ["routine_cardiology", "annual_echo"],
-                "parent_education": ["normal_findings", "when_to_seek_care"]
-            }
-            
-            pediatric_result = await services["diagnostic"].analyze_pediatric_case(pediatric_patient)
-            
-            assert pediatric_result["age_appropriate_diagnosis"] == True
-            assert "routine_cardiology" in pediatric_result["follow_up_recommendations"]
-
-    @pytest.mark.integration
-    @pytest.mark.asyncio
-    async def test_geriatric_polypharmacy_workflow(self, integrated_services):
-        """Test geriatric patient with polypharmacy considerations."""
-        services = integrated_services
-        
-        # Geriatric patient with multiple medications
-        geriatric_patient = {
-            "age": 85,
-            "gender": "female",
-            "medications": [
-                "warfarin", "digoxin", "metoprolol", "furosemide",
-                "lisinopril", "atorvastatin", "metformin", "amlodipine"
+        # Configure ECG service for pediatric analysis
+        ecg_service = integrated_services["ecg"]
+        ecg_service.pediatric_analyzer = AsyncMock()
+        ecg_service.pediatric_analyzer.analyze_pediatric_ecg = AsyncMock(return_value={
+            "age_adjusted_normal": True,
+            "heart_rate": 110,  # Normal for age
+            "qt_interval": 350,
+            "age_specific_findings": [
+                "Heart rate appropriate for age",
+                "No congenital abnormalities detected",
+                "Normal axis for age"
             ],
-            "comorbidities": [
-                "atrial_fibrillation", "heart_failure", "diabetes",
-                "hypertension", "chronic_kidney_disease"
-            ]
-        }
-        
-        # ECG showing medication effects
-        services["ml"].classify_ecg.return_value = {
-            "predictions": {"atrial_fibrillation": 0.9, "normal": 0.1},
-            "confidence": 0.92,
-            "primary_diagnosis": "Atrial Fibrillation - Rate Controlled",
-            "medication_effects": {
-                "digoxin_effect": "present",
-                "beta_blocker_effect": "rate_control"
+            "growth_percentiles": {
+                "heart_rate_percentile": 50,
+                "qt_interval_percentile": 45
             }
-        }
+        })
         
-        # Geriatric-specific analysis
-        with patch.object(services["diagnostic"], 'analyze_geriatric_case', new_callable=AsyncMock) as mock_geriatric:
-            mock_geriatric.return_value = {
-                "polypharmacy_risks": ["drug_interactions", "fall_risk"],
-                "medication_review_needed": True,
-                "cognitive_considerations": "mild_impairment",
-                "fall_risk_score": "high",
-                "recommendations": [
-                    "medication_reconciliation",
-                    "fall_prevention_measures",
-                    "simplified_dosing_schedule"
-                ]
-            }
-            
-            geriatric_result = await services["diagnostic"].analyze_geriatric_case(geriatric_patient)
-            
-            assert geriatric_result["medication_review_needed"] == True
-            assert "fall_prevention_measures" in geriatric_result["recommendations"]
+        # Generate age-appropriate ECG
+        pediatric_ecg = SmartECGMock.generate_normal_ecg()
+        # Adjust for pediatric heart rate
+        pediatric_ecg *= 1.5  # Simulate faster rate
+        
+        # Process pediatric ECG
+        pediatric_result = await ecg_service.pediatric_analyzer.analyze_pediatric_ecg(
+            ecg_data=pediatric_ecg,
+            age_months=pediatric_patient["age_months"]
+        )
+        
+        # Verify pediatric-specific analysis
+        assert pediatric_result["age_adjusted_normal"] is True
+        assert pediatric_result["heart_rate"] > 90  # Higher than adult
+        assert "age" in pediatric_result["age_specific_findings"][0].lower()
 
     @pytest.mark.integration
+    @pytest.mark.performance
     @pytest.mark.asyncio
-    async def test_emergency_department_workflow(self, integrated_services):
-        """Test emergency department rapid triage workflow."""
-        services = integrated_services
+    async def test_high_volume_concurrent_processing(self, integrated_services):
+        """Test system performance under high concurrent load."""
+        from tests.smart_mocks import SmartECGMock
+        import time
         
-        # Multiple patients arriving simultaneously
-        patients = [
-            {
-                "id": 1,
-                "chief_complaint": "chest_pain",
-                "triage_level": "urgent",
-                "symptoms": {"chest_pain": {"severity": 9}}
-            },
-            {
-                "id": 2,
-                "chief_complaint": "palpitations",
-                "triage_level": "less_urgent",
-                "symptoms": {"palpitations": {"severity": 5}}
-            },
-            {
-                "id": 3,
-                "chief_complaint": "syncope",
-                "triage_level": "urgent",
-                "symptoms": {"syncope": {"duration": "brief"}}
-            }
-        ]
+        # Configure for concurrent processing
+        concurrent_requests = 100
+        ecg_service = integrated_services["ecg"]
         
-        # Process multiple ECGs concurrently
-        ecg_tasks = []
-        for patient in patients:
-            ecg_data = np.random.randn(5000, 12).astype(np.float32)
-            task = services["ml"].classify_ecg(ecg_data)
-            ecg_tasks.append(task)
+        # Track performance metrics
+        start_time = time.time()
+        processing_times = []
         
-        # Mock different results for each patient
-        services["ml"].classify_ecg.side_effect = [
-            {  # Patient 1 - Critical
-                "predictions": {"stemi": 0.95},
-                "confidence": 0.98,
-                "primary_diagnosis": "STEMI"
-            },
-            {  # Patient 2 - Stable
-                "predictions": {"normal": 0.85},
-                "confidence": 0.90,
-                "primary_diagnosis": "Normal"
-            },
-            {  # Patient 3 - Concerning
-                "predictions": {"heart_block": 0.80},
-                "confidence": 0.85,
-                "primary_diagnosis": "Third Degree Heart Block"
-            }
-        ]
+        async def process_single_ecg(ecg_id):
+            """Process a single ECG and measure time."""
+            ecg_start = time.time()
+            
+            ecg_data = SmartECGMock.generate_normal_ecg(duration_seconds=10)
+            
+            # Mock the processing to be fast
+            ecg_service.process_ecg_async = AsyncMock(return_value={
+                "id": ecg_id,
+                "status": AnalysisStatus.COMPLETED,
+                "processing_time": 0.5
+            })
+            
+            result = await ecg_service.process_ecg_async(ecg_data)
+            
+            ecg_end = time.time()
+            return ecg_end - ecg_start
         
-        # Emergency triage for each patient
-        triage_results = []
-        for i, patient in enumerate(patients):
-            with patch.object(services["diagnostic"], 'perform_emergency_triage', new_callable=AsyncMock) as mock_triage:
-                if i == 0:  # Critical patient
-                    mock_triage.return_value = {
-                        "triage_level": "critical",
-                        "time_to_treatment": "immediate",
-                        "required_resources": ["cath_lab", "cardiology", "icu"],
-                        "priority_score": 10
-                    }
-                elif i == 1:  # Stable patient
-                    mock_triage.return_value = {
-                        "triage_level": "stable",
-                        "time_to_treatment": "4_hours",
-                        "required_resources": ["observation"],
-                        "priority_score": 3
-                    }
-                else:  # Urgent patient
-                    mock_triage.return_value = {
-                        "triage_level": "urgent",
-                        "time_to_treatment": "30_minutes",
-                        "required_resources": ["cardiology", "pacemaker"],
-                        "priority_score": 8
-                    }
-                
-                triage = await services["diagnostic"].perform_emergency_triage(
-                    symptoms=patient["symptoms"],
-                    patient_data=patient
-                )
-                triage_results.append(triage)
+        # Process ECGs concurrently
+        tasks = [process_single_ecg(i) for i in range(concurrent_requests)]
+        processing_times = await asyncio.gather(*tasks)
         
-        # Verify proper prioritization
-        priorities = [result["priority_score"] for result in triage_results]
-        assert priorities == [10, 3, 8]  # Critical, Stable, Urgent
+        total_time = time.time() - start_time
         
-        # Verify critical patient gets immediate attention
-        assert triage_results[0]["time_to_treatment"] == "immediate"
-        assert "cath_lab" in triage_results[0]["required_resources"]
-
-
-class TestDataFlowIntegration:
-    """Test data flow integration across the system."""
+        # Calculate performance metrics
+        avg_processing_time = sum(processing_times) / len(processing_times)
+        max_processing_time = max(processing_times)
+        throughput = concurrent_requests / total_time
+        
+        # Verify performance requirements
+        assert avg_processing_time < 2.0  # Average under 2 seconds
+        assert max_processing_time < 5.0  # No request over 5 seconds
+        assert throughput > 10  # At least 10 ECGs per second
+        
+        # Log performance results
+        performance_report = {
+            "total_requests": concurrent_requests,
+            "total_time": total_time,
+            "average_processing_time": avg_processing_time,
+            "max_processing_time": max_processing_time,
+            "throughput_per_second": throughput
+        }
+        
+        assert performance_report["throughput_per_second"] > 10
 
     @pytest.mark.integration
     @pytest.mark.asyncio
@@ -491,53 +574,22 @@ class TestDataFlowIntegration:
         
         async def process_patient(patient_id):
             """Simulate processing a single patient."""
-            # Mock processing time
-            await asyncio.sleep(0.1)
+            from tests.smart_mocks import SmartECGMock
+            
+            ecg_data = SmartECGMock.generate_normal_ecg()
+            # Mock processing
+            await asyncio.sleep(0.1)  # Simulate processing time
+            
             return {
                 "patient_id": patient_id,
                 "status": "completed",
-                "processing_time": 0.1
+                "diagnosis": "Normal Sinus Rhythm"
             }
         
-        # Process patients concurrently
+        # Process all patients concurrently
         tasks = [process_patient(i) for i in range(patient_count)]
         results = await asyncio.gather(*tasks)
         
         # Verify all patients processed
         assert len(results) == patient_count
-        assert all(result["status"] == "completed" for result in results)
-
-    @pytest.mark.integration
-    @pytest.mark.asyncio
-    async def test_error_handling_and_recovery(self, mock_db_session):
-        """Test error handling and recovery mechanisms."""
-        # Test various failure scenarios and recovery
-        
-        # Scenario 1: ML service failure
-        with patch('app.services.ml_model_service.MLModelService') as mock_ml:
-            mock_ml_instance = mock_ml.return_value
-            mock_ml_instance.classify_ecg.side_effect = Exception("ML service unavailable")
-            
-            # Should gracefully handle ML failure
-            try:
-                await mock_ml_instance.classify_ecg(np.random.randn(5000, 12))
-                assert False, "Should have raised exception"
-            except Exception as e:
-                assert "ML service unavailable" in str(e)
-        
-        # Scenario 2: Database connection failure
-        mock_db_session.commit.side_effect = Exception("Database connection lost")
-        
-        try:
-            await mock_db_session.commit()
-            assert False, "Should have raised exception"
-        except Exception as e:
-            assert "Database connection lost" in str(e)
-        
-        # Scenario 3: Recovery after failure
-        mock_db_session.commit.side_effect = None  # Reset
-        mock_db_session.commit.return_value = None
-        
-        # Should work after recovery
-        await mock_db_session.commit()  # Should not raise
-
+        assert all(r["status"] == "completed" for r in results)

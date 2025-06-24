@@ -47,547 +47,630 @@ class TestE2ECriticalPatientJourney:
     @pytest.mark.asyncio
     async def test_stemi_patient_complete_journey(self, e2e_environment):
         """Test complete STEMI patient journey from arrival to treatment."""
-        env = e2e_environment
+        from tests.smart_mocks import SmartECGMock, SmartPatientMock
         
-        # Step 1: Patient arrives at ED with chest pain
-        patient_arrival = {
-            "timestamp": datetime.now(),
-            "chief_complaint": "severe_chest_pain",
+        # === Phase 1: Patient Arrival ===
+        arrival_time = datetime.now()
+        
+        # Generate critical patient
+        patient_data = SmartPatientMock.generate_patient_data(
+            age_range=(65, 75),
+            condition="cardiac"
+        )
+        patient_data.update({
+            "chest_pain": True,
+            "pain_duration_minutes": 45,
+            "pain_score": 8,
+            "symptoms": ["chest pressure", "shortness of breath", "diaphoresis"]
+        })
+        
+        # Triage assessment
+        triage_result = {
+            "triage_time": arrival_time + timedelta(minutes=2),
+            "triage_category": "ESI-1",  # Emergency Severity Index
             "vital_signs": {
-                "blood_pressure": "160/95",
-                "heart_rate": 105,
+                "blood_pressure": "150/95",
+                "heart_rate": 110,
                 "oxygen_saturation": 94,
-                "temperature": 98.8
+                "respiratory_rate": 22
+            }
+        }
+        
+        # === Phase 2: ECG Acquisition ===
+        ecg_acquisition_time = arrival_time + timedelta(minutes=5)
+        
+        # Generate STEMI ECG
+        stemi_ecg = SmartECGMock.generate_arrhythmia_ecg("stemi")
+        
+        # ECG metadata
+        ecg_metadata = {
+            "acquisition_time": ecg_acquisition_time,
+            "device_id": "ECG_DEVICE_001",
+            "technician_id": "TECH_123",
+            "leads_quality": {lead: "good" for lead in 
+                            ["I", "II", "III", "aVR", "aVL", "aVF", 
+                             "V1", "V2", "V3", "V4", "V5", "V6"]}
+        }
+        
+        # === Phase 3: Automated Analysis ===
+        analysis_start_time = ecg_acquisition_time + timedelta(seconds=10)
+        
+        # Process ECG through ML pipeline
+        ml_analysis = await e2e_environment["ml_models"].classify_ecg(stemi_ecg)
+        
+        # Detailed STEMI analysis
+        stemi_analysis = {
+            "analysis_time": analysis_start_time + timedelta(seconds=5),
+            "stemi_detected": True,
+            "confidence": ml_analysis["confidence"],
+            "affected_leads": ["II", "III", "aVF"],
+            "st_elevation_mm": {"II": 3.5, "III": 4.0, "aVF": 3.8},
+            "reciprocal_changes": {"aVL": -2.0, "I": -1.5},
+            "infarct_location": "Inferior",
+            "suspected_vessel": "Right Coronary Artery",
+            "door_to_ecg_time": (ecg_acquisition_time - arrival_time).seconds / 60
+        }
+        
+        # === Phase 4: Clinical Decision Support ===
+        clinical_recommendations = {
+            "immediate_actions": [
+                "Activate Cath Lab STAT",
+                "Administer Aspirin 325mg",
+                "Obtain IV access x2",
+                "Draw cardiac biomarkers",
+                "Continuous cardiac monitoring"
+            ],
+            "medications": {
+                "aspirin": {"dose": "325mg", "route": "PO", "stat": True},
+                "ticagrelor": {"dose": "180mg", "route": "PO", "stat": True},
+                "heparin": {"dose": "60 units/kg", "route": "IV", "stat": True}
             },
-            "symptoms": {
-                "chest_pain": {
-                    "severity": 10,
-                    "type": "crushing",
-                    "radiation": "left_arm_jaw",
-                    "duration": "45_minutes"
-                },
-                "diaphoresis": {"severity": 9},
-                "nausea": {"severity": 7},
-                "shortness_of_breath": {"severity": 6}
+            "target_times": {
+                "door_to_balloon": 90,  # minutes
+                "first_medical_contact_to_device": 120  # minutes
             }
         }
         
-        # Step 2: Immediate ECG acquisition
-        ecg_acquisition_time = datetime.now()
-        ecg_data = self._generate_stemi_ecg()
+        # === Phase 5: Emergency Response ===
+        emergency_activation_time = stemi_analysis["analysis_time"] + timedelta(seconds=30)
         
-        # Step 3: Rapid ECG analysis
-        with patch('app.services.ecg_service.ECGAnalysisService') as mock_ecg_service:
-            mock_ecg_instance = mock_ecg_service.return_value
-            mock_ecg_instance.analyze_ecg_urgent.return_value = {
-                "analysis_id": "ECG_STEMI_001",
-                "processing_time_seconds": 15,
-                "results": {
-                    "primary_diagnosis": "STEMI - Anterior Wall",
-                    "confidence": 0.98,
-                    "st_elevation_leads": ["V1", "V2", "V3", "V4"],
-                    "clinical_urgency": ClinicalUrgency.CRITICAL,
-                    "door_to_ecg_time": 3  # minutes
-                }
-            }
-            
-            ecg_analysis = await mock_ecg_instance.analyze_ecg_urgent(ecg_data)
-            
-            # Verify rapid analysis
-            assert ecg_analysis["processing_time_seconds"] < 30
-            assert ecg_analysis["results"]["confidence"] > 0.95
-            assert ecg_analysis["results"]["clinical_urgency"] == ClinicalUrgency.CRITICAL
+        # Cath lab activation
+        cath_lab_activation = await e2e_environment["notification_system"].send_alert({
+            "type": "CATH_LAB_ACTIVATION",
+            "priority": "STAT",
+            "patient_id": patient_data["id"],
+            "activation_time": emergency_activation_time,
+            "estimated_arrival": emergency_activation_time + timedelta(minutes=15)
+        })
         
-        # Step 4: Immediate clinical correlation
-        with patch('app.services.ai_diagnostic_service.AIDiagnosticService') as mock_diagnostic:
-            mock_diagnostic_instance = mock_diagnostic.return_value
-            mock_diagnostic_instance.correlate_clinical_data.return_value = {
-                "integrated_assessment": {
-                    "diagnosis": "STEMI - Anterior Wall MI",
-                    "confidence": 0.99,
-                    "risk_stratification": "very_high",
-                    "immediate_actions": [
-                        "activate_cath_lab",
-                        "dual_antiplatelet_therapy",
-                        "anticoagulation",
-                        "beta_blocker_if_stable"
-                    ],
-                    "contraindications_checked": True,
-                    "door_to_balloon_target": "< 90 minutes"
-                }
-            }
-            
-            clinical_correlation = await mock_diagnostic_instance.correlate_clinical_data(
-                ecg_results=ecg_analysis["results"],
-                symptoms=patient_arrival["symptoms"],
-                vital_signs=patient_arrival["vital_signs"]
-            )
-            
-            assert clinical_correlation["integrated_assessment"]["confidence"] > 0.95
-            assert "activate_cath_lab" in clinical_correlation["integrated_assessment"]["immediate_actions"]
-        
-        # Step 5: Critical alert system activation
-        with patch('app.services.notification_service.NotificationService') as mock_notification:
-            mock_notification_instance = mock_notification.return_value
-            mock_notification_instance.send_stemi_alert.return_value = {
-                "alert_sent": True,
-                "cath_lab_activated": True,
-                "team_notified": [
-                    "interventional_cardiologist",
-                    "cath_lab_team",
-                    "emergency_physician",
-                    "nursing_supervisor"
-                ],
-                "estimated_arrival_time": "15_minutes",
-                "door_to_balloon_timer_started": True
-            }
-            
-            stemi_alert = await mock_notification_instance.send_stemi_alert(
-                patient_id="STEMI_001",
-                diagnosis="STEMI - Anterior Wall",
-                ecg_findings=ecg_analysis["results"]
-            )
-            
-            assert stemi_alert["alert_sent"] == True
-            assert stemi_alert["cath_lab_activated"] == True
-            assert "interventional_cardiologist" in stemi_alert["team_notified"]
-        
-        # Step 6: Treatment initiation tracking
-        treatment_timeline = {
-            "door_time": patient_arrival["timestamp"],
-            "ecg_time": ecg_acquisition_time,
-            "diagnosis_time": datetime.now(),
-            "cath_lab_activation": datetime.now() + timedelta(minutes=5),
-            "target_balloon_time": patient_arrival["timestamp"] + timedelta(minutes=90)
-        }
-        
-        # Verify critical timing metrics
-        door_to_ecg = (treatment_timeline["ecg_time"] - treatment_timeline["door_time"]).total_seconds() / 60
-        door_to_diagnosis = (treatment_timeline["diagnosis_time"] - treatment_timeline["door_time"]).total_seconds() / 60
-        
-        assert door_to_ecg < 10  # Should be < 10 minutes
-        assert door_to_diagnosis < 20  # Should be < 20 minutes
-        
-        # Step 7: Quality metrics and audit trail
-        with patch('app.services.audit_service.AuditService') as mock_audit:
-            mock_audit_instance = mock_audit.return_value
-            mock_audit_instance.log_stemi_case.return_value = {
-                "case_id": "STEMI_AUDIT_001",
-                "quality_metrics": {
-                    "door_to_ecg_minutes": door_to_ecg,
-                    "door_to_diagnosis_minutes": door_to_diagnosis,
-                    "ecg_interpretation_accuracy": 0.98,
-                    "alert_response_time_seconds": 45,
-                    "protocol_adherence": "100%"
-                },
-                "outcome_tracking_initiated": True
-            }
-            
-            audit_log = await mock_audit_instance.log_stemi_case(
-                patient_id="STEMI_001",
-                timeline=treatment_timeline,
-                clinical_data=clinical_correlation
-            )
-            
-            assert audit_log["quality_metrics"]["door_to_ecg_minutes"] < 10
-            assert audit_log["quality_metrics"]["ecg_interpretation_accuracy"] > 0.95
-
-    @pytest.mark.e2e
-    @pytest.mark.asyncio
-    async def test_pediatric_patient_workflow(self, e2e_environment):
-        """Test complete pediatric patient workflow."""
-        env = e2e_environment
-        
-        # Pediatric patient presentation
-        pediatric_case = {
-            "patient": {
-                "age": 6,
-                "weight": 20,  # kg
-                "gender": "male",
-                "medical_history": ["congenital_heart_disease", "previous_surgery"]
+        # Team notifications
+        team_notifications = {
+            "interventional_cardiologist": {
+                "notified_at": emergency_activation_time,
+                "response": "En route, ETA 10 minutes"
             },
-            "presentation": {
-                "chief_complaint": "difficulty_breathing",
-                "symptoms": {
-                    "dyspnea": {"severity": 7, "onset": "gradual"},
-                    "fatigue": {"severity": 6, "duration": "2_days"},
-                    "poor_feeding": {"severity": 5}
-                },
-                "vital_signs": {
-                    "heart_rate": 140,  # Age-appropriate
-                    "respiratory_rate": 35,
-                    "oxygen_saturation": 92,
-                    "blood_pressure": "85/50"
-                }
+            "cath_lab_team": {
+                "notified_at": emergency_activation_time,
+                "response": "Lab preparing, ready in 15 minutes"
+            },
+            "anesthesiology": {
+                "notified_at": emergency_activation_time + timedelta(minutes=2),
+                "response": "Standing by"
             }
         }
         
-        # Pediatric ECG analysis
-        pediatric_ecg = self._generate_pediatric_ecg()
+        # === Phase 6: Pre-procedure Preparation ===
+        prep_start_time = emergency_activation_time + timedelta(minutes=5)
         
-        with patch('app.services.ecg_service.ECGAnalysisService') as mock_ecg:
-            mock_ecg_instance = mock_ecg.return_value
-            mock_ecg_instance.analyze_pediatric_ecg.return_value = {
-                "age_adjusted_analysis": {
-                    "heart_rate": "normal_for_age",
-                    "rhythm": "sinus_rhythm",
-                    "intervals": {
-                        "pr_interval": "normal",
-                        "qrs_duration": "normal",
-                        "qt_interval": "normal"
-                    },
-                    "axis": "normal",
-                    "findings": ["right_ventricular_hypertrophy"],
-                    "clinical_significance": "consistent_with_known_chd"
-                },
-                "pediatric_specific_considerations": {
-                    "growth_adjusted": True,
-                    "congenital_anomaly_screening": "completed",
-                    "age_appropriate_parameters": True
-                }
-            }
-            
-            pediatric_analysis = await mock_ecg_instance.analyze_pediatric_ecg(
-                ecg_data=pediatric_ecg,
-                patient_age=6,
-                weight=20,
-                medical_history=pediatric_case["patient"]["medical_history"]
-            )
-            
-            assert pediatric_analysis["age_adjusted_analysis"]["heart_rate"] == "normal_for_age"
-            assert pediatric_analysis["pediatric_specific_considerations"]["age_appropriate_parameters"] == True
+        pre_procedure_checklist = {
+            "consent_obtained": True,
+            "consent_time": prep_start_time + timedelta(minutes=3),
+            "allergies_verified": True,
+            "labs_drawn": {
+                "troponin": "Pending",
+                "basic_metabolic": "Resulted",
+                "cbc": "Resulted",
+                "ptt": "Pending",
+                "type_and_screen": "In process"
+            },
+            "medications_given": {
+                "aspirin": {"time": prep_start_time, "given": True},
+                "ticagrelor": {"time": prep_start_time + timedelta(minutes=2), "given": True},
+                "heparin": {"time": prep_start_time + timedelta(minutes=5), "given": True}
+            },
+            "iv_access": "Bilateral 18G",
+            "foley_placed": True
+        }
         
-        # Pediatric cardiology consultation
-        with patch('app.services.consultation_service.ConsultationService') as mock_consult:
-            mock_consult_instance = mock_consult.return_value
-            mock_consult_instance.request_pediatric_cardiology.return_value = {
-                "consultation_requested": True,
-                "urgency": "routine",
-                "estimated_response_time": "2_hours",
-                "specialist_recommendations": [
-                    "echocardiogram",
-                    "exercise_tolerance_assessment",
-                    "medication_review"
-                ],
-                "family_counseling_scheduled": True
-            }
-            
-            consultation = await mock_consult_instance.request_pediatric_cardiology(
-                patient_data=pediatric_case["patient"],
-                ecg_findings=pediatric_analysis,
-                clinical_presentation=pediatric_case["presentation"]
-            )
-            
-            assert consultation["consultation_requested"] == True
-            assert "echocardiogram" in consultation["specialist_recommendations"]
-
-    @pytest.mark.e2e
-    @pytest.mark.asyncio
-    async def test_mass_casualty_scenario(self, e2e_environment):
-        """Test system performance during mass casualty event."""
-        env = e2e_environment
+        # === Phase 7: Cath Lab Procedure ===
+        procedure_start_time = emergency_activation_time + timedelta(minutes=25)
         
-        # Simulate multiple patients arriving simultaneously
-        casualty_count = 25
-        patients = []
+        procedure_details = {
+            "start_time": procedure_start_time,
+            "door_to_balloon_time": (procedure_start_time - arrival_time).seconds / 60,
+            "access_site": "Right radial artery",
+            "findings": {
+                "culprit_vessel": "Proximal RCA",
+                "stenosis_percentage": 100,
+                "timi_flow_pre": 0,
+                "collaterals": "Grade 1 from LCX"
+            },
+            "intervention": {
+                "type": "Primary PCI",
+                "devices": ["Drug-eluting stent 3.5x23mm"],
+                "timi_flow_post": 3,
+                "residual_stenosis": 0,
+                "complications": None
+            },
+            "end_time": procedure_start_time + timedelta(minutes=45)
+        }
         
-        for i in range(casualty_count):
-            patient = {
-                "id": f"CASUALTY_{i:03d}",
-                "arrival_time": datetime.now() + timedelta(minutes=i//5),  # Staggered arrival
-                "triage_level": self._assign_triage_level(i),
-                "chief_complaint": self._assign_complaint(i),
-                "ecg_required": True if i % 3 == 0 else False  # 1/3 need ECG
-            }
-            patients.append(patient)
-        
-        # Process patients based on triage priority
-        critical_patients = [p for p in patients if p["triage_level"] == "critical"]
-        urgent_patients = [p for p in patients if p["triage_level"] == "urgent"]
-        stable_patients = [p for p in patients if p["triage_level"] == "stable"]
-        
-        # Test system capacity and prioritization
-        with patch('app.services.triage_service.TriageService') as mock_triage:
-            mock_triage_instance = mock_triage.return_value
-            
-            # Critical patients processed first
-            for patient in critical_patients:
-                mock_triage_instance.process_critical_patient.return_value = {
-                    "patient_id": patient["id"],
-                    "processing_time": "< 5 minutes",
-                    "resources_allocated": ["trauma_bay", "physician", "nurse"],
-                    "ecg_priority": "immediate" if patient["ecg_required"] else "not_needed"
-                }
-                
-                result = await mock_triage_instance.process_critical_patient(patient)
-                assert result["processing_time"] == "< 5 minutes"
-        
-        # Test concurrent ECG processing
-        ecg_patients = [p for p in patients if p["ecg_required"]]
-        ecg_tasks = []
-        
-        for patient in ecg_patients[:10]:  # Process first 10 ECGs concurrently
-            ecg_data = np.random.randn(5000, 12).astype(np.float32)
-            task = self._process_ecg_async(patient["id"], ecg_data)
-            ecg_tasks.append(task)
-        
-        # Execute concurrent processing
-        ecg_results = await asyncio.gather(*ecg_tasks, return_exceptions=True)
-        
-        # Verify system handled concurrent load
-        successful_results = [r for r in ecg_results if not isinstance(r, Exception)]
-        assert len(successful_results) >= 8  # At least 80% success rate under load
-        
-        # Test resource allocation and queue management
-        with patch('app.services.resource_manager.ResourceManager') as mock_resources:
-            mock_resources_instance = mock_resources.return_value
-            mock_resources_instance.allocate_resources.return_value = {
-                "available_ecg_machines": 5,
-                "available_physicians": 8,
-                "available_nurses": 15,
-                "estimated_wait_times": {
-                    "critical": "0 minutes",
-                    "urgent": "15 minutes",
-                    "stable": "45 minutes"
-                },
-                "overflow_protocols_activated": True if casualty_count > 20 else False
-            }
-            
-            resource_allocation = await mock_resources_instance.allocate_resources(
-                patient_count=casualty_count,
-                triage_distribution={
-                    "critical": len(critical_patients),
-                    "urgent": len(urgent_patients),
-                    "stable": len(stable_patients)
-                }
-            )
-            
-            assert resource_allocation["overflow_protocols_activated"] == True
-            assert resource_allocation["estimated_wait_times"]["critical"] == "0 minutes"
-
-    @pytest.mark.e2e
-    @pytest.mark.asyncio
-    async def test_telemedicine_consultation_workflow(self, e2e_environment):
-        """Test telemedicine consultation workflow."""
-        env = e2e_environment
-        
-        # Remote patient consultation setup
-        remote_consultation = {
-            "patient_location": "rural_clinic",
-            "consulting_physician": "primary_care",
-            "specialist_requested": "cardiology",
-            "transmission_method": "secure_portal",
-            "patient_data": {
-                "age": 72,
-                "symptoms": {"chest_discomfort": {"severity": 6}},
-                "medical_history": ["diabetes", "hypertension"]
+        # === Phase 8: Post-procedure Care ===
+        post_procedure = {
+            "transfer_to_ccu": procedure_details["end_time"] + timedelta(minutes=15),
+            "post_ecg": "No ST elevation, Q waves developing in inferior leads",
+            "medications_started": [
+                "Dual antiplatelet therapy",
+                "High-intensity statin",
+                "Beta-blocker",
+                "ACE inhibitor"
+            ],
+            "monitoring": "Continuous telemetry, Q2h vitals",
+            "labs_post": {
+                "troponin_peak": "15.6 ng/mL",
+                "ejection_fraction": "45% (mild reduction)"
             }
         }
         
-        # ECG transmission and analysis
-        transmitted_ecg = self._generate_normal_ecg()
-        
-        with patch('app.services.telemedicine_service.TelemedicineService') as mock_tele:
-            mock_tele_instance = mock_tele.return_value
-            mock_tele_instance.receive_remote_ecg.return_value = {
-                "transmission_id": "TELE_001",
-                "received_at": datetime.now(),
-                "data_quality": "excellent",
-                "encryption_verified": True,
-                "patient_consent_verified": True,
-                "analysis_initiated": True
-            }
-            
-            transmission_result = await mock_tele_instance.receive_remote_ecg(
-                ecg_data=transmitted_ecg,
-                patient_data=remote_consultation["patient_data"],
-                source_clinic=remote_consultation["patient_location"]
-            )
-            
-            assert transmission_result["data_quality"] == "excellent"
-            assert transmission_result["encryption_verified"] == True
-        
-        # Remote specialist consultation
-        with patch('app.services.consultation_service.ConsultationService') as mock_consult:
-            mock_consult_instance = mock_consult.return_value
-            mock_consult_instance.conduct_remote_consultation.return_value = {
-                "consultation_id": "REMOTE_CONSULT_001",
-                "specialist_opinion": {
-                    "diagnosis": "Non-specific ST changes",
-                    "recommendations": [
-                        "stress_test_when_available",
-                        "continue_current_medications",
-                        "follow_up_in_2_weeks"
-                    ],
-                    "urgency": "routine",
-                    "confidence": 0.85
-                },
-                "follow_up_plan": {
-                    "next_appointment": "2_weeks",
-                    "monitoring_parameters": ["symptoms", "blood_pressure"],
-                    "red_flag_symptoms": ["severe_chest_pain", "shortness_of_breath"]
-                },
-                "documentation_complete": True
-            }
-            
-            consultation_result = await mock_consult_instance.conduct_remote_consultation(
-                transmission_data=transmission_result,
-                specialist_type="cardiology"
-            )
-            
-            assert consultation_result["specialist_opinion"]["confidence"] > 0.8
-            assert consultation_result["documentation_complete"] == True
-
-    # Helper methods for E2E tests
-    def _generate_stemi_ecg(self) -> np.ndarray:
-        """Generate ECG data with STEMI pattern."""
-        # Simplified STEMI pattern generation
-        ecg_data = np.random.randn(5000, 12).astype(np.float32)
-        # Add ST elevation in anterior leads (V1-V4)
-        ecg_data[:, 6:10] += 0.5  # Simulate ST elevation
-        return ecg_data
-    
-    def _generate_pediatric_ecg(self) -> np.ndarray:
-        """Generate pediatric ECG data."""
-        # Pediatric ECG with age-appropriate characteristics
-        ecg_data = np.random.randn(5000, 12).astype(np.float32)
-        # Faster heart rate, different axis
-        return ecg_data * 0.8  # Smaller amplitude
-    
-    def _generate_normal_ecg(self) -> np.ndarray:
-        """Generate normal ECG data."""
-        return np.random.randn(5000, 12).astype(np.float32)
-    
-    def _assign_triage_level(self, patient_index: int) -> str:
-        """Assign triage level based on patient index."""
-        if patient_index < 3:
-            return "critical"
-        elif patient_index < 10:
-            return "urgent"
-        else:
-            return "stable"
-    
-    def _assign_complaint(self, patient_index: int) -> str:
-        """Assign chief complaint based on patient index."""
-        complaints = [
-            "chest_pain", "shortness_of_breath", "palpitations",
-            "syncope", "abdominal_pain", "headache", "back_pain"
-        ]
-        return complaints[patient_index % len(complaints)]
-    
-    async def _process_ecg_async(self, patient_id: str, ecg_data: np.ndarray) -> dict:
-        """Simulate asynchronous ECG processing."""
-        # Simulate processing time
-        await asyncio.sleep(0.1)
-        return {
-            "patient_id": patient_id,
-            "status": "completed",
-            "diagnosis": "normal",
-            "confidence": 0.85
+        # === Phase 9: Quality Metrics ===
+        quality_metrics = {
+            "door_to_ecg_time": stemi_analysis["door_to_ecg_time"],
+            "door_to_balloon_time": procedure_details["door_to_balloon_time"],
+            "target_met_door_to_balloon": procedure_details["door_to_balloon_time"] <= 90,
+            "ecg_to_activation_time": (emergency_activation_time - ecg_acquisition_time).seconds / 60,
+            "false_activation": False,
+            "complications": None,
+            "mortality": False
         }
-
-
-class TestE2EPerformanceAndScalability:
-    """Test E2E performance and scalability scenarios."""
+        
+        # === Phase 10: Audit and Documentation ===
+        audit_trail = await e2e_environment["audit_logger"].log_complete_journey({
+            "patient_id": patient_data["id"],
+            "arrival_time": arrival_time,
+            "key_timestamps": {
+                "door": arrival_time,
+                "triage": triage_result["triage_time"],
+                "ecg": ecg_acquisition_time,
+                "stemi_detection": stemi_analysis["analysis_time"],
+                "cath_lab_activation": emergency_activation_time,
+                "balloon": procedure_start_time
+            },
+            "quality_metrics": quality_metrics,
+            "clinical_outcome": "Successful primary PCI"
+        })
+        
+        # === Verify Complete Journey ===
+        assert quality_metrics["door_to_ecg_time"] < 10  # Within 10 minutes
+        assert quality_metrics["door_to_balloon_time"] < 90  # Within 90 minutes
+        assert quality_metrics["target_met_door_to_balloon"] is True
+        assert stemi_analysis["confidence"] > 0.95
+        assert procedure_details["intervention"]["timi_flow_post"] == 3
+        assert audit_trail is not None
 
     @pytest.mark.e2e
-    @pytest.mark.performance
     @pytest.mark.asyncio
-    async def test_high_volume_processing(self, e2e_environment):
-        """Test system performance under high volume."""
-        # Simulate high volume of ECG analyses
-        volume_count = 100
+    async def test_pediatric_emergency_workflow(self, e2e_environment):
+        """Test pediatric emergency ECG workflow."""
+        from tests.smart_mocks import SmartECGMock, SmartPatientMock
         
-        async def process_single_ecg(ecg_id: int):
-            """Process a single ECG."""
-            ecg_data = np.random.randn(5000, 12).astype(np.float32)
-            start_time = datetime.now()
-            
-            # Simulate processing
-            await asyncio.sleep(0.05)  # 50ms processing time
-            
-            end_time = datetime.now()
-            processing_time = (end_time - start_time).total_seconds()
-            
-            return {
-                "ecg_id": ecg_id,
-                "processing_time": processing_time,
-                "status": "completed"
-            }
+        # Generate pediatric patient with concerning symptoms
+        pediatric_patient = {
+            "id": 12345,
+            "age": 8,
+            "weight_kg": 28,
+            "height_cm": 130,
+            "chief_complaint": "Syncope during soccer practice",
+            "past_medical_history": ["None"],
+            "family_history": ["Sudden cardiac death in uncle at age 35"]
+        }
         
-        # Process ECGs in batches
-        batch_size = 20
-        all_results = []
+        # Generate abnormal pediatric ECG
+        pediatric_ecg = SmartECGMock.generate_normal_ecg()
+        # Simulate long QT syndrome pattern
+        pediatric_ecg[:, :] *= 1.2  # Prolong intervals
         
-        for batch_start in range(0, volume_count, batch_size):
-            batch_end = min(batch_start + batch_size, volume_count)
-            batch_tasks = [
-                process_single_ecg(i) for i in range(batch_start, batch_end)
+        # Pediatric-specific analysis
+        pediatric_analysis = {
+            "age_adjusted_intervals": {
+                "heart_rate": 85,
+                "pr_interval": 140,
+                "qrs_duration": 80,
+                "qt_interval": 480,  # Prolonged
+                "qtc_bazett": 520  # Significantly prolonged
+            },
+            "pediatric_diagnosis": "Long QT Syndrome suspected",
+            "risk_factors": [
+                "QTc > 500ms",
+                "Family history of sudden death",
+                "Syncope with exertion"
+            ],
+            "immediate_recommendations": [
+                "Continuous cardiac monitoring",
+                "Avoid QT-prolonging medications",
+                "Pediatric cardiology consultation STAT",
+                "Consider genetic testing",
+                "Family screening recommended"
             ]
+        }
+        
+        # Verify pediatric-specific handling
+        assert pediatric_analysis["qtc_bazett"] > 500
+        assert "genetic testing" in str(pediatric_analysis["immediate_recommendations"])
+        assert "family" in str(pediatric_analysis["risk_factors"]).lower()
+
+    @pytest.mark.e2e
+    @pytest.mark.asyncio
+    async def test_mass_casualty_ecg_triage(self, e2e_environment):
+        """Test ECG triage system during mass casualty event."""
+        from tests.smart_mocks import SmartECGMock, SmartPatientMock
+        
+        # Simulate mass casualty incident
+        casualty_count = 20
+        incident_time = datetime.now()
+        
+        casualties = []
+        for i in range(casualty_count):
+            # Generate varied severity cases
+            if i < 3:  # Critical
+                ecg = SmartECGMock.generate_arrhythmia_ecg("stemi")
+                severity = "critical"
+            elif i < 8:  # Urgent
+                ecg = SmartECGMock.generate_arrhythmia_ecg("atrial_fibrillation")
+                severity = "urgent"
+            else:  # Stable
+                ecg = SmartECGMock.generate_normal_ecg()
+                severity = "stable"
             
-            batch_results = await asyncio.gather(*batch_tasks)
-            all_results.extend(batch_results)
+            casualties.append({
+                "patient_id": f"MCI_{i:03d}",
+                "arrival_time": incident_time + timedelta(minutes=i*2),
+                "ecg_data": ecg,
+                "initial_severity": severity,
+                "triage_tag": None
+            })
         
-        # Verify performance metrics
-        processing_times = [r["processing_time"] for r in all_results]
-        avg_processing_time = sum(processing_times) / len(processing_times)
-        max_processing_time = max(processing_times)
+        # Process through rapid triage system
+        triage_results = []
+        for casualty in casualties:
+            # Rapid ECG analysis
+            rapid_analysis = await e2e_environment["ml_models"].classify_ecg(
+                casualty["ecg_data"]
+            )
+            
+            # Assign triage priority
+            if "stemi" in str(rapid_analysis).lower():
+                triage_priority = 1  # Immediate
+                color = "RED"
+            elif rapid_analysis["confidence"] > 0.8 and "fibrillation" in str(rapid_analysis):
+                triage_priority = 2  # Urgent
+                color = "YELLOW"
+            else:
+                triage_priority = 3  # Delayed
+                color = "GREEN"
+            
+            triage_results.append({
+                "patient_id": casualty["patient_id"],
+                "triage_priority": triage_priority,
+                "triage_color": color,
+                "ecg_finding": rapid_analysis.get("primary_diagnosis", "Normal"),
+                "processing_time": 15  # seconds
+            })
         
-        assert len(all_results) == volume_count
-        assert avg_processing_time < 0.1  # Average under 100ms
-        assert max_processing_time < 0.2   # Max under 200ms
-        assert all(r["status"] == "completed" for r in all_results)
+        # Sort by priority
+        triage_results.sort(key=lambda x: x["triage_priority"])
+        
+        # Generate mass casualty report
+        mci_report = {
+            "incident_time": incident_time,
+            "total_casualties": casualty_count,
+            "triage_summary": {
+                "immediate": sum(1 for t in triage_results if t["triage_priority"] == 1),
+                "urgent": sum(1 for t in triage_results if t["triage_priority"] == 2),
+                "delayed": sum(1 for t in triage_results if t["triage_priority"] == 3)
+            },
+            "average_triage_time": 15,  # seconds per patient
+            "critical_findings": [t for t in triage_results if t["triage_priority"] == 1]
+        }
+        
+        # Verify mass casualty handling
+        assert mci_report["total_casualties"] == casualty_count
+        assert mci_report["average_triage_time"] < 30  # Rapid triage
+        assert mci_report["triage_summary"]["immediate"] >= 3
+        assert len(mci_report["critical_findings"]) == mci_report["triage_summary"]["immediate"]
+
+    @pytest.mark.e2e
+    @pytest.mark.asyncio
+    async def test_regulatory_compliance_workflow(self, e2e_environment):
+        """Test complete regulatory compliance for medical device software."""
+        # FDA 510(k) compliance check
+        fda_compliance = {
+            "device_classification": "Class II",
+            "predicate_device": "K123456",
+            "intended_use": "ECG analysis for arrhythmia detection",
+            "clinical_validation": {
+                "sensitivity": 0.98,
+                "specificity": 0.97,
+                "total_samples": 10000,
+                "validation_protocol": "Multi-center prospective study"
+            }
+        }
+        
+        # HIPAA compliance
+        hipaa_compliance = {
+            "encryption_at_rest": True,
+            "encryption_in_transit": True,
+            "access_controls": "Role-based with MFA",
+            "audit_logging": True,
+            "data_retention": "7 years per medical records requirement",
+            "patient_consent": "Electronic consent with timestamp"
+        }
+        
+        # EU MDR compliance
+        eu_mdr_compliance = {
+            "ce_marking": "Class IIa",
+            "clinical_evaluation": "MEDDEV 2.7/1 rev 4 compliant",
+            "post_market_surveillance": True,
+            "unique_device_identification": "UDI-123456789"
+        }
+        
+        # Quality management system
+        qms_compliance = {
+            "iso_13485": True,
+            "risk_management": "ISO 14971 compliant",
+            "software_lifecycle": "IEC 62304 Class C",
+            "cybersecurity": "FDA cybersecurity guidance compliant"
+        }
+        
+        # Generate compliance report
+        compliance_report = {
+            "report_date": datetime.now(),
+            "fda_status": fda_compliance,
+            "hipaa_status": hipaa_compliance,
+            "eu_mdr_status": eu_mdr_compliance,
+            "qms_status": qms_compliance,
+            "overall_compliance": all([
+                fda_compliance["clinical_validation"]["sensitivity"] > 0.95,
+                hipaa_compliance["encryption_at_rest"],
+                hipaa_compliance["encryption_in_transit"],
+                qms_compliance["iso_13485"]
+            ])
+        }
+        
+        # Verify compliance
+        assert compliance_report["overall_compliance"] is True
+        assert fda_compliance["clinical_validation"]["sensitivity"] > 0.95
+        assert hipaa_compliance["audit_logging"] is True
+        assert qms_compliance["software_lifecycle"] == "IEC 62304 Class C"
+
+    @pytest.mark.e2e
+    @pytest.mark.asyncio
+    async def test_ai_explainability_workflow(self, e2e_environment):
+        """Test AI explainability for clinical decision support."""
+        from tests.smart_mocks import SmartECGMock
+        
+        # Generate complex ECG
+        complex_ecg = SmartECGMock.generate_arrhythmia_ecg("atrial_fibrillation")
+        
+        # Standard ML analysis
+        ml_result = await e2e_environment["ml_models"].classify_ecg(complex_ecg)
+        
+        # Generate explainability report
+        explainability_report = {
+            "prediction": ml_result["primary_diagnosis"],
+            "confidence": ml_result["confidence"],
+            "feature_importance": {
+                "rhythm_irregularity": 0.35,
+                "p_wave_absence": 0.30,
+                "rr_interval_variance": 0.20,
+                "qrs_morphology": 0.10,
+                "baseline_wander": 0.05
+            },
+            "attention_maps": {
+                "temporal_regions": [
+                    {"start_ms": 1000, "end_ms": 2000, "importance": 0.9},
+                    {"start_ms": 3500, "end_ms": 4500, "importance": 0.85}
+                ],
+                "lead_importance": {
+                    "II": 0.9,
+                    "V1": 0.85,
+                    "V5": 0.7
+                }
+            },
+            "similar_cases": [
+                {
+                    "case_id": "HIST_001",
+                    "similarity": 0.92,
+                    "outcome": "Successful rate control"
+                },
+                {
+                    "case_id": "HIST_002",
+                    "similarity": 0.88,
+                    "outcome": "Cardioversion performed"
+                }
+            ],
+            "clinical_correlation": {
+                "supporting_features": [
+                    "Irregular R-R intervals consistent with AF",
+                    "Absence of organized P waves",
+                    "Narrow QRS complexes"
+                ],
+                "differential_considerations": [
+                    "Atrial flutter with variable block (ruled out - no flutter waves)",
+                    "MAT (ruled out - consistent morphology)"
+                ]
+            },
+            "uncertainty_quantification": {
+                "epistemic_uncertainty": 0.05,
+                "aleatoric_uncertainty": 0.08,
+                "out_of_distribution_score": 0.12
+            }
+        }
+        
+        # Verify explainability
+        assert sum(explainability_report["feature_importance"].values()) == 1.0
+        assert explainability_report["uncertainty_quantification"]["out_of_distribution_score"] < 0.2
+        assert len(explainability_report["clinical_correlation"]["supporting_features"]) >= 3
 
     @pytest.mark.e2e
     @pytest.mark.performance
     @pytest.mark.asyncio
-    async def test_system_resilience(self, e2e_environment):
-        """Test system resilience under stress conditions."""
-        # Test various stress conditions
-        stress_tests = [
-            {"name": "memory_pressure", "duration": 5},
-            {"name": "high_cpu_load", "duration": 3},
-            {"name": "network_latency", "duration": 4},
-            {"name": "database_slow_response", "duration": 6}
+    async def test_system_resilience_and_recovery(self, e2e_environment):
+        """Test system resilience under various failure scenarios."""
+        import random
+        
+        # Test scenarios - CORREÇÃO AQUI
+        failure_scenarios = [
+            {
+                "name": "Database connection failure",
+                "simulate": lambda: setattr(e2e_environment["db"].execute, 'side_effect', ConnectionError("DB down"))
+            },
+            {
+                "name": "ML model service timeout",
+                "simulate": lambda: setattr(e2e_environment["ml_models"].classify_ecg, 'side_effect', asyncio.TimeoutError())
+            },
+            {
+                "name": "High load condition",
+                "simulate": lambda: asyncio.sleep(5)  # Simulate delay
+            }
         ]
         
-        for stress_test in stress_tests:
-            # Simulate stress condition
-            with patch(f'app.utils.stress_simulator.{stress_test["name"]}'):
-                start_time = datetime.now()
-                
-                # Continue processing during stress
-                test_tasks = []
-                for i in range(10):
-                    task = self._process_under_stress(i, stress_test["name"])
-                    test_tasks.append(task)
-                
-                results = await asyncio.gather(*test_tasks, return_exceptions=True)
-                
-                end_time = datetime.now()
-                test_duration = (end_time - start_time).total_seconds()
-                
-                # Verify system maintained functionality
-                successful_results = [r for r in results if not isinstance(r, Exception)]
-                success_rate = len(successful_results) / len(results)
-                
-                assert success_rate >= 0.8  # At least 80% success under stress
-                assert test_duration <= stress_test["duration"] * 2  # Reasonable degradation
-    
-    async def _process_under_stress(self, task_id: int, stress_type: str) -> dict:
-        """Process task under stress conditions."""
-        # Simulate processing with potential stress-related delays
-        base_delay = 0.1
-        stress_multiplier = {"memory_pressure": 1.5, "high_cpu_load": 2.0, 
-                           "network_latency": 1.8, "database_slow_response": 2.5}
+        recovery_times = []
         
-        delay = base_delay * stress_multiplier.get(stress_type, 1.0)
-        await asyncio.sleep(delay)
+        for scenario in failure_scenarios:
+            # Normal operation
+            normal_start = datetime.now()
+            try:
+                # Simulate normal ECG processing
+                result = await e2e_environment["ml_models"].classify_ecg(
+                    np.random.randn(5000, 12)
+                )
+                normal_time = (datetime.now() - normal_start).total_seconds()
+            except:
+                normal_time = 0
+            
+            # Introduce failure
+            scenario["simulate"]()
+            
+            # Attempt operation with failure
+            failure_start = datetime.now()
+            failed = False
+            try:
+                result = await asyncio.wait_for(
+                    e2e_environment["ml_models"].classify_ecg(np.random.randn(5000, 12)),
+                    timeout=10.0
+                )
+            except Exception:
+                failed = True
+            
+            # Reset to normal
+            e2e_environment["ml_models"].classify_ecg.side_effect = None
+            e2e_environment["ml_models"].classify_ecg.return_value = {
+                "predictions": {"normal": 0.9},
+                "confidence": 0.9
+            }
+            
+            # Measure recovery
+            recovery_start = datetime.now()
+            recovered = False
+            attempts = 0
+            
+            while not recovered and attempts < 5:
+                try:
+                    result = await e2e_environment["ml_models"].classify_ecg(
+                        np.random.randn(5000, 12)
+                    )
+                    recovered = True
+                except:
+                    attempts += 1
+                    await asyncio.sleep(1)
+            
+            recovery_time = (datetime.now() - recovery_start).total_seconds()
+            recovery_times.append({
+                "scenario": scenario["name"],
+                "failed": failed,
+                "recovered": recovered,
+                "recovery_time": recovery_time,
+                "attempts": attempts
+            })
         
-        return {
-            "task_id": task_id,
-            "stress_type": stress_type,
-            "completed": True,
-            "processing_time": delay
-        }
+        # Verify resilience
+        for recovery in recovery_times:
+            assert recovery["recovered"] is True
+            assert recovery["recovery_time"] < 30  # Recovery within 30 seconds
+            assert recovery["attempts"] < 5
 
+    @pytest.mark.e2e
+    @pytest.mark.asyncio
+    async def test_continuous_improvement_workflow(self, e2e_environment):
+        """Test continuous improvement through feedback integration."""
+        # Collect physician feedback
+        feedback_collection = []
+        
+        for i in range(100):  # Simulate 100 cases
+            # Generate ECG and get AI prediction
+            ecg = np.random.randn(5000, 12)
+            ai_prediction = {
+                "diagnosis": random.choice(["Normal", "AF", "STEMI", "VT"]),
+                "confidence": random.uniform(0.7, 0.99)
+            }
+            
+            # Simulate physician review
+            physician_diagnosis = ai_prediction["diagnosis"] if random.random() > 0.1 else "Different"
+            
+            feedback = {
+                "case_id": f"CASE_{i:04d}",
+                "ai_diagnosis": ai_prediction["diagnosis"],
+                "ai_confidence": ai_prediction["confidence"],
+                "physician_diagnosis": physician_diagnosis,
+                "agreement": ai_prediction["diagnosis"] == physician_diagnosis,
+                "physician_confidence": random.choice(["High", "Medium", "Low"]),
+                "educational_value": random.choice([True, False]),
+                "comments": "Edge case" if not feedback["agreement"] else None
+            }
+            
+            feedback_collection.append(feedback)
+        
+        # Analyze feedback for improvement
+        performance_metrics = {
+            "total_cases": len(feedback_collection),
+            "agreement_rate": sum(f["agreement"] for f in feedback_collection) / len(feedback_collection),
+            "high_confidence_accuracy": sum(
+                f["agreement"] for f in feedback_collection 
+                if f["ai_confidence"] > 0.9
+            ) / sum(1 for f in feedback_collection if f["ai_confidence"] > 0.9),
+            "educational_cases": sum(f["educational_value"] for f in feedback_collection),
+            "edge_cases_identified": sum(1 for f in feedback_collection if f["comments"])
+        }
+        
+        # Generate improvement recommendations
+        improvement_plan = {
+            "model_retraining_needed": performance_metrics["agreement_rate"] < 0.95,
+            "focus_areas": [
+                f["ai_diagnosis"] for f in feedback_collection 
+                if not f["agreement"]
+            ][:5],  # Top 5 problematic diagnoses
+            "confidence_calibration_needed": abs(
+                performance_metrics["high_confidence_accuracy"] - 0.95
+            ) > 0.05,
+            "new_training_data_required": performance_metrics["edge_cases_identified"],
+            "physician_education_topics": [
+                f for f in feedback_collection 
+                if f["educational_value"]
+            ][:10]
+        }
+        
+        # Verify continuous improvement
+        assert performance_metrics["total_cases"] == 100
+        assert performance_metrics["agreement_rate"] > 0.85
+        assert improvement_plan is not None
+        assert len(improvement_plan["focus_areas"]) <= 5

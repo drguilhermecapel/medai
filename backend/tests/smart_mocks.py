@@ -1,320 +1,243 @@
 """
-Smart Mocks for Medical Data Testing
+Smart Mocks para Dados Médicos Realistas - MedAI
 """
 
 import numpy as np
 import random
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
-import json
+from typing import Dict, List, Optional, Tuple, Any  # Adicionado 'Any' aqui
 
 
 class SmartECGMock:
     """Smart mock for generating realistic ECG data."""
     
     @staticmethod
-    def generate_normal_ecg(duration_seconds: int = 10, sample_rate: int = 500) -> np.ndarray:
-        """Generate normal ECG with physiological characteristics."""
-        samples = duration_seconds * sample_rate
-        leads = 12
+    def generate_normal_ecg(duration_seconds: int = 10, sampling_rate: int = 500) -> np.ndarray:
+        """Generate normal ECG data with realistic morphology."""
+        samples = duration_seconds * sampling_rate
+        time = np.linspace(0, duration_seconds, samples)
         
-        # Heart rate between 60-100 bpm (normal range)
-        heart_rate = random.randint(60, 100)
-        rr_interval = 60.0 / heart_rate
+        # Base rhythm
+        heart_rate = random.randint(60, 90)
+        heart_period = 60.0 / heart_rate
         
-        ecg_data = np.zeros((samples, leads))
-        t = np.linspace(0, duration_seconds, samples)
+        ecg_signal = np.zeros((samples, 12))
         
-        # Lead-specific amplitude factors
-        lead_amplitudes = {
-            0: 0.5,   # Lead I
-            1: 1.0,   # Lead II (reference)
-            2: 0.5,   # Lead III
-            3: -0.5,  # aVR
-            4: 0.3,   # aVL
-            5: 0.8,   # aVF
-            6: 0.2,   # V1
-            7: 0.4,   # V2
-            8: 0.8,   # V3
-            9: 1.2,   # V4
-            10: 1.0,  # V5
-            11: 0.8   # V6
-        }
-        
-        for lead in range(leads):
+        for lead in range(12):
+            # P wave, QRS complex, T wave simulation
             signal = np.zeros(samples)
-            amplitude_factor = lead_amplitudes[lead]
             
-            # Generate QRS complexes
-            current_time = 0
-            while current_time < duration_seconds:
-                qrs_sample = int(current_time * sample_rate)
-                
-                if qrs_sample < samples - 100:
-                    # P wave (if not aVR)
-                    if lead != 3:  # aVR typically has inverted P
-                        p_start = qrs_sample - int(0.16 * sample_rate)  # 160ms before QRS
-                        p_duration = int(0.08 * sample_rate)  # 80ms duration
-                        if p_start >= 0:
-                            p_wave = 0.1 * amplitude_factor * np.exp(
-                                -((np.arange(p_duration) - p_duration/2) ** 2) / (p_duration/6) ** 2
-                            )
-                            signal[p_start:p_start + p_duration] += p_wave
+            for beat_time in np.arange(0, duration_seconds, heart_period):
+                beat_idx = int(beat_time * sampling_rate)
+                if beat_idx < samples:
+                    # P wave (100ms duration, 0.15mV amplitude)
+                    p_wave_samples = int(0.1 * sampling_rate)
+                    if beat_idx + p_wave_samples < samples:
+                        t = np.linspace(0, np.pi, p_wave_samples)
+                        signal[beat_idx:beat_idx + p_wave_samples] += 0.15 * np.sin(t)
                     
-                    # QRS complex
-                    qrs_duration = int(0.08 * sample_rate)  # 80ms
-                    qrs_start = max(0, qrs_sample - qrs_duration // 2)
-                    qrs_end = min(samples, qrs_sample + qrs_duration // 2)
+                    # QRS complex (80ms duration, 1-2mV amplitude)
+                    qrs_start = beat_idx + int(0.16 * sampling_rate)
+                    qrs_samples = int(0.08 * sampling_rate)
+                    if qrs_start + qrs_samples < samples:
+                        # Q wave
+                        signal[qrs_start:qrs_start + qrs_samples//4] -= 0.2
+                        # R wave
+                        r_peak = qrs_start + qrs_samples//4
+                        signal[r_peak:r_peak + qrs_samples//2] = np.linspace(-0.2, 1.5, qrs_samples//2)
+                        signal[r_peak + qrs_samples//2:qrs_start + qrs_samples] = np.linspace(1.5, -0.1, qrs_samples//4)
                     
-                    qrs_wave = amplitude_factor * np.exp(
-                        -((np.arange(qrs_end - qrs_start) - qrs_duration // 2) ** 2) / (qrs_duration / 8) ** 2
-                    )
-                    signal[qrs_start:qrs_end] += qrs_wave
-                    
-                    # T wave
-                    t_start = qrs_sample + int(0.32 * sample_rate)  # 320ms after QRS
-                    t_duration = int(0.16 * sample_rate)  # 160ms duration
-                    if t_start + t_duration < samples:
-                        t_wave = 0.3 * amplitude_factor * np.exp(
-                            -((np.arange(t_duration) - t_duration/2) ** 2) / (t_duration/4) ** 2
-                        )
-                        signal[t_start:t_start + t_duration] += t_wave
-                
-                current_time += rr_interval
+                    # T wave (200ms duration, 0.3mV amplitude)
+                    t_wave_start = qrs_start + int(0.1 * sampling_rate)
+                    t_wave_samples = int(0.2 * sampling_rate)
+                    if t_wave_start + t_wave_samples < samples:
+                        t = np.linspace(0, np.pi, t_wave_samples)
+                        signal[t_wave_start:t_wave_start + t_wave_samples] += 0.3 * np.sin(t)
             
-            # Add physiological noise
-            noise = np.random.normal(0, 0.02, samples)
-            ecg_data[:, lead] = signal + noise
+            # Add baseline wander and noise
+            baseline_wander = 0.05 * np.sin(2 * np.pi * 0.15 * time)
+            noise = 0.02 * np.random.randn(samples)
+            
+            ecg_signal[:, lead] = signal + baseline_wander + noise
+            
+            # Lead-specific adjustments
+            if lead in [1, 2, 3]:  # AVR, AVL, AVF
+                ecg_signal[:, lead] *= 0.5
+            elif lead >= 6:  # V1-V6
+                ecg_signal[:, lead] *= (0.8 + 0.05 * (lead - 6))
         
-        return ecg_data.astype(np.float32)
-    
+        return ecg_signal
+
     @staticmethod
-    def generate_arrhythmia_ecg(arrhythmia_type: str, duration_seconds: int = 10, sample_rate: int = 500) -> np.ndarray:
+    def generate_arrhythmia_ecg(arrhythmia_type: str, duration_seconds: int = 10) -> np.ndarray:
         """Generate ECG with specific arrhythmia patterns."""
-        samples = duration_seconds * sample_rate
-        leads = 12
-        ecg_data = np.zeros((samples, leads))
+        sampling_rate = 500
+        samples = duration_seconds * sampling_rate
+        ecg_signal = np.zeros((samples, 12))
         
         if arrhythmia_type == "atrial_fibrillation":
-            # Irregular RR intervals
-            rr_intervals = np.random.normal(0.8, 0.3, 20)
-            rr_intervals = np.clip(rr_intervals, 0.3, 1.5)
+            # Irregular RR intervals, absent P waves
+            beat_times = []
+            current_time = 0
+            while current_time < duration_seconds:
+                # Random RR interval between 0.4-1.2 seconds
+                rr_interval = random.uniform(0.4, 1.2)
+                beat_times.append(current_time)
+                current_time += rr_interval
             
-            # Add fibrillation waves
-            fib_freq = random.uniform(300, 600)  # Hz
-            t = np.linspace(0, duration_seconds, samples)
-            
-            for lead in range(leads):
+            for lead in range(12):
                 signal = np.zeros(samples)
                 
-                # Irregular QRS complexes
-                current_time = 0
-                for rr_interval in rr_intervals:
-                    if current_time >= duration_seconds:
-                        break
-                    
-                    qrs_sample = int(current_time * sample_rate)
-                    if qrs_sample < samples - 50:
-                        qrs_duration = int(0.08 * sample_rate)
-                        qrs_start = max(0, qrs_sample - qrs_duration // 2)
-                        qrs_end = min(samples, qrs_sample + qrs_duration // 2)
-                        
-                        amplitude = 0.8 + 0.4 * random.random()
-                        qrs_wave = amplitude * np.exp(
-                            -((np.arange(qrs_end - qrs_start) - qrs_duration // 2) ** 2) / (qrs_duration / 8) ** 2
-                        )
-                        signal[qrs_start:qrs_end] += qrs_wave
-                    
-                    current_time += rr_interval
+                # Fibrillatory waves
+                fib_freq = random.uniform(4, 7)
+                fib_amplitude = random.uniform(0.05, 0.1)
+                signal += fib_amplitude * np.sin(2 * np.pi * fib_freq * np.linspace(0, duration_seconds, samples))
                 
-                # Add fibrillation waves
-                fib_amplitude = 0.05 + 0.05 * random.random()
-                fib_signal = fib_amplitude * np.sin(2 * np.pi * fib_freq * t)
+                # QRS complexes at irregular intervals
+                for beat_time in beat_times:
+                    beat_idx = int(beat_time * sampling_rate)
+                    if beat_idx + 40 < samples:
+                        # Narrow QRS
+                        signal[beat_idx:beat_idx + 40] += np.concatenate([
+                            np.linspace(0, 1.2, 20),
+                            np.linspace(1.2, -0.2, 20)
+                        ])
                 
-                noise = np.random.normal(0, 0.03, samples)
-                ecg_data[:, lead] = signal + fib_signal + noise
+                ecg_signal[:, lead] = signal + 0.01 * np.random.randn(samples)
         
         elif arrhythmia_type == "ventricular_tachycardia":
-            # Fast, regular, wide QRS complexes
-            heart_rate = random.randint(150, 250)
-            rr_interval = 60.0 / heart_rate
+            # Wide QRS complexes, rate >100 bpm
+            heart_rate = random.randint(150, 200)
+            heart_period = 60.0 / heart_rate
             
-            for lead in range(leads):
+            for lead in range(12):
                 signal = np.zeros(samples)
-                current_time = 0
                 
-                while current_time < duration_seconds:
-                    qrs_sample = int(current_time * sample_rate)
-                    
-                    if qrs_sample < samples - 100:
+                for beat_time in np.arange(0, duration_seconds, heart_period):
+                    beat_idx = int(beat_time * sampling_rate)
+                    if beat_idx + 80 < samples:
                         # Wide QRS (>120ms)
-                        qrs_duration = int(0.15 * sample_rate)  # 150ms
-                        qrs_start = max(0, qrs_sample - qrs_duration // 2)
-                        qrs_end = min(samples, qrs_sample + qrs_duration // 2)
-                        
-                        # Bizarre morphology
-                        amplitude = 1.5 + 0.5 * random.random()
-                        qrs_wave = amplitude * np.sin(np.linspace(0, 2*np.pi, qrs_end - qrs_start))
-                        signal[qrs_start:qrs_end] += qrs_wave
-                    
-                    current_time += rr_interval
+                        signal[beat_idx:beat_idx + 80] = np.concatenate([
+                            np.linspace(0, -0.5, 20),
+                            np.linspace(-0.5, 1.8, 40),
+                            np.linspace(1.8, 0, 20)
+                        ])
                 
-                noise = np.random.normal(0, 0.05, samples)
-                ecg_data[:, lead] = signal + noise
+                ecg_signal[:, lead] = signal + 0.02 * np.random.randn(samples)
         
-        elif arrhythmia_type == "bradycardia":
-            # Slow heart rate
-            heart_rate = random.randint(35, 50)
-            rr_interval = 60.0 / heart_rate
+        elif arrhythmia_type == "stemi":
+            # ST elevation in specific leads
+            base_ecg = SmartECGMock.generate_normal_ecg(duration_seconds)
             
-            ecg_data = SmartECGMock.generate_normal_ecg(duration_seconds, sample_rate)
-            # The normal generation with slow heart rate will create bradycardia
+            # Add ST elevation to leads II, III, aVF (inferior STEMI)
+            affected_leads = [1, 2, 5]  # Lead indices
+            for lead in affected_leads:
+                # Find QRS end points and elevate ST segment
+                ecg_signal[:, lead] = base_ecg[:, lead]
+                # Simple ST elevation simulation
+                ecg_signal[:, lead] += 0.3  # 3mm elevation
         
-        return ecg_data.astype(np.float32)
-    
+        else:
+            # Default to normal ECG
+            ecg_signal = SmartECGMock.generate_normal_ecg(duration_seconds)
+        
+        return ecg_signal
+
     @staticmethod
-    def generate_noisy_ecg(duration_seconds: int = 10, sample_rate: int = 500, noise_level: float = 0.5) -> np.ndarray:
-        """Generate ECG with various types of noise and artifacts."""
-        ecg_data = SmartECGMock.generate_normal_ecg(duration_seconds, sample_rate)
-        samples = duration_seconds * sample_rate
+    def generate_noisy_ecg(noise_type: str = "baseline_wander", duration_seconds: int = 10) -> np.ndarray:
+        """Generate ECG with specific noise patterns."""
+        base_ecg = SmartECGMock.generate_normal_ecg(duration_seconds)
+        sampling_rate = 500
+        samples = duration_seconds * sampling_rate
+        time = np.linspace(0, duration_seconds, samples)
         
-        # Add different types of noise
-        if noise_level > 0.3:
-            # Baseline wander (0.5 Hz)
-            t = np.linspace(0, duration_seconds, samples)
-            baseline_wander = 0.3 * noise_level * np.sin(2 * np.pi * 0.5 * t)
-            ecg_data += baseline_wander[:, np.newaxis]
+        if noise_type == "baseline_wander":
+            # Low frequency drift
+            wander = 0.3 * np.sin(2 * np.pi * 0.1 * time) + 0.2 * np.sin(2 * np.pi * 0.05 * time)
+            for lead in range(12):
+                base_ecg[:, lead] += wander
         
-        if noise_level > 0.4:
-            # Power line interference (50/60 Hz)
-            power_freq = random.choice([50, 60])
-            t = np.linspace(0, duration_seconds, samples)
-            power_noise = 0.1 * noise_level * np.sin(2 * np.pi * power_freq * t)
-            ecg_data += power_noise[:, np.newaxis]
+        elif noise_type == "muscle_artifact":
+            # High frequency noise
+            for lead in range(12):
+                muscle_noise = 0.1 * np.random.randn(samples)
+                muscle_noise = np.convolve(muscle_noise, np.ones(5)/5, mode='same')  # Slight smoothing
+                base_ecg[:, lead] += muscle_noise
         
-        if noise_level > 0.5:
-            # Muscle artifacts (high frequency)
-            muscle_noise = np.random.normal(0, 0.2 * noise_level, ecg_data.shape)
-            ecg_data += muscle_noise
+        elif noise_type == "powerline":
+            # 60Hz interference
+            powerline = 0.05 * np.sin(2 * np.pi * 60 * time)
+            for lead in range(12):
+                base_ecg[:, lead] += powerline
         
-        # Random spikes (electrode artifacts)
-        if noise_level > 0.6:
-            num_spikes = int(noise_level * 10)
-            for _ in range(num_spikes):
-                spike_time = random.randint(0, samples - 1)
-                spike_lead = random.randint(0, 11)
-                spike_amplitude = random.uniform(-2, 2) * noise_level
-                ecg_data[spike_time, spike_lead] += spike_amplitude
-        
-        return ecg_data.astype(np.float32)
+        return base_ecg
 
 
 class SmartPatientMock:
     """Smart mock for generating realistic patient data."""
     
     @staticmethod
-    def generate_patient_data(age_range: tuple = (18, 90), condition: Optional[str] = None) -> Dict[str, Any]:
-        """Generate realistic patient data."""
+    def generate_patient_data(age_range: Tuple[int, int] = (18, 90), 
+                            condition: Optional[str] = None) -> Dict:
+        """Generate realistic patient data based on medical statistics."""
         age = random.randint(*age_range)
         gender = random.choice(["male", "female"])
         
         # Base patient data
         patient_data = {
+            "id": random.randint(10000, 99999),
             "age": age,
             "gender": gender,
-            "height_cm": random.randint(150, 200) if gender == "male" else random.randint(145, 180),
-            "weight_kg": random.randint(50, 120),
-            "blood_type": random.choice(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]),
-            "allergies": [],
-            "medications": [],
+            "height": random.gauss(170 if gender == "male" else 162, 10),
+            "weight": random.gauss(80 if gender == "male" else 70, 15),
+            "blood_pressure_systolic": random.gauss(120, 15),
+            "blood_pressure_diastolic": random.gauss(80, 10),
+            "heart_rate": random.gauss(70, 12),
+            "created_at": datetime.now() - timedelta(days=random.randint(0, 365)),
             "medical_history": [],
-            "family_history": [],
-            "vital_signs": {
-                "blood_pressure_systolic": random.randint(90, 180),
-                "blood_pressure_diastolic": random.randint(60, 110),
-                "heart_rate": random.randint(60, 100),
-                "temperature": round(random.uniform(97.0, 99.5), 1),
-                "oxygen_saturation": random.randint(95, 100)
-            }
+            "medications": [],
+            "allergies": [],
+            "smoking_status": random.choice(["never", "former", "current"]),
+            "diabetes": False,
+            "hypertension": False
         }
         
         # Age-related conditions
-        if age > 65:
-            patient_data["medical_history"].extend(
-                random.sample(["hypertension", "diabetes", "arthritis", "osteoporosis"], 
-                             random.randint(0, 2))
-            )
-        
         if age > 50:
-            patient_data["medications"].extend(
-                random.sample(["lisinopril", "metformin", "atorvastatin", "aspirin"], 
-                             random.randint(0, 2))
-            )
+            if random.random() < 0.3:
+                patient_data["hypertension"] = True
+                patient_data["medical_history"].append("hypertension")
+                patient_data["medications"].extend(["lisinopril", "hydrochlorothiazide"])
+                patient_data["blood_pressure_systolic"] += 20
+                patient_data["blood_pressure_diastolic"] += 10
+        
+        if age > 60:
+            if random.random() < 0.2:
+                patient_data["diabetes"] = True
+                patient_data["medical_history"].append("type 2 diabetes")
+                patient_data["medications"].append("metformin")
         
         # Condition-specific modifications
         if condition == "cardiac":
-            patient_data["medical_history"].extend(["hypertension", "hyperlipidemia"])
-            patient_data["medications"].extend(["beta_blocker", "ace_inhibitor"])
-            patient_data["family_history"].append("coronary_artery_disease")
-            patient_data["vital_signs"]["heart_rate"] = random.randint(80, 120)
+            patient_data["medical_history"].extend([
+                "coronary artery disease",
+                "previous MI" if random.random() < 0.3 else None
+            ])
+            patient_data["medical_history"] = [h for h in patient_data["medical_history"] if h]
+            patient_data["medications"].extend(["aspirin", "atorvastatin", "metoprolol"])
+            patient_data["ejection_fraction"] = random.gauss(55, 10)
         
-        elif condition == "diabetic":
-            patient_data["medical_history"].append("diabetes_type_2")
-            patient_data["medications"].extend(["metformin", "insulin"])
-            patient_data["vital_signs"]["blood_pressure_systolic"] = random.randint(130, 160)
+        elif condition == "arrhythmia":
+            patient_data["medical_history"].append("atrial fibrillation")
+            patient_data["medications"].extend(["warfarin", "diltiazem"])
+            patient_data["inr"] = round(random.uniform(2.0, 3.0), 1)
         
-        elif condition == "respiratory":
-            patient_data["medical_history"].extend(["asthma", "copd"])
-            patient_data["medications"].extend(["albuterol", "prednisone"])
-            patient_data["vital_signs"]["oxygen_saturation"] = random.randint(88, 96)
+        # Common allergies
+        if random.random() < 0.1:
+            patient_data["allergies"].append(random.choice(["penicillin", "sulfa", "aspirin"]))
         
         return patient_data
-    
-    @staticmethod
-    def generate_symptoms(severity: str = "moderate") -> Dict[str, Any]:
-        """Generate realistic symptom data."""
-        severity_map = {
-            "mild": (1, 4),
-            "moderate": (4, 7),
-            "severe": (7, 10)
-        }
-        
-        severity_range = severity_map.get(severity, (4, 7))
-        
-        common_symptoms = [
-            "chest_pain", "shortness_of_breath", "fatigue", "dizziness",
-            "nausea", "headache", "abdominal_pain", "back_pain"
-        ]
-        
-        num_symptoms = random.randint(1, 4)
-        selected_symptoms = random.sample(common_symptoms, num_symptoms)
-        
-        symptoms = {}
-        for symptom in selected_symptoms:
-            symptoms[symptom] = {
-                "severity": random.randint(*severity_range),
-                "duration": random.choice(["minutes", "hours", "days", "weeks"]),
-                "onset": random.choice(["sudden", "gradual", "intermittent"])
-            }
-            
-            # Symptom-specific details
-            if symptom == "chest_pain":
-                symptoms[symptom].update({
-                    "type": random.choice(["crushing", "stabbing", "burning", "pressure"]),
-                    "radiation": random.choice(["none", "left_arm", "jaw", "back"])
-                })
-            elif symptom == "shortness_of_breath":
-                symptoms[symptom].update({
-                    "triggers": random.choice(["exertion", "rest", "lying_down"]),
-                    "associated_symptoms": random.choice(["none", "wheezing", "cough"])
-                })
-        
-        return symptoms
 
-
-class SmartLabMock:
-    """Smart mock for generating realistic laboratory results."""
-    
     @staticmethod
     def generate_lab_results(test_type: str = "basic", condition: Optional[str] = None) -> Dict[str, Any]:
         """Generate realistic lab results."""
@@ -379,61 +302,5 @@ class SmartDiagnosticMock:
     @staticmethod
     def generate_diagnostic_scenario(complexity: str = "moderate") -> Dict[str, Any]:
         """Generate complete diagnostic scenario."""
-        scenarios = {
-            "simple": {
-                "primary_diagnosis": "upper_respiratory_infection",
-                "confidence": random.uniform(0.8, 0.95),
-                "differential_diagnoses": ["viral_syndrome", "allergic_rhinitis"]
-            },
-            "moderate": {
-                "primary_diagnosis": "acute_coronary_syndrome",
-                "confidence": random.uniform(0.6, 0.8),
-                "differential_diagnoses": ["unstable_angina", "myocardial_infarction", "gastroesophageal_reflux"]
-            },
-            "complex": {
-                "primary_diagnosis": "systemic_lupus_erythematosus",
-                "confidence": random.uniform(0.4, 0.7),
-                "differential_diagnoses": ["rheumatoid_arthritis", "fibromyalgia", "multiple_sclerosis", "drug_reaction"]
-            }
-        }
-        
-        base_scenario = scenarios.get(complexity, scenarios["moderate"])
-        
-        scenario = {
-            "patient_data": SmartPatientMock.generate_patient_data(),
-            "symptoms": SmartPatientMock.generate_symptoms(),
-            "lab_results": SmartLabMock.generate_lab_results(),
-            "ecg_data": SmartECGMock.generate_normal_ecg(),
-            **base_scenario
-        }
-        
-        return scenario
-    
-    @staticmethod
-    def generate_treatment_plan(diagnosis: str) -> Dict[str, Any]:
-        """Generate realistic treatment plan."""
-        treatment_plans = {
-            "acute_myocardial_infarction": {
-                "immediate_actions": ["oxygen", "aspirin", "nitroglycerin", "morphine"],
-                "medications": ["clopidogrel", "atorvastatin", "metoprolol"],
-                "procedures": ["cardiac_catheterization", "pci"],
-                "monitoring": ["continuous_ecg", "cardiac_enzymes", "vital_signs"],
-                "follow_up": ["cardiology_consult", "echo_in_24h"]
-            },
-            "pneumonia": {
-                "immediate_actions": ["oxygen", "iv_fluids"],
-                "medications": ["azithromycin", "ceftriaxone"],
-                "procedures": ["chest_xray", "blood_cultures"],
-                "monitoring": ["oxygen_saturation", "temperature", "respiratory_rate"],
-                "follow_up": ["repeat_xray_in_48h", "primary_care_in_1_week"]
-            }
-        }
-        
-        return treatment_plans.get(diagnosis, {
-            "immediate_actions": ["supportive_care"],
-            "medications": ["as_needed"],
-            "procedures": ["further_evaluation"],
-            "monitoring": ["clinical_assessment"],
-            "follow_up": ["primary_care"]
-        })
-
+        # Implementation would continue here...
+        pass

@@ -358,4 +358,3 @@ jobs:
           echo "Performance: ${{ needs.performance-tests.result }}"
           exit 1
         fi
-

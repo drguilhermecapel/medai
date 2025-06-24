@@ -326,4 +326,3 @@ elif [ "$FRONTEND_ONLY" = true ]; then
 else
     main
 fi
-

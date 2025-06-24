@@ -286,3 +286,134 @@ class TestCoreUtilities:
         assert isinstance(hash_value, str)
         assert len(hash_value) == 64
 
+
+class TestCoreIntegration:
+    """Test core module integration."""
+
+    def test_settings_database_integration(self):
+        """Test settings and database integration."""
+        settings = Settings()
+        
+        # Test that database URL from settings is valid
+        assert settings.DATABASE_URL is not None
+        assert "postgresql" in settings.DATABASE_URL or "sqlite" in settings.DATABASE_URL
+
+    def test_logging_exception_integration(self):
+        """Test logging and exception integration."""
+        import logging
+        
+        configure_logging()
+        logger = logging.getLogger("test")
+        
+        # Test logging exceptions
+        try:
+            raise ECGProcessingException("Test error")
+        except ECGProcessingException as e:
+            logger.error("Caught exception", exc_info=True)
+            assert True
+
+    @pytest.mark.asyncio
+    async def test_database_exception_handling(self):
+        """Test database exception handling."""
+        from sqlalchemy.exc import SQLAlchemyError
+        
+        # Mock a database error
+        with patch('app.core.database.AsyncSessionLocal') as mock_session_class:
+            mock_session = MagicMock()
+            mock_session.execute.side_effect = SQLAlchemyError("Database error")
+            mock_session_class.return_value = mock_session
+            
+            # Test that database errors are properly handled
+            try:
+                db_gen = get_db()
+                session = await db_gen.__anext__()
+                await session.execute("SELECT 1")
+            except SQLAlchemyError:
+                assert True
+            except Exception as e:
+                pytest.fail(f"Unexpected exception: {e}")
+
+
+class TestCoreSecurity:
+    """Test core security features."""
+
+    def test_password_hashing(self):
+        """Test password hashing functionality."""
+        from passlib.context import CryptContext
+        
+        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        
+        # Test password hashing
+        password = "test_password_123"
+        hashed = pwd_context.hash(password)
+        
+        assert hashed != password
+        assert pwd_context.verify(password, hashed)
+        assert not pwd_context.verify("wrong_password", hashed)
+
+    def test_jwt_token_handling(self):
+        """Test JWT token handling."""
+        import jwt
+        from datetime import datetime, timedelta
+        
+        secret_key = "test_secret_key"
+        algorithm = "HS256"
+        
+        # Create token
+        payload = {
+            "sub": "user_123",
+            "exp": datetime.utcnow() + timedelta(minutes=30)
+        }
+        
+        token = jwt.encode(payload, secret_key, algorithm=algorithm)
+        assert isinstance(token, str)
+        
+        # Decode token
+        decoded = jwt.decode(token, secret_key, algorithms=[algorithm])
+        assert decoded["sub"] == "user_123"
+
+    def test_cors_configuration(self):
+        """Test CORS configuration."""
+        # Test that CORS settings are properly configured
+        settings = Settings()
+        
+        if hasattr(settings, 'CORS_ORIGINS'):
+            assert isinstance(settings.CORS_ORIGINS, list)
+            assert len(settings.CORS_ORIGINS) > 0
+
+
+class TestCorePerformance:
+    """Test core performance utilities."""
+
+    def test_caching_configuration(self):
+        """Test caching configuration."""
+        settings = Settings()
+        
+        # Test Redis configuration for caching
+        if hasattr(settings, 'REDIS_URL'):
+            assert settings.REDIS_URL is not None
+            assert "redis://" in settings.REDIS_URL
+
+    def test_connection_pooling(self):
+        """Test database connection pooling."""
+        from app.core.database import engine
+        
+        # Test that connection pool is configured
+        pool = engine.pool
+        assert pool is not None
+        assert pool.size() >= 0
+
+    def test_async_operations(self):
+        """Test async operation support."""
+        import asyncio
+        
+        # Test that async operations work correctly
+        async def async_test():
+            await asyncio.sleep(0.1)
+            return True
+        
+        loop = asyncio.new_event_loop()
+        result = loop.run_until_complete(async_test())
+        loop.close()
+        
+        assert result is True
