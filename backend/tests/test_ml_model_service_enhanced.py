@@ -2,16 +2,18 @@
 Enhanced ML Model Service Tests - 100% Coverage Implementation
 """
 
-import asyncio
-import numpy as np
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+import numpy as np
 import tempfile
 import os
-from pathlib import Path
-import onnxruntime as ort
+import json
+from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from datetime import datetime, timedelta
+import pickle
 
 from app.services.ml_model_service import MLModelService
+from app.core.constants import ModelStatus, ModelType, AnalysisStatus
+from app.core.exceptions import MLModelException
 
 
 class TestMLModelServiceCritical:
@@ -23,377 +25,483 @@ class TestMLModelServiceCritical:
         return AsyncMock()
 
     @pytest.fixture
-    def ml_service(self, mock_db_session):
+    def mock_model_registry(self):
+        """Mock model registry."""
+        registry = Mock()
+        registry.get_model.return_value = {
+            "id": "model_v2.0",
+            "type": ModelType.ECG_CLASSIFIER,
+            "version": "2.0",
+            "status": ModelStatus.ACTIVE,
+            "accuracy": 0.98,
+            "path": "/models/ecg_classifier_v2.onnx"
+        }
+        return registry
+
+    @pytest.fixture
+    def ml_service(self, mock_db_session, mock_model_registry):
         """ML Model service instance."""
-        return MLModelService(mock_db_session)
-
-    @pytest.fixture
-    def sample_ecg_data(self):
-        """Generate sample ECG data for testing."""
-        # 12-lead ECG, 10 seconds at 500 Hz
-        return np.random.randn(5000, 12).astype(np.float32)
-
-    @pytest.fixture
-    def mock_onnx_session(self):
-        """Mock ONNX runtime session."""
-        session = Mock()
-        session.run.return_value = [
-            np.array([[0.1, 0.8, 0.1]]),  # Predictions
-            np.array([[0.85]])  # Confidence
-        ]
-        session.get_inputs.return_value = [
-            Mock(name="input", shape=[1, 5000, 12])
-        ]
-        session.get_outputs.return_value = [
-            Mock(name="predictions"),
-            Mock(name="confidence")
-        ]
-        return session
-
-    # Test 1: Service Initialization
-    @pytest.mark.asyncio
-    async def test_service_initialization(self, mock_db_session):
-        """Test ML service initialization."""
         service = MLModelService(mock_db_session)
-        assert service.db == mock_db_session
-        assert hasattr(service, 'models')
-        assert hasattr(service, 'model_cache')
-
-    # Test 2: Model Loading
-    @pytest.mark.asyncio
-    async def test_model_loading(self, ml_service, mock_onnx_session):
-        """Test ONNX model loading."""
-        model_path = "/fake/path/model.onnx"
-        
-        with patch('onnxruntime.InferenceSession', return_value=mock_onnx_session):
-            await ml_service.load_model("ecg_classifier", model_path)
-        
-        assert "ecg_classifier" in ml_service.models
-        assert ml_service.models["ecg_classifier"] == mock_onnx_session
-
-    # Test 3: Model Loading Failure
-    @pytest.mark.asyncio
-    async def test_model_loading_failure(self, ml_service):
-        """Test handling of model loading failures."""
-        with patch('onnxruntime.InferenceSession', side_effect=Exception("Model not found")):
-            with pytest.raises(Exception):
-                await ml_service.load_model("invalid_model", "/invalid/path.onnx")
-
-    # Test 4: ECG Classification
-    @pytest.mark.asyncio
-    async def test_ecg_classification(self, ml_service, sample_ecg_data, mock_onnx_session):
-        """Test ECG classification."""
-        ml_service.models["ecg_classifier"] = mock_onnx_session
-        
-        result = await ml_service.classify_ecg(sample_ecg_data)
-        
-        assert "predictions" in result
-        assert "confidence" in result
-        assert "primary_diagnosis" in result
-        assert isinstance(result["predictions"], dict)
-        assert 0.0 <= result["confidence"] <= 1.0
-
-    # Test 5: Batch Processing
-    @pytest.mark.asyncio
-    async def test_batch_processing(self, ml_service, mock_onnx_session):
-        """Test batch processing of multiple ECGs."""
-        batch_data = [
-            np.random.randn(5000, 12).astype(np.float32) for _ in range(5)
-        ]
-        
-        ml_service.models["ecg_classifier"] = mock_onnx_session
-        
-        results = await ml_service.classify_ecg_batch(batch_data)
-        
-        assert len(results) == 5
-        assert all("predictions" in result for result in results)
-        assert all("confidence" in result for result in results)
-
-    # Test 6: Model Caching
-    @pytest.mark.asyncio
-    async def test_model_caching(self, ml_service, mock_onnx_session):
-        """Test model caching mechanism."""
-        model_path = "/fake/path/model.onnx"
-        
-        with patch('onnxruntime.InferenceSession', return_value=mock_onnx_session) as mock_session:
-            # Load model twice
-            await ml_service.load_model("cached_model", model_path)
-            await ml_service.load_model("cached_model", model_path)
-            
-            # Should only create session once due to caching
-            assert mock_session.call_count == 1
-
-    # Test 7: Memory Management
-    @pytest.mark.asyncio
-    async def test_memory_management(self, ml_service, mock_onnx_session):
-        """Test memory management with large models."""
-        ml_service.models["large_model"] = mock_onnx_session
-        
-        # Simulate memory pressure
-        await ml_service.cleanup_unused_models()
-        
-        # Model should be removed from cache if not recently used
-        assert len(ml_service.model_cache) >= 0
-
-    # Test 8: Preprocessing Pipeline
-    @pytest.mark.asyncio
-    async def test_preprocessing_pipeline(self, ml_service, sample_ecg_data):
-        """Test ECG data preprocessing."""
-        processed_data = await ml_service._preprocess_ecg(sample_ecg_data)
-        
-        assert processed_data.shape == sample_ecg_data.shape
-        assert processed_data.dtype == np.float32
-        
-        # Check normalization
-        assert np.abs(np.mean(processed_data)) < 0.1
-        assert 0.5 < np.std(processed_data) < 2.0
-
-    # Test 9: Postprocessing
-    @pytest.mark.asyncio
-    async def test_postprocessing(self, ml_service):
-        """Test prediction postprocessing."""
-        raw_predictions = np.array([[0.1, 0.7, 0.2]])
-        class_names = ["normal", "arrhythmia", "artifact"]
-        
-        processed = await ml_service._postprocess_predictions(raw_predictions, class_names)
-        
-        assert isinstance(processed, dict)
-        assert "normal" in processed
-        assert "arrhythmia" in processed
-        assert "artifact" in processed
-        assert abs(sum(processed.values()) - 1.0) < 1e-6  # Should sum to 1
-
-    # Test 10: Confidence Calculation
-    @pytest.mark.asyncio
-    async def test_confidence_calculation(self, ml_service):
-        """Test confidence score calculation."""
-        predictions = {"normal": 0.8, "arrhythmia": 0.15, "artifact": 0.05}
-        
-        confidence = await ml_service._calculate_confidence(predictions)
-        
-        assert 0.0 <= confidence <= 1.0
-        assert confidence == 0.8  # Should be max probability
-
-    # Test 11: Model Ensemble
-    @pytest.mark.asyncio
-    async def test_model_ensemble(self, ml_service, sample_ecg_data, mock_onnx_session):
-        """Test ensemble prediction from multiple models."""
-        # Setup multiple models
-        ml_service.models["model_1"] = mock_onnx_session
-        ml_service.models["model_2"] = mock_onnx_session
-        ml_service.models["model_3"] = mock_onnx_session
-        
-        result = await ml_service.classify_ecg_ensemble(
-            sample_ecg_data, 
-            model_names=["model_1", "model_2", "model_3"]
-        )
-        
-        assert "predictions" in result
-        assert "confidence" in result
-        assert "ensemble_agreement" in result
-
-    # Test 12: Input Validation
-    @pytest.mark.asyncio
-    async def test_input_validation(self, ml_service):
-        """Test input data validation."""
-        # Invalid shape
-        with pytest.raises(ValueError):
-            await ml_service.classify_ecg(np.random.randn(100, 5))  # Wrong number of leads
-        
-        # Invalid data type
-        with pytest.raises(ValueError):
-            await ml_service.classify_ecg(np.random.randn(5000, 12).astype(np.int32))
-        
-        # Empty data
-        with pytest.raises(ValueError):
-            await ml_service.classify_ecg(np.array([]))
-
-    # Test 13: Model Versioning
-    @pytest.mark.asyncio
-    async def test_model_versioning(self, ml_service, mock_onnx_session):
-        """Test model versioning support."""
-        with patch('onnxruntime.InferenceSession', return_value=mock_onnx_session):
-            await ml_service.load_model("ecg_classifier", "/path/model_v1.onnx", version="1.0")
-            await ml_service.load_model("ecg_classifier", "/path/model_v2.onnx", version="2.0")
-        
-        assert "ecg_classifier_v1.0" in ml_service.models
-        assert "ecg_classifier_v2.0" in ml_service.models
-
-    # Test 14: Performance Monitoring
-    @pytest.mark.asyncio
-    async def test_performance_monitoring(self, ml_service, sample_ecg_data, mock_onnx_session):
-        """Test performance monitoring and metrics."""
-        ml_service.models["ecg_classifier"] = mock_onnx_session
-        
-        # Enable performance monitoring
-        ml_service.enable_performance_monitoring = True
-        
-        result = await ml_service.classify_ecg(sample_ecg_data)
-        
-        assert "inference_time_ms" in result
-        assert "preprocessing_time_ms" in result
-        assert result["inference_time_ms"] > 0
-
-    # Test 15: Error Recovery
-    @pytest.mark.asyncio
-    async def test_error_recovery(self, ml_service, sample_ecg_data, mock_onnx_session):
-        """Test error recovery mechanisms."""
-        # Setup model that fails initially
-        failing_session = Mock()
-        failing_session.run.side_effect = [
-            Exception("Inference failed"),
-            [np.array([[0.1, 0.8, 0.1]]), np.array([[0.85]])]  # Success on retry
-        ]
-        
-        ml_service.models["unreliable_model"] = failing_session
-        
-        result = await ml_service.classify_ecg(sample_ecg_data, model_name="unreliable_model", max_retries=2)
-        
-        assert result is not None
-        assert "predictions" in result
-
-    # Test 16: Concurrent Inference
-    @pytest.mark.asyncio
-    async def test_concurrent_inference(self, ml_service, mock_onnx_session):
-        """Test concurrent inference requests."""
-        ml_service.models["ecg_classifier"] = mock_onnx_session
-        
-        # Create multiple concurrent requests
-        tasks = []
-        for i in range(10):
-            ecg_data = np.random.randn(5000, 12).astype(np.float32)
-            task = ml_service.classify_ecg(ecg_data)
-            tasks.append(task)
-        
-        results = await asyncio.gather(*tasks)
-        
-        assert len(results) == 10
-        assert all("predictions" in result for result in results)
-
-    # Test 17: Model Metadata
-    @pytest.mark.asyncio
-    async def test_model_metadata(self, ml_service, mock_onnx_session):
-        """Test model metadata extraction."""
-        mock_onnx_session.get_modelmeta.return_value = Mock(
-            custom_metadata_map={
-                "model_version": "1.0",
-                "training_data": "MIT-BIH",
-                "accuracy": "0.95"
-            }
-        )
-        
-        ml_service.models["ecg_classifier"] = mock_onnx_session
-        
-        metadata = await ml_service.get_model_metadata("ecg_classifier")
-        
-        assert "model_version" in metadata
-        assert "training_data" in metadata
-        assert "accuracy" in metadata
-
-    # Test 18: Feature Extraction
-    @pytest.mark.asyncio
-    async def test_feature_extraction(self, ml_service, sample_ecg_data):
-        """Test ECG feature extraction."""
-        features = await ml_service.extract_features(sample_ecg_data)
-        
-        assert "heart_rate" in features
-        assert "rr_intervals" in features
-        assert "qrs_width" in features
-        assert "pr_interval" in features
-        assert "qt_interval" in features
-        
-        # Validate feature ranges
-        assert 40 <= features["heart_rate"] <= 200
-        assert features["qrs_width"] > 0
-
-    # Test 19: Model Comparison
-    @pytest.mark.asyncio
-    async def test_model_comparison(self, ml_service, sample_ecg_data, mock_onnx_session):
-        """Test comparison between different models."""
-        # Setup multiple models with different outputs
-        model1 = Mock()
-        model1.run.return_value = [np.array([[0.8, 0.2]]), np.array([[0.85]])]
-        
-        model2 = Mock()
-        model2.run.return_value = [np.array([[0.7, 0.3]]), np.array([[0.80]])]
-        
-        ml_service.models["model_1"] = model1
-        ml_service.models["model_2"] = model2
-        
-        comparison = await ml_service.compare_models(
-            sample_ecg_data, 
-            ["model_1", "model_2"]
-        )
-        
-        assert "model_1" in comparison
-        assert "model_2" in comparison
-        assert "agreement_score" in comparison
-
-    # Test 20: Resource Cleanup
-    @pytest.mark.asyncio
-    async def test_resource_cleanup(self, ml_service, mock_onnx_session):
-        """Test proper resource cleanup."""
-        ml_service.models["test_model"] = mock_onnx_session
-        
-        # Cleanup should remove models and free memory
-        await ml_service.cleanup()
-        
-        assert len(ml_service.models) == 0
-        assert len(ml_service.model_cache) == 0
-
-
-class TestMLModelServiceInterpretability:
-    """Test interpretability features of ML Model Service."""
+        service.model_registry = mock_model_registry
+        return service
 
     @pytest.fixture
-    def ml_service(self, mock_db_session):
-        """ML Model service instance."""
-        return MLModelService(mock_db_session)
+    def sample_ecg_features(self):
+        """Generate sample ECG features for model input."""
+        return {
+            "temporal_features": np.random.rand(50),
+            "frequency_features": np.random.rand(30),
+            "morphological_features": np.random.rand(20)
+        }
 
+    @pytest.mark.critical
     @pytest.mark.asyncio
-    async def test_attention_maps(self, ml_service, sample_ecg_data):
-        """Test attention map generation."""
-        attention_maps = await ml_service.generate_attention_maps(sample_ecg_data)
-        
-        assert attention_maps.shape == sample_ecg_data.shape
-        assert np.all(attention_maps >= 0)
-        assert np.all(attention_maps <= 1)
+    async def test_model_loading_and_initialization(self, ml_service):
+        """Test model loading and initialization process."""
+        # Mock model file
+        with tempfile.NamedTemporaryFile(suffix='.onnx', delete=False) as tmp:
+            # Simulate ONNX model content
+            tmp.write(b"ONNX_MODEL_CONTENT")
+            model_path = tmp.name
 
+        try:
+            # Mock ONNX runtime
+            with patch('onnxruntime.InferenceSession') as mock_session:
+                mock_session.return_value.get_inputs.return_value = [
+                    Mock(name='input', shape=[1, 100])
+                ]
+                mock_session.return_value.get_outputs.return_value = [
+                    Mock(name='output', shape=[1, 5])
+                ]
+                
+                # Load model
+                result = await ml_service.load_model(model_path, ModelType.ECG_CLASSIFIER)
+                
+                assert result["status"] == "loaded"
+                assert result["model_type"] == ModelType.ECG_CLASSIFIER
+                assert "load_time" in result
+                mock_session.assert_called_once_with(model_path)
+        finally:
+            os.unlink(model_path)
+
+    @pytest.mark.critical
     @pytest.mark.asyncio
-    async def test_feature_importance(self, ml_service, sample_ecg_data):
-        """Test feature importance calculation."""
-        importance = await ml_service.calculate_feature_importance(sample_ecg_data)
+    async def test_ecg_classification_normal(self, ml_service, sample_ecg_features):
+        """Test ECG classification for normal rhythm."""
+        # Mock model inference
+        ml_service.models = {
+            ModelType.ECG_CLASSIFIER: Mock()
+        }
         
-        assert "lead_importance" in importance
-        assert "temporal_importance" in importance
-        assert len(importance["lead_importance"]) == 12  # 12 leads
+        # Mock prediction - Normal Sinus Rhythm
+        mock_output = np.array([[0.95, 0.02, 0.01, 0.01, 0.01]])  # [normal, af, vt, svt, other]
+        ml_service.models[ModelType.ECG_CLASSIFIER].run.return_value = [mock_output]
+        
+        # Classify
+        result = await ml_service.classify_ecg(sample_ecg_features)
+        
+        assert result["primary_diagnosis"] == "Normal Sinus Rhythm"
+        assert result["confidence"] >= 0.95
+        assert result["predictions"]["normal"] == 0.95
+        assert result["clinical_significance"] == "benign"
 
+    @pytest.mark.critical
     @pytest.mark.asyncio
-    async def test_saliency_maps(self, ml_service, sample_ecg_data):
-        """Test saliency map generation."""
-        saliency = await ml_service.generate_saliency_maps(sample_ecg_data)
+    async def test_ecg_classification_atrial_fibrillation(self, ml_service, sample_ecg_features):
+        """Test ECG classification for atrial fibrillation."""
+        # Mock model inference
+        ml_service.models = {
+            ModelType.ECG_CLASSIFIER: Mock()
+        }
         
-        assert saliency.shape == sample_ecg_data.shape
-        assert not np.all(saliency == 0)  # Should have non-zero values
+        # Mock prediction - Atrial Fibrillation
+        mock_output = np.array([[0.05, 0.89, 0.03, 0.02, 0.01]])
+        ml_service.models[ModelType.ECG_CLASSIFIER].run.return_value = [mock_output]
+        
+        # Classify
+        result = await ml_service.classify_ecg(sample_ecg_features)
+        
+        assert result["primary_diagnosis"] == "Atrial Fibrillation"
+        assert result["confidence"] >= 0.89
+        assert result["predictions"]["atrial_fibrillation"] == 0.89
+        assert result["clinical_significance"] == "requires_attention"
+        assert result["recommended_actions"] is not None
 
+    @pytest.mark.critical
     @pytest.mark.asyncio
-    async def test_lime_explanation(self, ml_service, sample_ecg_data, mock_onnx_session):
-        """Test LIME-based explanations."""
-        ml_service.models["ecg_classifier"] = mock_onnx_session
+    async def test_multi_model_ensemble(self, ml_service):
+        """Test ensemble prediction using multiple models."""
+        # Setup multiple models
+        models = {
+            "model1": Mock(),
+            "model2": Mock(),
+            "model3": Mock()
+        }
         
-        explanation = await ml_service.generate_lime_explanation(sample_ecg_data)
+        # Different predictions from each model
+        models["model1"].run.return_value = [np.array([[0.8, 0.1, 0.1]])]
+        models["model2"].run.return_value = [np.array([[0.85, 0.1, 0.05]])]
+        models["model3"].run.return_value = [np.array([[0.75, 0.15, 0.1]])]
         
-        assert "feature_weights" in explanation
-        assert "prediction_confidence" in explanation
-        assert len(explanation["feature_weights"]) > 0
+        ml_service.ensemble_models = models
+        
+        # Run ensemble
+        result = await ml_service.ensemble_predict(
+            sample_ecg_features,
+            voting_method="soft"
+        )
+        
+        # Check ensemble result (average of predictions)
+        assert result["ensemble_prediction"]["normal"] == pytest.approx(0.8, rel=0.1)
+        assert result["model_agreement"] > 0.8
+        assert len(result["individual_predictions"]) == 3
 
+    @pytest.mark.critical
     @pytest.mark.asyncio
-    async def test_shap_values(self, ml_service, sample_ecg_data, mock_onnx_session):
-        """Test SHAP value calculation."""
-        ml_service.models["ecg_classifier"] = mock_onnx_session
+    async def test_model_versioning_and_fallback(self, ml_service):
+        """Test model versioning and fallback mechanisms."""
+        # Primary model fails
+        primary_model = Mock()
+        primary_model.run.side_effect = Exception("Model inference failed")
         
-        shap_values = await ml_service.calculate_shap_values(sample_ecg_data)
+        # Fallback model works
+        fallback_model = Mock()
+        fallback_model.run.return_value = [np.array([[0.9, 0.1]])]
         
-        assert shap_values.shape == sample_ecg_data.shape
-        assert not np.all(shap_values == 0)
+        ml_service.models = {
+            "primary": primary_model,
+            "fallback": fallback_model
+        }
+        
+        # Test fallback
+        result = await ml_service.classify_with_fallback(sample_ecg_features)
+        
+        assert result["model_used"] == "fallback"
+        assert result["fallback_reason"] == "primary_model_failure"
+        assert result["predictions"] is not None
 
+    @pytest.mark.critical
+    @pytest.mark.asyncio
+    async def test_model_performance_monitoring(self, ml_service):
+        """Test model performance monitoring and metrics."""
+        # Setup metrics tracking
+        ml_service.metrics_collector = Mock()
+        
+        # Perform multiple predictions
+        for i in range(100):
+            features = np.random.rand(100)
+            
+            # Mock varying inference times
+            inference_time = 0.01 + (i % 10) * 0.002
+            
+            with patch('time.time') as mock_time:
+                mock_time.side_effect = [0, inference_time]
+                
+                await ml_service.predict_with_metrics(features)
+        
+        # Check metrics
+        metrics = ml_service.get_performance_metrics()
+        
+        assert metrics["total_predictions"] == 100
+        assert metrics["average_inference_time"] < 0.05  # 50ms
+        assert metrics["p95_inference_time"] < 0.1  # 100ms
+        assert "predictions_per_second" in metrics
+
+    @pytest.mark.critical
+    @pytest.mark.asyncio
+    async def test_input_validation_and_preprocessing(self, ml_service):
+        """Test input validation and preprocessing."""
+        # Test valid input
+        valid_input = np.random.rand(100)
+        processed = await ml_service.preprocess_input(valid_input)
+        assert processed.shape == (1, 100)
+        assert processed.dtype == np.float32
+        
+        # Test invalid inputs
+        invalid_inputs = [
+            np.array([]),  # Empty
+            np.random.rand(50),  # Wrong shape
+            None,  # None
+            "not_an_array"  # Wrong type
+        ]
+        
+        for invalid_input in invalid_inputs:
+            with pytest.raises(ValueError):
+                await ml_service.validate_input(invalid_input)
+
+    @pytest.mark.critical
+    @pytest.mark.asyncio
+    async def test_output_postprocessing(self, ml_service):
+        """Test model output postprocessing and interpretation."""
+        # Raw model output
+        raw_output = np.array([[0.1, 0.7, 0.15, 0.05]])
+        
+        # Process output
+        processed = await ml_service.postprocess_output(
+            raw_output,
+            class_names=["normal", "af", "vt", "other"]
+        )
+        
+        assert processed["primary_class"] == "af"
+        assert processed["primary_probability"] == 0.7
+        assert processed["confidence_calibrated"] <= 0.7  # Calibration reduces overconfidence
+        assert len(processed["all_probabilities"]) == 4
+        assert sum(processed["all_probabilities"].values()) == pytest.approx(1.0)
+
+    @pytest.mark.critical
+    @pytest.mark.asyncio
+    async def test_model_explainability(self, ml_service):
+        """Test model explainability features."""
+        # Mock SHAP or LIME explainer
+        with patch('shap.Explainer') as mock_explainer:
+            mock_shap_values = Mock()
+            mock_shap_values.values = np.random.rand(100)
+            mock_explainer.return_value.return_value = mock_shap_values
+            
+            # Get explanations
+            explanations = await ml_service.explain_prediction(
+                input_features=np.random.rand(100),
+                prediction={"class": "af", "probability": 0.85}
+            )
+            
+            assert "feature_importance" in explanations
+            assert "top_features" in explanations
+            assert len(explanations["top_features"]) <= 10
+            assert "explanation_method" in explanations
+            assert explanations["explanation_method"] == "SHAP"
+
+    @pytest.mark.critical
+    @pytest.mark.asyncio
+    async def test_batch_inference(self, ml_service):
+        """Test batch inference capabilities."""
+        # Create batch of inputs
+        batch_size = 32
+        batch_inputs = [np.random.rand(100) for _ in range(batch_size)]
+        
+        # Mock batch processing
+        ml_service.models = {
+            ModelType.ECG_CLASSIFIER: Mock()
+        }
+        
+        # Mock batch output
+        batch_output = np.random.rand(batch_size, 5)
+        ml_service.models[ModelType.ECG_CLASSIFIER].run.return_value = [batch_output]
+        
+        # Process batch
+        results = await ml_service.batch_classify(batch_inputs)
+        
+        assert len(results) == batch_size
+        assert all("primary_diagnosis" in r for r in results)
+        assert all("confidence" in r for r in results)
+
+    @pytest.mark.critical
+    @pytest.mark.asyncio
+    async def test_model_update_and_deployment(self, ml_service, mock_model_registry):
+        """Test model update and deployment process."""
+        # New model metadata
+        new_model = {
+            "id": "model_v3.0",
+            "version": "3.0",
+            "path": "/models/ecg_classifier_v3.onnx",
+            "validation_metrics": {
+                "accuracy": 0.99,
+                "sensitivity": 0.98,
+                "specificity": 0.99
+            }
+        }
+        
+        # Mock validation
+        ml_service.validate_model = AsyncMock(return_value=True)
+        
+        # Deploy new model
+        deployment_result = await ml_service.deploy_model(new_model)
+        
+        assert deployment_result["status"] == "deployed"
+        assert deployment_result["previous_version"] == "2.0"
+        assert deployment_result["rollback_available"] is True
+        
+        # Verify model registry updated
+        mock_model_registry.update_active_model.assert_called_once()
+
+    @pytest.mark.critical
+    @pytest.mark.asyncio
+    async def test_model_validation(self, ml_service):
+        """Test model validation before deployment."""
+        # Create test dataset
+        test_data = {
+            "inputs": [np.random.rand(100) for _ in range(100)],
+            "labels": np.random.randint(0, 5, 100)
+        }
+        
+        # Mock model predictions
+        predictions = np.random.randint(0, 5, 100)
+        ml_service.predict_batch = AsyncMock(return_value=predictions)
+        
+        # Validate model
+        validation_result = await ml_service.validate_model_performance(
+            test_data,
+            minimum_accuracy=0.95
+        )
+        
+        assert "accuracy" in validation_result
+        assert "confusion_matrix" in validation_result
+        assert "per_class_metrics" in validation_result
+        assert validation_result["meets_threshold"] is not None
+
+    @pytest.mark.critical
+    @pytest.mark.asyncio
+    async def test_model_error_handling(self, ml_service):
+        """Test comprehensive error handling in model service."""
+        # Test model not loaded error
+        ml_service.models = {}
+        
+        with pytest.raises(MLModelException, match="Model not loaded"):
+            await ml_service.classify_ecg(np.random.rand(100))
+        
+        # Test inference error
+        ml_service.models = {ModelType.ECG_CLASSIFIER: Mock()}
+        ml_service.models[ModelType.ECG_CLASSIFIER].run.side_effect = RuntimeError("ONNX error")
+        
+        with pytest.raises(MLModelException, match="Inference failed"):
+            await ml_service.classify_ecg(np.random.rand(100))
+
+    @pytest.mark.critical
+    @pytest.mark.asyncio
+    async def test_model_caching(self, ml_service):
+        """Test model prediction caching."""
+        # Enable caching
+        ml_service.enable_caching = True
+        ml_service.cache = {}
+        
+        # Mock model
+        ml_service.models = {ModelType.ECG_CLASSIFIER: Mock()}
+        ml_service.models[ModelType.ECG_CLASSIFIER].run.return_value = [
+            np.array([[0.9, 0.1]])
+        ]
+        
+        # First prediction
+        input_data = np.random.rand(100)
+        result1 = await ml_service.classify_ecg_with_cache(input_data)
+        
+        # Second prediction with same input
+        result2 = await ml_service.classify_ecg_with_cache(input_data)
+        
+        # Model should only be called once
+        ml_service.models[ModelType.ECG_CLASSIFIER].run.assert_called_once()
+        
+        # Results should be identical
+        assert result1 == result2
+
+    @pytest.mark.critical
+    @pytest.mark.asyncio
+    async def test_model_resource_management(self, ml_service):
+        """Test model resource management and cleanup."""
+        # Load multiple models
+        models_to_load = [
+            ("model1.onnx", ModelType.ECG_CLASSIFIER),
+            ("model2.onnx", ModelType.ARRHYTHMIA_DETECTOR),
+            ("model3.onnx", ModelType.RISK_PREDICTOR)
+        ]
+        
+        for model_path, model_type in models_to_load:
+            with patch('onnxruntime.InferenceSession'):
+                await ml_service.load_model(model_path, model_type)
+        
+        # Check memory usage
+        memory_usage = ml_service.get_memory_usage()
+        assert memory_usage["total_models"] == 3
+        assert memory_usage["total_memory_mb"] > 0
+        
+        # Unload models
+        await ml_service.cleanup_models()
+        
+        # Verify cleanup
+        assert len(ml_service.models) == 0
+        assert ml_service.get_memory_usage()["total_memory_mb"] == 0
+
+    @pytest.mark.critical
+    @pytest.mark.asyncio
+    async def test_model_a_b_testing(self, ml_service):
+        """Test A/B testing framework for models."""
+        # Setup A/B test
+        model_a = Mock()
+        model_b = Mock()
+        
+        model_a.run.return_value = [np.array([[0.9, 0.1]])]
+        model_b.run.return_value = [np.array([[0.85, 0.15]])]
+        
+        ml_service.ab_test_config = {
+            "model_a": {"model": model_a, "traffic": 0.5},
+            "model_b": {"model": model_b, "traffic": 0.5}
+        }
+        
+        # Run predictions and track which model was used
+        model_usage = {"model_a": 0, "model_b": 0}
+        
+        for _ in range(100):
+            result = await ml_service.predict_with_ab_test(np.random.rand(100))
+            model_usage[result["model_used"]] += 1
+        
+        # Check distribution (should be roughly 50/50)
+        assert 40 <= model_usage["model_a"] <= 60
+        assert 40 <= model_usage["model_b"] <= 60
+
+    @pytest.mark.critical
+    @pytest.mark.asyncio
+    async def test_model_drift_detection(self, ml_service):
+        """Test model drift detection capabilities."""
+        # Baseline distribution
+        baseline_predictions = np.random.normal(0.8, 0.1, 1000)
+        
+        # Current distribution (with drift)
+        current_predictions = np.random.normal(0.6, 0.15, 100)
+        
+        # Detect drift
+        drift_result = await ml_service.detect_model_drift(
+            baseline_predictions,
+            current_predictions,
+            threshold=0.05
+        )
+        
+        assert drift_result["drift_detected"] is True
+        assert drift_result["drift_score"] > 0.05
+        assert "statistical_test" in drift_result
+        assert "recommendation" in drift_result
+
+    @pytest.mark.critical
+    @pytest.mark.asyncio
+    async def test_federated_learning_support(self, ml_service):
+        """Test federated learning model update support."""
+        # Mock local model updates from different sites
+        site_updates = [
+            {"site_id": "hospital_a", "gradients": np.random.rand(100)},
+            {"site_id": "hospital_b", "gradients": np.random.rand(100)},
+            {"site_id": "hospital_c", "gradients": np.random.rand(100)}
+        ]
+        
+        # Aggregate updates
+        aggregated = await ml_service.aggregate_federated_updates(site_updates)
+        
+        assert aggregated["num_sites"] == 3
+        assert aggregated["aggregation_method"] == "federated_averaging"
+        assert "global_update" in aggregated
+        assert aggregated["global_update"].shape == (100,)
+
+    @pytest.mark.critical
+    async def test_model_compression(self, ml_service):
+        """Test model compression for edge deployment."""
+        # Mock full model
+        full_model = Mock()
+        full_model.size = 100 * 1024 * 1024  # 100 MB
+        
+        # Compress model
+        compressed = await ml_service.compress_model(
+            full_model,
+            compression_type="quantization",
+            target_size_mb=10
+        )
+        
+        assert compressed["size_mb"] <= 10
+        assert compressed["compression_ratio"] >= 10
+        assert compressed["accuracy_loss"] < 0.02  # Less than 2% accuracy loss
+        assert compressed["inference_speedup"] > 1.5  # At least 1.5x faster
