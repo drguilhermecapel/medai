@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(
     title="CardioAI Pro",
     version="1.0.0",
-    description="Sistema de análise de ECG com IA"
+    description="Sistema de analise de ECG com IA"
 )
 
 # CORS
@@ -30,9 +30,9 @@ async def health_check():
     """Health check"""
     return {"status": "healthy"}
 
-# Tentar importar rotas, mas não falhar se não existirem
+# Tentar importar rotas, mas nao falhar se nao existirem
 try:
     from app.api.endpoints import api_router
     app.include_router(api_router, prefix="/api/v1")
 except ImportError:
-    pass  # Rotas não disponíveis ainda
+    pass  # Rotas nao disponiveis ainda

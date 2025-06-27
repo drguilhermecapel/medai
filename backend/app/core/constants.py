@@ -45,6 +45,7 @@ class ValidationStatus(str, Enum):
 class NotificationPriority(str, Enum):
     """Prioridade de notificações"""
     LOW = "low"
+    NORMAL = "medium"  # Alias para MEDIUM
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
@@ -57,6 +58,7 @@ class NotificationType(str, Enum):
     CRITICAL_FINDING = "critical_finding"
     SYSTEM_ALERT = "system_alert"
     APPOINTMENT_REMINDER = "appointment_reminder"
+    INFO = "info"  # Informação geral
 
 class ModelType(str, Enum):
     """Tipos de modelos de ML"""
@@ -89,3 +91,32 @@ ENSEMBLE_MODELS = ["ecg_classifier", "rhythm_detector", "morphology_analyzer"]
 
 # Configurações de API
 API_V1_STR = "/api/v1"
+
+class ConfidenceLevel(str, Enum):
+    """Níveis de confiança para diagnósticos"""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    VERY_HIGH = "very_high"
+
+class ModelStatus(str, Enum):
+    """Status dos modelos de ML"""
+    LOADING = "loading"
+    READY = "ready"
+    ERROR = "error"
+    UPDATING = "updating"
+
+class ECGLeads(str, Enum):
+    """Derivações do ECG"""
+    I = "I"
+    II = "II"
+    III = "III"
+    aVR = "aVR"
+    aVL = "aVL"
+    aVF = "aVF"
+    V1 = "V1"
+    V2 = "V2"
+    V3 = "V3"
+    V4 = "V4"
+    V5 = "V5"
+    V6 = "V6"
