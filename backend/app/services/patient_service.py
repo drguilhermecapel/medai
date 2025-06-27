@@ -1,205 +1,250 @@
-"""
-Patient Service - Enhanced patient management functionality with audit logging.
-"""
-
-import logging
-import secrets
-import string
-from datetime import date, datetime
-from typing import Any
-
+# app/services/patient_service.py - CORREÇÃO
+from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from sqlalchemy import select, or_
 from app.models.patient import Patient
+from app.schemas.patient import PatientCreate, PatientUpdate
 from app.repositories.patient_repository import PatientRepository
-from app.schemas.patient import PatientCreate
-from app.services.base import BaseService
 
-logger = logging.getLogger(__name__)
-
-
-class PatientService(BaseService):
-    """Service for patient management."""
-
-    def __init__(self, db: AsyncSession) -> None:
-        super().__init__(db)
+class PatientService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
         self.repository = PatientRepository(db)
-
+    
     async def create_patient(self, patient_data: PatientCreate, created_by: int) -> Patient:
-        """Create a new patient."""
-        today = date.today()
-        age = today.year - patient_data.date_of_birth.year
-        if today.month < patient_data.date_of_birth.month or \
-           (today.month == patient_data.date_of_birth.month and today.day < patient_data.date_of_birth.day):
-            age -= 1
-
-        # bmi = None
-        # if patient_data.height_cm and patient_data.weight_kg:
-        #     height_m = patient_data.height_cm / 100
-        #     bmi = patient_data.weight_kg / (height_m ** 2)
-
-        allergies_json = None
-        if patient_data.allergies:
-            import json
-            allergies_json = json.dumps(patient_data.allergies)
-
-        medications_json = None
-        if patient_data.medications:
-            import json
-            medications_json = json.dumps(patient_data.medications)
-
-        medical_history_json = None
-        if patient_data.medical_history:
-            import json
-            medical_history_json = json.dumps(patient_data.medical_history)
-
-        family_history_json = None
-        if patient_data.family_history:
-            import json
-            family_history_json = json.dumps(patient_data.family_history)
-
-        patient = Patient()
-        patient.patient_id = patient_data.patient_id
-        patient.mrn = patient_data.mrn
-        patient.first_name = patient_data.first_name
-        patient.last_name = patient_data.last_name
-        patient.date_of_birth = patient_data.date_of_birth
-        patient.gender = patient_data.gender
-        patient.phone = patient_data.phone
-        patient.email = patient_data.email
-        patient.address = patient_data.address
-        patient.height_cm = patient_data.height_cm
-        patient.weight_kg = patient_data.weight_kg
-        patient.blood_type = patient_data.blood_type
-        patient.emergency_contact_name = patient_data.emergency_contact_name
-        patient.emergency_contact_phone = patient_data.emergency_contact_phone
-        patient.emergency_contact_relationship = patient_data.emergency_contact_relationship
-        patient.allergies = allergies_json
-        patient.medications = medications_json
-        patient.medical_history = medical_history_json
-        patient.family_history = family_history_json
-        patient.insurance_provider = patient_data.insurance_provider
-        patient.insurance_number = patient_data.insurance_number
-        patient.consent_for_research = patient_data.consent_for_research
-        patient.consent_date = datetime.utcnow() if patient_data.consent_for_research else None
-        patient.created_by = created_by
-
-        return await self.repository.create_patient(patient)
-
-    async def get_patient_by_patient_id(self, patient_id: str) -> Patient | None:
-        """Get patient by patient ID."""
-        return await self.repository.get_patient_by_patient_id(patient_id)
-
-    async def get_by_id(self, patient_id: int) -> Patient | None:
-        """Get patient by ID - alias for repository method."""
-        return await self.repository.get_patient_by_id(patient_id)
-
-    async def get_patient(self, patient_id: int) -> Patient | None:
-        """Get patient by ID - alias for test compatibility."""
-        return await self.repository.get_patient_by_id(patient_id)
-
-    async def update_patient(self, patient_id: int, update_data: dict[str, Any]) -> Patient | None:
-        """Update patient information."""
-        if 'height_cm' in update_data or 'weight_kg' in update_data:
-            patient = await self.repository.get_patient_by_id(patient_id)
-            if patient:
-                height_cm = update_data.get('height_cm', patient.height_cm)
-                weight_kg = update_data.get('weight_kg', patient.weight_kg)
-
-                if height_cm and weight_kg:
-                    height_m = height_cm / 100
-                    update_data['bmi'] = weight_kg / (height_m ** 2)
-
-        return await self.repository.update_patient(patient_id, update_data)
-
-    async def get_patients(self, limit: int = 50, offset: int = 0) -> tuple[list[Patient], int]:
-        """Get patients with pagination."""
-        return await self.repository.get_patients(limit, offset)
-
+        """Criar novo paciente"""
+        patient = Patient(
+            **patient_data.dict(),
+            created_by=created_by
+        )
+        return await self.repository.create(patient)
+    
+    async def get_patient(self, patient_id: int) -> Optional[Patient]:
+        """Buscar paciente por ID"""
+        return await self.repository.get(patient_id)
+    
+    async def update_patient(self, patient_id: int, patient_data: PatientUpdate) -> Optional[Patient]:
+        """Atualizar dados do paciente"""
+        patient = await self.repository.get(patient_id)
+        if not patient:
+            return None
+        
+        update_data = patient_data.dict(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(patient, field, value)
+        
+        return await self.repository.update(patient)
+    
     async def search_patients(
-        self, query: str, search_fields: list[str], limit: int = 50, offset: int = 0
-    ) -> tuple[list[Patient], int]:
-        """Search patients."""
-        return await self.repository.search_patients(query, search_fields, limit, offset)
+        self, 
+        query: str, 
+        search_fields: List[str] = None
+    ) -> List[Patient]:
+        """Buscar pacientes por nome, ID ou email"""
+        if search_fields is None:
+            search_fields = ["first_name", "last_name", "patient_id", "email"]
+        
+        return await self.repository.search(query, search_fields)
+    
+    async def list_patients(
+        self, 
+        skip: int = 0, 
+        limit: int = 100,
+        filters: Dict[str, Any] = None
+    ) -> List[Patient]:
+        """Listar pacientes com paginação"""
+        return await self.repository.list_all(skip=skip, limit=limit, filters=filters)
 
-    async def check_patient_exists(self, patient_id: str) -> bool:
-        """Check if patient already exists by patient ID."""
-        patient = await self.repository.get_patient_by_patient_id(patient_id)
-        return patient is not None
+# app/services/user_service.py - CORREÇÃO
+from typing import Optional
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.models.user import User
+from app.schemas.user import UserCreate, UserUpdate
+from app.repositories.user_repository import UserRepository
+from app.core.security import get_password_hash, verify_password
 
-    async def get_patient_timeline(
+class UserService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.repository = UserRepository(db)
+    
+    async def create_user(self, user_data: UserCreate) -> User:
+        """Criar novo usuário"""
+        # Verificar se email já existe
+        existing_user = await self.repository.get_user_by_email(user_data.email)
+        if existing_user:
+            raise ValueError("Email already registered")
+        
+        # Hash da senha
+        hashed_password = get_password_hash(user_data.password)
+        
+        # Criar usuário
+        user = User(
+            username=user_data.username,
+            email=user_data.email,
+            hashed_password=hashed_password,
+            full_name=user_data.full_name,
+            role=user_data.role,
+            license_number=user_data.license_number,
+            specialization=user_data.specialization
+        )
+        
+        return await self.repository.create(user)
+    
+    async def get_user(self, user_id: int) -> Optional[User]:
+        """Buscar usuário por ID"""
+        return await self.repository.get(user_id)
+    
+    async def get_user_by_email(self, email: str) -> Optional[User]:
+        """Buscar usuário por email"""
+        return await self.repository.get_user_by_email(email)
+    
+    async def update_user(self, user_id: int, user_data: UserUpdate) -> Optional[User]:
+        """Atualizar dados do usuário"""
+        user = await self.repository.get(user_id)
+        if not user:
+            return None
+        
+        update_data = user_data.dict(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(user, field, value)
+        
+        return await self.repository.update(user)
+    
+    async def authenticate_user(self, email: str, password: str) -> Optional[User]:
+        """Autenticar usuário"""
+        user = await self.get_user_by_email(email)
+        if not user:
+            return None
+        if not verify_password(password, user.hashed_password):
+            return None
+        return user
+
+# app/services/notification_service.py - CORREÇÃO
+from typing import List, Optional
+from datetime import datetime
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.models.notification import Notification
+from app.schemas.notification import NotificationCreate
+from app.repositories.notification_repository import NotificationRepository
+
+class NotificationService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.repository = NotificationRepository(db)
+    
+    async def create_notification(self, notification_data: NotificationCreate) -> Notification:
+        """Criar nova notificação"""
+        notification = Notification(**notification_data.dict())
+        return await self.repository.create(notification)
+    
+    async def get_user_notifications(
+        self, 
+        user_id: int,
+        unread_only: bool = False,
+        limit: int = 50
+    ) -> List[Notification]:
+        """Buscar notificações do usuário"""
+        return await self.repository.get_user_notifications(
+            user_id=user_id,
+            unread_only=unread_only,
+            limit=limit
+        )
+    
+    async def mark_as_read(self, notification_id: int, user_id: int) -> Optional[Notification]:
+        """Marcar notificação como lida"""
+        notification = await self.repository.get(notification_id)
+        
+        if not notification or notification.user_id != user_id:
+            return None
+        
+        notification.is_read = True
+        notification.read_at = datetime.utcnow()
+        
+        return await self.repository.update(notification)
+    
+    async def mark_all_as_read(self, user_id: int) -> int:
+        """Marcar todas as notificações como lidas"""
+        return await self.repository.mark_all_as_read(user_id)
+
+# app/services/ecg_service.py - CORREÇÃO
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.models.ecg_analysis import ECGAnalysis, AnalysisStatus
+from app.schemas.ecg_analysis import ECGAnalysisCreate, ECGAnalysisUpdate
+from app.repositories.ecg_repository import ECGRepository
+from app.core.exceptions import ECGProcessingException
+import os
+
+class ECGAnalysisService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.repository = ECGRepository(db)
+    
+    async def create_analysis(
         self,
         patient_id: int,
-        days: int = 30
-    ) -> dict[str, Any]:
-        """
-        Get patient timeline with medical events
-        """
+        file_path: str,
+        original_filename: str,
+        created_by: int,
+        metadata: Dict[str, Any]
+    ) -> ECGAnalysis:
+        """Criar nova análise de ECG"""
         try:
-            patient = await self.repository.get_patient_by_id(patient_id)
-            if not patient:
-                raise ValueError("Patient not found")
-
-            timeline = {
-                "patient_id": patient_id,
-                "patient_name": f"{patient.first_name} {patient.last_name}",
-                "timeline_days": days,
-                "events": [
-                    {
-                        "date": patient.created_at,
-                        "type": "patient_created",
-                        "description": "Patient record created"
-                    }
-                ],
-                "summary": {
-                    "total_events": 1,
-                    "last_activity": patient.updated_at or patient.created_at
-                }
-            }
-
-            return timeline
-
+            # Verificar se arquivo existe
+            if not os.path.exists(file_path):
+                raise ECGProcessingException(f"File not found: {file_path}")
+            
+            # Criar análise
+            analysis = ECGAnalysis(
+                patient_id=patient_id,
+                file_path=file_path,
+                original_filename=original_filename,
+                created_by=created_by,
+                acquisition_date=metadata.get('acquisition_date', datetime.utcnow()),
+                sample_rate=metadata['sample_rate'],
+                duration_seconds=metadata['duration_seconds'],
+                leads_count=metadata['leads_count'],
+                leads_names=metadata['leads_names'],
+                status=AnalysisStatus.PENDING
+            )
+            
+            return await self.repository.create(analysis)
+            
         except Exception as e:
-            logger.error(f"Error getting patient timeline: {e}")
-            raise
-
-    def _generate_medical_record_number(self) -> str:
-        """
-        Generate unique medical record number
-        """
-        return ''.join(secrets.choice(string.digits) for _ in range(8))
-
-    async def merge_patients(
+            raise ECGProcessingException(f"Failed to create analysis: {str(e)}")
+    
+    async def get_analysis(self, analysis_id: int) -> Optional[ECGAnalysis]:
+        """Buscar análise por ID"""
+        return await self.repository.get_analysis_by_id(analysis_id)
+    
+    async def update_analysis(
         self,
-        primary_patient_id: int,
-        secondary_patient_id: int,
-        merged_by: int
-    ) -> Patient:
-        """
-        Merge two patient records (keeping primary, archiving secondary)
-        """
-        try:
-            primary_patient = await self.repository.get_patient_by_id(primary_patient_id)
-            secondary_patient = await self.repository.get_patient_by_id(secondary_patient_id)
-
-            if not primary_patient or not secondary_patient:
-                raise ValueError("One or both patients not found")
-
-            logger.info(f"Merging patient {secondary_patient_id} into {primary_patient_id}")
-
-
-            merge_data = {}
-            if not primary_patient.phone and secondary_patient.phone:
-                merge_data['phone'] = secondary_patient.phone
-            if not primary_patient.email and secondary_patient.email:
-                merge_data['email'] = secondary_patient.email
-
-            if merge_data:
-                await self.repository.update_patient(primary_patient_id, merge_data)
-                primary_patient = await self.repository.get_patient_by_id(primary_patient_id)
-
-            return primary_patient
-
-        except Exception as e:
-            logger.error(f"Error merging patients: {e}")
-            raise
+        analysis_id: int,
+        update_data: ECGAnalysisUpdate
+    ) -> Optional[ECGAnalysis]:
+        """Atualizar análise"""
+        analysis = await self.repository.get_analysis_by_id(analysis_id)
+        if not analysis:
+            return None
+        
+        update_dict = update_data.dict(exclude_unset=True)
+        for field, value in update_dict.items():
+            setattr(analysis, field, value)
+        
+        analysis.updated_at = datetime.utcnow()
+        return await self.repository.update(analysis)
+    
+    async def delete_analysis(self, analysis_id: int) -> bool:
+        """Deletar análise"""
+        analysis = await self.repository.get_analysis_by_id(analysis_id)
+        if not analysis:
+            return False
+        
+        # Deletar arquivo se existir
+        if os.path.exists(analysis.file_path):
+            os.remove(analysis.file_path)
+        
+        await self.repository.delete(analysis)
+        return True

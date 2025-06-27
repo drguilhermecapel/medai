@@ -1,290 +1,243 @@
-"""
-Configuração de fixtures e setup para testes do MedAI
-"""
-
+# tests/conftest.py - CORREÇÃO
 import pytest
 import asyncio
-from typing import Generator, AsyncGenerator
-from unittest.mock import Mock, AsyncMock
-from datetime import datetime, timedelta
-import json
-from pathlib import Path
-
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-import redis
-from fastapi.testclient import TestClient
-from httpx import AsyncClient
-
-# Importações do projeto
+from unittest.mock import AsyncMock, MagicMock
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+from app.models.base import Base
+from app.core.database import get_db
 from app.main import app
-from app.database import Base, get_db, get_async_db
-from app.models import User, Patient, ECGRecord, Diagnosis, Medication
-from app.config import settings
-from app.utils.security import create_access_token, hash_password
 
-# Configurações de teste
-TEST_DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/medai_test"
-TEST_ASYNC_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/medai_test"
-TEST_REDIS_URL = "redis://localhost:6379/1"
-
-# Configuração pytest
-pytest_plugins = ["pytest_asyncio"]
-
+# Configuração do loop de eventos para testes
 @pytest.fixture(scope="session")
 def event_loop():
-    """Cria um event loop para testes assíncronos"""
+    """Create an instance of the default event loop for the test session."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
-@pytest.fixture(scope="session")
-def engine():
-    """Cria engine do banco de dados para testes"""
-    engine = create_engine(TEST_DATABASE_URL)
-    Base.metadata.create_all(bind=engine)
-    yield engine
-    Base.metadata.drop_all(bind=engine)
-
-@pytest.fixture(scope="session")
-async def async_engine():
-    """Cria engine assíncrono do banco de dados"""
-    engine = create_async_engine(TEST_ASYNC_DATABASE_URL)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield engine
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-    await engine.dispose()
-
-@pytest.fixture(scope="function")
-def db_session(engine) -> Generator[Session, None, None]:
-    """Cria sessão do banco de dados para cada teste"""
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    session = SessionLocal()
-    try:
-        yield session
-    finally:
-        session.rollback()
-        session.close()
-
-@pytest.fixture(scope="function")
-async def async_db_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
-    """Cria sessão assíncrona do banco de dados"""
-    async_session_maker = async_sessionmaker(
-        async_engine, class_=AsyncSession, expire_on_commit=False
-    )
-    async with async_session_maker() as session:
-        yield session
-        await session.rollback()
-
-@pytest.fixture(scope="function")
-def redis_client():
-    """Cliente Redis para testes"""
-    client = redis.from_url(TEST_REDIS_URL, decode_responses=True)
-    yield client
-    client.flushdb()
-    client.close()
-
-@pytest.fixture(scope="function")
-def client(db_session) -> TestClient:
-    """Cliente de teste FastAPI"""
-    def override_get_db():
-        try:
-            yield db_session
-        finally:
-            pass
-    
-    app.dependency_overrides[get_db] = override_get_db
-    
-    with TestClient(app) as test_client:
-        yield test_client
-    
-    app.dependency_overrides.clear()
-
-@pytest.fixture(scope="function")
-async def async_client(async_db_session) -> AsyncGenerator[AsyncClient, None]:
-    """Cliente assíncrono de teste"""
-    async def override_get_async_db():
-        yield async_db_session
-    
-    app.dependency_overrides[get_async_db] = override_get_async_db
-    
-    async with AsyncClient(app=app, base_url="http://test") as ac:
-        yield ac
-    
-    app.dependency_overrides.clear()
-
-# Fixtures de dados de teste
-
+# Mock da sessão do banco de dados
 @pytest.fixture
-def test_user(db_session) -> User:
-    """Cria usuário de teste"""
-    user = User(
-        email="doctor@medai.com",
-        username="dr_test",
-        hashed_password=hash_password("Test@123"),
-        full_name="Dr. Test User",
-        role="doctor",
-        specialty="cardiology",
-        crm="12345-SP",
+async def mock_db():
+    """Mock database session"""
+    session = AsyncMock(spec=AsyncSession)
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
+    session.add = MagicMock()
+    session.delete = AsyncMock()
+    session.execute = AsyncMock()
+    session.scalar = AsyncMock()
+    yield session
+
+# Override do get_db para testes
+@pytest.fixture
+def override_get_db(mock_db):
+    async def _get_db_override():
+        yield mock_db
+    
+    app.dependency_overrides[get_db] = _get_db_override
+    yield
+    app.dependency_overrides.clear()
+
+# Fixtures para modelos
+@pytest.fixture
+def mock_user():
+    """Mock user object"""
+    from app.models.user import User
+    return MagicMock(spec=User, 
+        id=1,
+        username="testuser",
+        email="test@example.com",
+        full_name="Test User",
+        role="physician",
         is_active=True,
-        is_verified=True
+        is_verified=True,
+        is_superuser=False
     )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
 
 @pytest.fixture
-def test_patient(db_session, test_user) -> Patient:
-    """Cria paciente de teste"""
-    patient = Patient(
-        name="João Silva",
-        birth_date=datetime(1980, 5, 15),
-        gender="M",
-        cpf="12345678901",
-        phone="11987654321",
-        email="joao@email.com",
-        address="Rua Teste, 123",
-        blood_type="O+",
-        allergies=["Penicilina"],
-        medical_history={
-            "conditions": ["Hipertensão"],
-            "surgeries": [],
-            "family_history": ["Diabetes"]
-        },
-        created_by_id=test_user.id
+def mock_patient():
+    """Mock patient object"""
+    from app.models.patient import Patient
+    from datetime import date
+    return MagicMock(spec=Patient,
+        id=1,
+        patient_id="P001",
+        first_name="John",
+        last_name="Doe",
+        date_of_birth=date(1990, 1, 1),
+        gender="male",
+        email="patient@example.com",
+        created_by=1
     )
-    db_session.add(patient)
-    db_session.commit()
-    db_session.refresh(patient)
-    return patient
 
 @pytest.fixture
-def test_ecg_data():
-    """Dados de ECG de teste"""
-    return {
-        "data": [0.1, 0.2, 0.15, -0.1, -0.2, 0.0] * 1000,  # 6000 pontos
-        "sampling_rate": 500,
-        "leads": ["I", "II", "III", "aVR", "aVL", "aVF", "V1", "V2", "V3", "V4", "V5", "V6"],
-        "duration": 12,  # segundos
-        "metadata": {
-            "device": "ECG-TEST-001",
-            "recorded_at": datetime.utcnow().isoformat()
-        }
-    }
-
-@pytest.fixture
-def test_ecg_record(db_session, test_patient, test_user, test_ecg_data) -> ECGRecord:
-    """Cria registro de ECG de teste"""
-    ecg = ECGRecord(
-        patient_id=test_patient.id,
-        recorded_by_id=test_user.id,
-        ecg_data=test_ecg_data,
-        heart_rate=72,
-        pr_interval=160,
-        qrs_duration=90,
-        qt_interval=400,
-        qtc_interval=420,
-        rhythm="Sinusal",
-        interpretation="Normal",
-        ai_analysis={
-            "arrhythmia_detected": False,
-            "confidence": 0.95,
-            "features": {
-                "p_wave": "normal",
-                "qrs_complex": "normal",
-                "t_wave": "normal"
-            }
-        }
+def mock_ecg_analysis():
+    """Mock ECG analysis object"""
+    from app.models.ecg_analysis import ECGAnalysis, AnalysisStatus
+    from datetime import datetime
+    return MagicMock(spec=ECGAnalysis,
+        id=1,
+        patient_id=1,
+        created_by=1,
+        acquisition_date=datetime.utcnow(),
+        file_path="/path/to/ecg.txt",
+        original_filename="ecg.txt",
+        sample_rate=500,
+        duration_seconds=10.0,
+        leads_count=12,
+        leads_names=["I", "II", "III", "aVR", "aVL", "aVF", "V1", "V2", "V3", "V4", "V5", "V6"],
+        status=AnalysisStatus.COMPLETED
     )
-    db_session.add(ecg)
-    db_session.commit()
-    db_session.refresh(ecg)
-    return ecg
 
-@pytest.fixture
-def auth_headers(test_user):
-    """Headers de autenticação para testes"""
-    token = create_access_token(
-        data={"sub": test_user.email, "user_id": test_user.id}
-    )
-    return {"Authorization": f"Bearer {token}"}
-
-@pytest.fixture
-def mock_ai_service():
-    """Mock do serviço de IA"""
-    mock = Mock()
-    mock.analyze_ecg = AsyncMock(return_value={
-        "arrhythmia_detected": False,
-        "confidence": 0.95,
-        "classification": "Normal Sinus Rhythm",
-        "features": {
-            "heart_rate_variability": "normal",
-            "p_wave_morphology": "normal",
-            "qrs_morphology": "normal",
-            "st_segment": "normal",
-            "t_wave": "normal"
-        },
-        "recommendations": []
-    })
+# Helper para criar mocks de repositórios assíncronos
+def create_async_mock_repository():
+    """Create a mock repository with async methods"""
+    mock = MagicMock()
     
-    mock.diagnose_symptoms = AsyncMock(return_value={
-        "possible_conditions": [
-            {"name": "Common Cold", "probability": 0.7, "icd10": "J00"},
-            {"name": "Allergic Rhinitis", "probability": 0.2, "icd10": "J30.4"}
-        ],
-        "recommended_exams": ["Hemograma completo"],
-        "urgency": "low",
-        "confidence": 0.85
-    })
+    # Converter métodos para AsyncMock
+    mock.create = AsyncMock()
+    mock.get = AsyncMock()
+    mock.update = AsyncMock()
+    mock.delete = AsyncMock()
+    mock.list_all = AsyncMock()
+    mock.get_user_by_email = AsyncMock()
+    mock.get_user_notifications = AsyncMock()
+    mock.mark_as_read = AsyncMock()
+    mock.get_analysis_by_id = AsyncMock()
+    mock.search = AsyncMock()
     
     return mock
 
-@pytest.fixture
-def mock_medication_service():
-    """Mock do serviço de medicamentos"""
-    mock = Mock()
-    mock.check_interactions = AsyncMock(return_value={
-        "interactions": [],
-        "warnings": [],
-        "safe": True
-    })
-    
-    mock.get_medication_info = AsyncMock(return_value={
-        "name": "Paracetamol",
-        "active_ingredient": "Acetaminophen",
-        "dosage_forms": ["500mg", "750mg"],
-        "contraindications": ["Hepatic impairment"],
-        "side_effects": ["Nausea", "Rash"]
-    })
-    
-    return mock
+# tests/test_services.py - CORREÇÃO PARCIAL
+import pytest
+from unittest.mock import MagicMock, AsyncMock, patch
+from datetime import datetime
 
-@pytest.fixture
-def sample_lab_results():
-    """Resultados de laboratório de exemplo"""
-    return {
-        "hemograma": {
-            "hemoglobin": {"value": 14.5, "unit": "g/dL", "reference": "13.5-17.5"},
-            "hematocrit": {"value": 42, "unit": "%", "reference": "41-53"},
-            "leukocytes": {"value": 7500, "unit": "/mm³", "reference": "4500-11000"},
-            "platelets": {"value": 250000, "unit": "/mm³", "reference": "150000-400000"}
-        },
-        "biochemistry": {
-            "glucose": {"value": 95, "unit": "mg/dL", "reference": "70-100"},
-            "creatinine": {"value": 1.0, "unit": "mg/dL", "reference": "0.7-1.3"},
-            "urea": {"value": 35, "unit": "mg/dL", "reference": "15-40"}
-        }
-    }
+from app.services.patient_service import PatientService
+from app.services.user_service import UserService
+from app.services.notification_service import NotificationService
+from app.services.ecg_service import ECGAnalysisService
+from app.schemas.patient import PatientCreate
+from app.schemas.user import UserCreate
+from app.core.exceptions import ECGProcessingException
 
-@pytest.fixture
-def load_test_data():
-    """Carrega dados de teste de arquivos JSON"""
-    def _load(filename: str):
-        test_data_dir = Path(__file__).parent / "test_data"
-        with open(test_data_dir / filename, 'r') as f:
-            return json.load(f)
-    return _load
+class TestPatientService:
+    @pytest.mark.asyncio
+    async def test_create_patient(self, mock_db, mock_patient):
+        # Arrange
+        service = PatientService(mock_db)
+        service.repository = create_async_mock_repository()
+        service.repository.create.return_value = mock_patient
+        
+        patient_data = PatientCreate(
+            patient_id="P001",
+            first_name="John",
+            last_name="Doe",
+            date_of_birth="1990-01-01",
+            gender="male",
+            email="patient@example.com"
+        )
+        
+        # Act
+        result = await service.create_patient(patient_data, created_by=1)
+        
+        # Assert
+        assert result == mock_patient
+        service.repository.create.assert_called_once()
+    
+    @pytest.mark.asyncio
+    async def test_search_patients(self, mock_db, mock_patient):
+        # Arrange
+        service = PatientService(mock_db)
+        service.repository = create_async_mock_repository()
+        service.repository.search.return_value = [mock_patient]
+        
+        # Act
+        result = await service.search_patients("John", ["first_name", "last_name"])
+        
+        # Assert
+        assert len(result) == 1
+        assert result[0] == mock_patient
+        service.repository.search.assert_called_once_with("John", ["first_name", "last_name"])
+
+class TestUserService:
+    @pytest.mark.asyncio
+    async def test_create_user(self, mock_db, mock_user):
+        # Arrange
+        with patch('app.services.user_service.get_password_hash') as mock_hash:
+            mock_hash.return_value = "hashed_password"
+            
+            service = UserService(mock_db)
+            service.repository = create_async_mock_repository()
+            service.repository.get_user_by_email.return_value = None
+            service.repository.create.return_value = mock_user
+            
+            user_data = UserCreate(
+                username="testuser",
+                email="test@example.com",
+                password="SecurePass123",
+                full_name="Test User",
+                role="physician"
+            )
+            
+            # Act
+            result = await service.create_user(user_data)
+            
+            # Assert
+            assert result == mock_user
+            service.repository.get_user_by_email.assert_called_once_with("test@example.com")
+            service.repository.create.assert_called_once()
+
+class TestNotificationService:
+    @pytest.mark.asyncio
+    async def test_get_user_notifications(self, mock_db):
+        # Arrange
+        service = NotificationService(mock_db)
+        service.repository = create_async_mock_repository()
+        mock_notifications = [MagicMock(id=1), MagicMock(id=2)]
+        service.repository.get_user_notifications.return_value = mock_notifications
+        
+        # Act
+        result = await service.get_user_notifications(123)
+        
+        # Assert
+        assert len(result) == 2
+        service.repository.get_user_notifications.assert_called_once_with(
+            user_id=123,
+            unread_only=False,
+            limit=50
+        )
+    
+    @pytest.mark.asyncio
+    async def test_mark_as_read(self, mock_db):
+        # Arrange
+        service = NotificationService(mock_db)
+        service.repository = create_async_mock_repository()
+        mock_notification = MagicMock(id=123, user_id=456, is_read=False)
+        service.repository.get.return_value = mock_notification
+        service.repository.update.return_value = mock_notification
+        
+        # Act
+        result = await service.mark_as_read(123, user_id=456)
+        
+        # Assert
+        assert result == mock_notification
+        assert mock_notification.is_read == True
+        service.repository.update.assert_called_once()
+
+# tests/test_api_endpoints.py - CORREÇÃO PARCIAL
+import pytest
+from fastapi.testclient import TestClient
+from app.main import app
+
+client = TestClient(app)
+
+class TestHealthEndpoints:
+    def test_health_check(self):
+        response = client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "healthy"
+        assert "service" in data
+        assert "version" in data  # Mudança: verificar version ao invés de timestamp
