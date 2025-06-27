@@ -1,18 +1,8 @@
-"""
-MedAI - Sistema de Análise Médica com IA
-"""
+# app/__init__.py
+"""CardioAI Pro Backend Application"""
 
+# Versão da aplicação
 __version__ = "1.0.0"
-__author__ = "MedAI Team"
-__email__ = "support@medai.com"
 
-# Imports principais para facilitar o acesso
-from app.database import Base, get_db, get_async_db, SessionLocal, AsyncSessionLocal
-
-__all__ = [
-    "Base",
-    "get_db", 
-    "get_async_db",
-    "SessionLocal",
-    "AsyncSessionLocal"
-]
+# Não importar nada automaticamente para evitar problemas de importação circular
+# Os módulos devem ser importados explicitamente quando necessários

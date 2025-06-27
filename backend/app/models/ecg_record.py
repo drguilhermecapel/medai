@@ -1,4 +1,4 @@
-# app/models/ecg_record.py - VERSÃO CORRIGIDA
+# app/models/ecg_record.py - COM EXTEND_EXISTING
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Float, JSON, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
@@ -6,6 +6,7 @@ from app.models.base import Base
 
 class ECGRecord(Base):
     __tablename__ = "ecg_records"
+    __table_args__ = {'extend_existing': True}  # Adicionar esta linha
     
     id = Column(Integer, primary_key=True, index=True)
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
