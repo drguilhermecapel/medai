@@ -85,7 +85,7 @@ class TestMedicalCalculations:
         
         # Female adjustment
         egfr_female = calculate_egfr(1.0, 40, "female")
-        assert egfr_female > egfr  # Female has higher eGFR
+        assert egfr_female < egfr  # Female has lower eGFR with same creatinine
         
         # Race adjustment
         egfr_black = calculate_egfr(1.0, 40, "male", "black")
