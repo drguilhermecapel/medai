@@ -149,6 +149,146 @@ class FileStatus:
     ERROR = "error"
     DELETED = "deleted"
 
+class DiagnosisCategory(str, Enum):
+    """Categorias de diagnóstico"""
+    NORMAL = "normal"
+    ARRHYTHMIA = "arrhythmia"
+    CONDUCTION = "conduction"
+    ISCHEMIA = "ischemia"
+    HYPERTROPHY = "hypertrophy"
+    OTHER = "other"
+
+class Priority(str, Enum):
+    """Níveis de prioridade"""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    URGENT = "urgent"
+    CRITICAL = "critical"
+
+class PathologyType(str, Enum):
+    """Tipos de patologia"""
+    ARRHYTHMIA = "arrhythmia"
+    CONDUCTION_DISORDER = "conduction_disorder"
+    ISCHEMIA = "ischemia"
+    STRUCTURAL = "structural"
+    OTHER = "other"
+
+class Gender(str, Enum):
+    """Gêneros"""
+    MALE = "male"
+    FEMALE = "female"
+    OTHER = "other"
+
+class ReportFormat(str, Enum):
+    """Formatos de relatório"""
+    PDF = "pdf"
+    HTML = "html"
+    JSON = "json"
+    CSV = "csv"
+
+class ConfidenceLevel(str, Enum):
+    """Níveis de confiança para diagnósticos"""
+    VERY_LOW = "very_low"
+    LOW = "low"
+    MODERATE = "moderate"
+    HIGH = "high"
+    VERY_HIGH = "very_high"
+
+class DosageUnit(str, Enum):
+    """Unidades de dosagem de medicamentos"""
+    MG = "mg"
+    MCG = "mcg"
+    G = "g"
+    ML = "ml"
+    UI = "ui"
+    DROPS = "drops"
+    TABLETS = "tablets"
+    CAPSULES = "capsules"
+
+class ECGDiagnosisType(str, Enum):
+    """Tipos de diagnóstico ECG"""
+    NORMAL_SINUS_RHYTHM = "normal_sinus_rhythm"
+    ATRIAL_FIBRILLATION = "atrial_fibrillation"
+    ATRIAL_FLUTTER = "atrial_flutter"
+    VENTRICULAR_TACHYCARDIA = "ventricular_tachycardia"
+    BRADYCARDIA = "bradycardia"
+    TACHYCARDIA = "tachycardia"
+    AV_BLOCK = "av_block"
+    BUNDLE_BRANCH_BLOCK = "bundle_branch_block"
+    ST_ELEVATION = "st_elevation"
+    ST_DEPRESSION = "st_depression"
+    OTHER = "other"
+
+class ECGLeads(str, Enum):
+    """Derivações do ECG"""
+    I = "I"
+    II = "II"
+    III = "III"
+    AVR = "aVR"
+    AVL = "aVL"
+    AVF = "aVF"
+    V1 = "V1"
+    V2 = "V2"
+    V3 = "V3"
+    V4 = "V4"
+    V5 = "V5"
+    V6 = "V6"
+
+class MedicationFrequency(str, Enum):
+    """Frequência de medicação"""
+    ONCE_DAILY = "once_daily"
+    TWICE_DAILY = "twice_daily"
+    THREE_TIMES_DAILY = "three_times_daily"
+    FOUR_TIMES_DAILY = "four_times_daily"
+    EVERY_6_HOURS = "every_6_hours"
+    EVERY_8_HOURS = "every_8_hours"
+    EVERY_12_HOURS = "every_12_hours"
+    AS_NEEDED = "as_needed"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+
+class NotificationChannel(str, Enum):
+    """Canais de notificação"""
+    IN_APP = "in_app"
+    EMAIL = "email"
+    SMS = "sms"
+    PUSH = "push"
+    WEBHOOK = "webhook"
+
+class NotificationPriority(str, Enum):
+    """Prioridade de notificação"""
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    URGENT = "urgent"
+    CRITICAL = "critical"
+
+class RiskLevel(str, Enum):
+    """Níveis de risco"""
+    MINIMAL = "minimal"
+    LOW = "low"
+    MODERATE = "moderate"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+class SCPCategory(str, Enum):
+    """Categorias SCP-ECG"""
+    DIAGNOSTIC = "diagnostic"
+    RHYTHM = "rhythm"
+    MORPHOLOGY = "morphology"
+    TECHNICAL = "technical"
+
+class TreatmentType(str, Enum):
+    """Tipos de tratamento"""
+    MEDICATION = "medication"
+    PROCEDURE = "procedure"
+    SURGERY = "surgery"
+    THERAPY = "therapy"
+    LIFESTYLE = "lifestyle"
+    MONITORING = "monitoring"
+    EMERGENCY = "emergency"
+
 # Export all para facilitar imports
 __all__ = [
     "UserRole",
@@ -170,5 +310,20 @@ __all__ = [
     "CONDITION_URGENCY_MAP",
     "ROLE_PERMISSIONS",
     "QualityScore",
-    "FileStatus"
+    "FileStatus",
+    "DiagnosisCategory",
+    "Priority",
+    "PathologyType",
+    "Gender",
+    "ReportFormat",
+    "ConfidenceLevel",
+    "DosageUnit",
+    "ECGDiagnosisType",
+    "ECGLeads",
+    "MedicationFrequency",
+    "NotificationChannel",
+    "NotificationPriority",
+    "RiskLevel",
+    "SCPCategory",
+    "TreatmentType"
 ]
