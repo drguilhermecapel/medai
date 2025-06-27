@@ -6,6 +6,7 @@ from app.models.base import Base
 
 class Patient(Base):
     __tablename__ = "patients"
+    __table_args__ = {'extend_existing': True}
     
     id = Column(Integer, primary_key=True, index=True)
     patient_id = Column(String(50), unique=True, nullable=False, index=True)
@@ -61,6 +62,7 @@ from app.core.constants import AnalysisStatus
 
 class ECGAnalysis(Base):
     __tablename__ = "ecg_analyses"
+    __table_args__ = {'extend_existing': True}
     
     id = Column(Integer, primary_key=True, index=True)
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
@@ -110,6 +112,7 @@ from app.models.base import Base
 
 class ECGRecord(Base):
     __tablename__ = "ecg_records"
+    __table_args__ = {'extend_existing': True}
     
     id = Column(Integer, primary_key=True, index=True)
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
@@ -149,6 +152,7 @@ from app.core.constants import NotificationType, ClinicalUrgency
 
 class Notification(Base):
     __tablename__ = "notifications"
+    __table_args__ = {'extend_existing': True}
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -185,6 +189,7 @@ from app.core.constants import ValidationStatus, ClinicalUrgency
 
 class Validation(Base):
     __tablename__ = "validations"
+    __table_args__ = {'extend_existing': True}
     
     id = Column(Integer, primary_key=True, index=True)
     analysis_id = Column(Integer, ForeignKey("ecg_analyses.id"), nullable=False)
@@ -222,6 +227,7 @@ from app.core.constants import ClinicalUrgency
 
 class Diagnosis(Base):
     __tablename__ = "diagnoses"
+    __table_args__ = {'extend_existing': True}
     
     id = Column(Integer, primary_key=True, index=True)
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
@@ -255,6 +261,7 @@ from app.models.base import Base
 
 class Medication(Base):
     __tablename__ = "medications"
+    __table_args__ = {'extend_existing': True}
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)

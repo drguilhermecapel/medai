@@ -1,8 +1,25 @@
+# app/core/database.py - ARQUIVO CORRETO
 """
-Database module - Compatibility layer for database session management.
-Provides get_db function for dependency injection.
+Core database configuration
+Este arquivo deve conter apenas imports do database principal
 """
+from app.database import (
+    engine,
+    AsyncSessionLocal,
+    SessionLocal,
+    get_db,
+    get_async_db,
+    create_all_tables,
+    drop_all_tables
+)
 
-from app.db.session import get_db
-
-__all__ = ["get_db"]
+# Re-exportar tudo para compatibilidade
+__all__ = [
+    "engine",
+    "AsyncSessionLocal",
+    "SessionLocal",
+    "get_db",
+    "get_async_db",
+    "create_all_tables",
+    "drop_all_tables"
+]

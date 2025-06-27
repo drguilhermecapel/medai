@@ -19,6 +19,7 @@ class Notification(Base):
     """Notification model."""
 
     __tablename__ = "notifications"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
@@ -60,6 +61,7 @@ class NotificationTemplate(Base):
     """Notification template model."""
 
     __tablename__ = "notification_templates"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
@@ -91,6 +93,7 @@ class NotificationPreference(Base):
     """User notification preference model."""
 
     __tablename__ = "notification_preferences"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 

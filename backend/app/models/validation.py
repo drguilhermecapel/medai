@@ -20,6 +20,7 @@ class Validation(Base):
     """Validation model for medical review of ECG analyses."""
 
     __tablename__ = "validations"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
@@ -72,6 +73,7 @@ class ValidationRule(Base):
     """Validation rule model for automated quality checks."""
 
     __tablename__ = "validation_rules"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
@@ -96,6 +98,7 @@ class ValidationResult(Base):
     """Validation result model for storing rule check results."""
 
     __tablename__ = "validation_results"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
@@ -121,6 +124,7 @@ class QualityMetric(Base):
     """Quality metric model for tracking analysis quality over time."""
 
     __tablename__ = "quality_metrics"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
