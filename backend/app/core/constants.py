@@ -162,6 +162,40 @@ class DosageUnit(str, Enum):
     INHALATIONS = "inhalations"
 
 
+class ConfidenceLevel(str, Enum):
+    """Níveis de confiança"""
+    VERY_LOW = "very_low"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    VERY_HIGH = "very_high"
+
+
+class ModelStatus(str, Enum):
+    """Status de modelos de ML"""
+    DRAFT = "draft"
+    TRAINING = "training"
+    TRAINED = "trained"
+    VALIDATING = "validating"
+    VALIDATED = "validated"
+    DEPLOYED = "deployed"
+    DEPRECATED = "deprecated"
+    FAILED = "failed"
+
+
+class ModelType(str, Enum):
+    """Tipos de modelos de ML"""
+    CLASSIFICATION = "classification"
+    REGRESSION = "regression"
+    CLUSTERING = "clustering"
+    ANOMALY_DETECTION = "anomaly_detection"
+    TIME_SERIES = "time_series"
+    NLP = "nlp"
+    COMPUTER_VISION = "computer_vision"
+    MULTIMODAL = "multimodal"
+    CUSTOM = "custom"
+
+
 class DiagnosisCategory(str, Enum):
     """Categorias de diagnóstico"""
     NORMAL = "normal"
