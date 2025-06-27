@@ -47,3 +47,8 @@ class User(UserBase):
 
 class UserResponse(User):
     pass
+
+
+class UserInDB(User):
+    """User in database with hashed password"""
+    hashed_password: str

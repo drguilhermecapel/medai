@@ -58,6 +58,25 @@ class NotificationType(str, Enum):
     SYSTEM_ALERT = "system_alert"
     APPOINTMENT_REMINDER = "appointment_reminder"
 
+class ModelType(str, Enum):
+    """Tipos de modelos de ML"""
+    ECG_CLASSIFIER = "ecg_classifier"
+    RHYTHM_DETECTOR = "rhythm_detector"
+    MORPHOLOGY_ANALYZER = "morphology_analyzer"
+    RISK_PREDICTOR = "risk_predictor"
+
+class DiagnosisCategory(str, Enum):
+    """Categorias de diagnóstico"""
+    NORMAL = "normal"
+    ARRHYTHMIA = "arrhythmia"
+    CONDUCTION_DISTURBANCE = "conduction_disturbance"
+    ISCHEMIA = "ischemia"
+    HYPERTROPHY = "hypertrophy"
+    OTHER = "other"
+
+# Aliases para compatibilidade
+UserRoles = UserRole  # Alguns testes usam UserRoles
+
 # Configurações do sistema
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 ALLOWED_FILE_EXTENSIONS = {'.txt', '.edf', '.xml', '.pdf', '.csv'}
@@ -67,3 +86,6 @@ MAX_ECG_DURATION = 86400  # 24 horas
 # Configurações de ML
 MODEL_CONFIDENCE_THRESHOLD = 0.85
 ENSEMBLE_MODELS = ["ecg_classifier", "rhythm_detector", "morphology_analyzer"]
+
+# Configurações de API
+API_V1_STR = "/api/v1"

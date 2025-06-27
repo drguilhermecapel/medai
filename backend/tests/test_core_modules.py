@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 from datetime import datetime
 
 from app.core.config import Settings
-from app.core.constants import UserRoles, AnalysisStatus, ClinicalUrgency, ValidationStatus
+from app.core.constants import UserRole, AnalysisStatus, ClinicalUrgency, ValidationStatus
 from app.core.exceptions import (
     ECGProcessingException,
     ValidationException,
@@ -54,12 +54,12 @@ class TestCoreConstants:
     """Test core constants."""
 
     def test_user_roles_enum(self):
-        """Test UserRoles enum."""
-        assert UserRoles.ADMIN == "admin"
-        assert UserRoles.PHYSICIAN == "physician"
-        assert UserRoles.CARDIOLOGIST == "cardiologist"
-        assert UserRoles.TECHNICIAN == "technician"
-        assert UserRoles.VIEWER == "viewer"
+        """Test UserRole enum."""
+        assert UserRole.ADMIN == "admin"
+        assert UserRole.PHYSICIAN == "physician"
+        assert UserRole.CARDIOLOGIST == "cardiologist"
+        assert UserRole.TECHNICIAN == "technician"
+        assert UserRole.VIEWER == "viewer"
 
     def test_analysis_status_enum(self):
         """Test AnalysisStatus enum."""
@@ -84,7 +84,7 @@ class TestCoreConstants:
 
     def test_enum_membership(self):
         """Test enum membership."""
-        assert "admin" in [role.value for role in UserRoles]
+        assert "admin" in [role.value for role in UserRole]
         assert "pending" in [status.value for status in AnalysisStatus]
         assert "critical" in [urgency.value for urgency in ClinicalUrgency]
         assert "approved" in [status.value for status in ValidationStatus]

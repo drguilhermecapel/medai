@@ -1,56 +1,22 @@
-# app/models/base.py - CORREÇÃO
-from sqlalchemy.orm import DeclarativeBase
+"""
+Base models and mixins
+"""
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, DateTime, Integer
+from datetime import datetime
 
-class Base(DeclarativeBase):
-    """Base class for all database models"""
-    pass
+# Criar base declarativa
+Base = declarative_base()
 
-# app/database.py - CORREÇÃO COMPLETA (substituir o arquivo existente)
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import NullPool
-import os
-from typing import AsyncGenerator
+class TimestampMixin:
+    """Mixin para adicionar timestamps aos modelos"""
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
-# URL do banco de dados
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/medai"
-)
-
-# Criar engine assíncrona
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=False,
-    pool_pre_ping=True,
-    poolclass=NullPool,  # Para evitar problemas com conexões em testes
-)
-
-# Criar session factory
-AsyncSessionLocal = sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autocommit=False,
-    autoflush=False,
-)
-
-# Dependency para FastAPI
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
-
-# Criar todas as tabelas (usado apenas em desenvolvimento)
-async def create_all_tables():
-    from app.models.base import Base
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-# Dropar todas as tabelas (usado apenas em testes)
-async def drop_all_tables():
-    from app.models.base import Base
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+class BaseModel(Base):
+    """Base model com ID e timestamps"""
+    __abstract__ = True
+    
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

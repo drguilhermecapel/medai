@@ -10,7 +10,7 @@ from app.services.ecg_service import ECGAnalysisService
 from app.services.patient_service import PatientService
 from app.services.user_service import UserService
 from app.services.notification_service import NotificationService
-from app.core.constants import AnalysisStatus, ClinicalUrgency, UserRoles
+from app.core.constants import AnalysisStatus, ClinicalUrgency, UserRole
 
 
 class TestECGService:
@@ -321,7 +321,7 @@ class TestUserService:
             "password": "password123",
             "first_name": "John",
             "last_name": "Doe",
-            "role": UserRoles.PHYSICIAN
+            "role": UserRole.PHYSICIAN
         }
         
         # Mock repository response
@@ -367,14 +367,14 @@ class TestUserService:
         """Test updating user role."""
         # Mock repository response
         mock_user = MagicMock()
-        mock_user.role = UserRoles.ADMIN
+        mock_user.role = UserRole.ADMIN
         user_service.repository.update = AsyncMock(return_value=mock_user)
         
         # Test role update
         if hasattr(user_service, 'update_role'):
-            result = await user_service.update_role(123, UserRoles.ADMIN)
+            result = await user_service.update_role(123, UserRole.ADMIN)
             assert result is not None
-            assert result.role == UserRoles.ADMIN
+            assert result.role == UserRole.ADMIN
 
     @pytest.mark.asyncio
     async def test_deactivate_user(self, user_service):
@@ -577,7 +577,7 @@ class TestServiceIntegration:
         user_service.get_users_by_role = AsyncMock(return_value=mock_users)
         
         # Test cascade
-        users = await user_service.get_users_by_role(UserRoles.PHYSICIAN)
+        users = await user_service.get_users_by_role(UserRole.PHYSICIAN)
         
         for user in users:
             await notification_service.create_notification({

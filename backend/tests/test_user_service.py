@@ -6,7 +6,7 @@ from app.schemas.user import UserCreate
 from app.models.user import User  # Importar o modelo SQLAlchemy, não o schema
 from app.core.security import get_password_hash
 from datetime import datetime
-from app.core.constants import UserRoles
+from app.core.constants import UserRole
 from unittest.mock import ANY
 
 @pytest.fixture
@@ -45,7 +45,7 @@ async def test_create_user(user_service, mock_db_session):
         is_active=True,
         is_verified=False,
         is_superuser=False,
-        role=UserRoles.VIEWER,
+        role=UserRole.VIEWER,
         phone=user_data.phone,
         license_number=user_data.license_number,
         specialty=user_data.specialty,
@@ -76,7 +76,7 @@ async def test_get_user_by_email(user_service, mock_db_session):
         is_active=True,
         is_verified=True,
         is_superuser=False,
-        role=UserRoles.VIEWER,
+        role=UserRole.VIEWER,
         phone="1234567890",
         license_number="LIC123",
         specialty="Cardiology",

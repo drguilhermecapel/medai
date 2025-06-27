@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 from app.services.user_service import UserService
 from app.models.user import User as UserModel
 from datetime import datetime
-from app.core.constants import UserRoles
+from app.core.constants import UserRole
 
 client = TestClient(app)
 
@@ -28,7 +28,7 @@ async def test_login_for_access_token(mock_user_service):
         is_active=True,
         is_verified=True,
         is_superuser=False,
-        role=UserRoles.VIEWER,
+        role=UserRole.VIEWER,
         phone="1234567890",
         license_number="LIC123",
         specialty="Cardiology",

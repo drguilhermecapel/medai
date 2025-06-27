@@ -12,7 +12,7 @@ from app.models.patient import Patient
 from app.models.ecg_analysis import ECGAnalysis
 from app.models.notification import Notification
 from app.models.validation import Validation
-from app.core.constants import UserRoles, AnalysisStatus, ClinicalUrgency, ValidationStatus
+from app.core.constants import UserRole, AnalysisStatus, ClinicalUrgency, ValidationStatus
 
 
 class TestUserModel:
@@ -25,14 +25,14 @@ class TestUserModel:
             hashed_password="hashed_password_123",
             first_name="John",
             last_name="Doe",
-            role=UserRoles.PHYSICIAN,
+            role=UserRole.PHYSICIAN,
             is_active=True
         )
         
         assert user.email == "test@example.com"
         assert user.first_name == "John"
         assert user.last_name == "Doe"
-        assert user.role == UserRoles.PHYSICIAN
+        assert user.role == UserRole.PHYSICIAN
         assert user.is_active is True
 
     def test_user_full_name_property(self):
@@ -42,7 +42,7 @@ class TestUserModel:
             hashed_password="hashed_password_123",
             first_name="John",
             last_name="Doe",
-            role=UserRoles.PHYSICIAN
+            role=UserRole.PHYSICIAN
         )
         
         if hasattr(user, 'full_name'):
@@ -55,7 +55,7 @@ class TestUserModel:
             hashed_password="hashed_password_123",
             first_name="John",
             last_name="Doe",
-            role=UserRoles.PHYSICIAN
+            role=UserRole.PHYSICIAN
         )
         
         str_repr = str(user)
@@ -68,17 +68,17 @@ class TestUserModel:
             hashed_password="hashed_password_123",
             first_name="John",
             last_name="Doe",
-            role=UserRoles.ADMIN
+            role=UserRole.ADMIN
         )
         
-        assert user.role == UserRoles.ADMIN
+        assert user.role == UserRole.ADMIN
 
     def test_user_default_values(self):
         """Test user default values."""
         user = User(
             email="test@example.com",
             hashed_password="hashed_password_123",
-            role=UserRoles.VIEWER
+            role=UserRole.VIEWER
         )
         
         assert user.is_active is True  # Default value
@@ -395,7 +395,7 @@ class TestModelRelationships:
             hashed_password="hashed_password_123",
             first_name="Dr. John",
             last_name="Smith",
-            role=UserRoles.PHYSICIAN
+            role=UserRole.PHYSICIAN
         )
         
         patient = Patient(
@@ -462,7 +462,7 @@ class TestModelRelationships:
             hashed_password="hashed_password_123",
             first_name="John",
             last_name="Doe",
-            role=UserRoles.VIEWER
+            role=UserRole.VIEWER
         )
         
         notification = Notification(

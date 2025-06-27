@@ -1,14 +1,21 @@
-"""Pydantic schemas."""
-
-# Importante: certificar-se de que os schemas estão sendo importados corretamente
-from app.schemas.user import User, UserCreate, UserUpdate, UserInDB
-from app.schemas.ecg import ECGAnalysis, ECGAnalysisCreate
-from app.schemas.validation import Validation, ValidationCreate, ValidationUpdate
+"""
+Schemas package
+"""
+from .user import User, UserCreate, UserUpdate, UserResponse, UserInDB
+from .patient import Patient, PatientCreate, PatientUpdate, PatientResponse
+from .ecg_analysis import ECGAnalysis, ECGAnalysisCreate, ECGAnalysisUpdate, ECGAnalysisResponse
+from .notification import Notification, NotificationCreate, NotificationUpdate, NotificationResponse
+from .validation import Validation, ValidationCreate, ValidationUpdate, ValidationResponse
 
 __all__ = [
-    "User", "UserCreate", "UserUpdate", "UserInDB",
-    "ECGAnalysis", "ECGAnalysisCreate",
-    "Validation", "ValidationCreate", "ValidationUpdate"
+    # User
+    'User', 'UserCreate', 'UserUpdate', 'UserResponse', 'UserInDB',
+    # Patient  
+    'Patient', 'PatientCreate', 'PatientUpdate', 'PatientResponse',
+    # ECG
+    'ECGAnalysis', 'ECGAnalysisCreate', 'ECGAnalysisUpdate', 'ECGAnalysisResponse',
+    # Notification
+    'Notification', 'NotificationCreate', 'NotificationUpdate', 'NotificationResponse',
+    # Validation
+    'Validation', 'ValidationCreate', 'ValidationUpdate', 'ValidationResponse',
 ]
-
-

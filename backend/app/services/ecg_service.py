@@ -15,7 +15,15 @@ import numpy as np
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.constants import AnalysisStatus, ClinicalUrgency, DiagnosisCategory
+try:
+    from app.core.constants import AnalysisStatus, ClinicalUrgency, DiagnosisCategory
+except ImportError:
+    from app.core.constants import AnalysisStatus, ClinicalUrgency
+    # DiagnosisCategory será definido localmente se necessário
+    class DiagnosisCategory:
+        NORMAL = "normal"
+        ARRHYTHMIA = "arrhythmia"
+        OTHER = "other"
 from app.core.exceptions import ECGProcessingException
 from app.models.ecg_analysis import ECGAnalysis, ECGAnnotation, ECGMeasurement
 from app.repositories.ecg_repository import ECGRepository
