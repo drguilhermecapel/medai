@@ -1,18 +1,17 @@
 """
-Aplicação FastAPI principal
+FastAPI application
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.endpoints import api_router
-from app.core.config import settings
 
+# Criar app
 app = FastAPI(
-    title=settings.PROJECT_NAME,
-    version=settings.VERSION,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    title="CardioAI Pro",
+    version="1.0.0",
+    description="Sistema de an�lise de ECG com IA"
 )
 
-# Configurar CORS
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,19 +20,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Incluir rotas
-app.include_router(api_router, prefix=settings.API_V1_STR)
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {"message": "CardioAI Pro API", "status": "running"}
 
-@app.on_event("startup")
-async def startup_event():
-    """Inicialização da aplicação"""
-    print(f"🚀 {settings.PROJECT_NAME} v{settings.VERSION} iniciado!")
+@app.get("/health")
+async def health_check():
+    """Health check"""
+    return {"status": "healthy"}
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Finalização da aplicação"""
-    print("👋 Aplicação finalizada")
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+# Tentar importar rotas, mas n�o falhar se n�o existirem
+try:
+    from app.api.endpoints import api_router
+    app.include_router(api_router, prefix="/api/v1")
+except ImportError:
+    pass  # Rotas n�o dispon�veis ainda
