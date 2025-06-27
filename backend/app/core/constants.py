@@ -133,6 +133,22 @@ ROLE_PERMISSIONS = {
     ]
 }
 
+# Classes adicionais que podem estar sendo usadas
+class QualityScore:
+    """Scores de qualidade para ECG"""
+    EXCELLENT = 1.0
+    GOOD = 0.8
+    FAIR = 0.6
+    POOR = 0.4
+    UNACCEPTABLE = 0.2
+
+class FileStatus:
+    """Status de arquivos"""
+    PENDING = "pending"
+    PROCESSED = "processed"
+    ERROR = "error"
+    DELETED = "deleted"
+
 # Export all para facilitar imports
 __all__ = [
     "UserRole",
@@ -152,5 +168,7 @@ __all__ = [
     "SystemConfig",
     "Messages",
     "CONDITION_URGENCY_MAP",
-    "ROLE_PERMISSIONS"
+    "ROLE_PERMISSIONS",
+    "QualityScore",
+    "FileStatus"
 ]
