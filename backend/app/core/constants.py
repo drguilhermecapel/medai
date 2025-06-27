@@ -12,12 +12,14 @@ class UserRoles(str, Enum):
     TECHNICIAN = "technician"
     NURSE = "nurse"
     DOCTOR = "doctor"
+    PHYSICIAN = "physician"  # Alias para compatibilidade
     ADMIN = "admin"
 
 
 class AnalysisStatus(str, Enum):
     """Status de análise"""
     PENDING = "pending"
+    PROCESSING = "processing"  # Adicionado
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -29,8 +31,10 @@ class ClinicalUrgency(str, Enum):
     """Níveis de urgência clínica"""
     LOW = "low"
     ROUTINE = "routine"
+    MEDIUM = "medium"  # Adicionado
     PRIORITY = "priority"
     URGENT = "urgent"
+    CRITICAL = "critical"  # Adicionado
     EMERGENCY = "emergency"
     ELECTIVE = "elective"
 
@@ -39,6 +43,7 @@ class ValidationStatus(str, Enum):
     """Status de validação"""
     PENDING = "pending"
     VALIDATED = "validated"
+    APPROVED = "approved"  # Adicionado para compatibilidade
     REJECTED = "rejected"
     NEEDS_REVISION = "needs_revision"
 
@@ -185,6 +190,7 @@ class ModelStatus(str, Enum):
 
 class ModelType(str, Enum):
     """Tipos de modelos de ML"""
+    ECG_CLASSIFIER = "ecg_classifier"  # Adicionado
     CLASSIFICATION = "classification"
     REGRESSION = "regression"
     CLUSTERING = "clustering"
