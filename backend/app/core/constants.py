@@ -1,48 +1,69 @@
-# Adicionar ao arquivo app/core/constants.py após os enums existentes
+"""
+Constantes e Enums do sistema
+"""
+from enum import Enum
 
-# Atualizar UserRole para incluir PHYSICIAN
 class UserRole(str, Enum):
-    PHYSICIAN = "physician"
-    CARDIOLOGIST = "cardiologist"
-    TECHNICIAN = "technician"
+    """Papéis de usuário no sistema"""
     ADMIN = "admin"
-    VIEWER = "viewer"  # Adicionar se necessário
-    PATIENT = "patient"  # Adicionar se necessário
-    RECEPTIONIST = "receptionist"  # Adicionar se necessário
-    NURSE = "nurse"  # Adicionar se necessário
-    DOCTOR = "doctor"  # Adicionar se necessário
+    DOCTOR = "doctor"
+    PHYSICIAN = "doctor"  # Alias para compatibilidade
+    NURSE = "nurse"
+    TECHNICIAN = "technician"
+    RECEPTIONIST = "receptionist"
+    PATIENT = "patient"
+    VIEWER = "viewer"
 
-# Atualizar AnalysisStatus
 class AnalysisStatus(str, Enum):
+    """Status de análise de ECG"""
     PENDING = "pending"
-    PROCESSING = "processing"  # Adicionar
-    IN_PROGRESS = "in_progress"
+    PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
-    VALIDATED = "validated"
+    CANCELLED = "cancelled"
 
-# Atualizar ClinicalUrgency
 class ClinicalUrgency(str, Enum):
+    """Níveis de urgência clínica"""
     LOW = "low"
-    MEDIUM = "medium"  # Adicionar
-    NORMAL = "normal"
-    HIGH = "high"
-    CRITICAL = "critical"
-    ROUTINE = "routine"  # Adicionar
-    PRIORITY = "priority"  # Adicionar
+    ROUTINE = "routine"
+    MEDIUM = "routine"  # Alias
+    PRIORITY = "priority"
+    HIGH = "urgent"  # Alias
     URGENT = "urgent"
-    EMERGENCY = "emergency"  # Adicionar
-    ELECTIVE = "elective"  # Adicionar
+    CRITICAL = "emergency"  # Alias
+    EMERGENCY = "emergency"
+    ELECTIVE = "elective"
 
-# Atualizar ValidationStatus
 class ValidationStatus(str, Enum):
+    """Status de validação médica"""
     PENDING = "pending"
+    IN_REVIEW = "in_review"
     APPROVED = "approved"
     REJECTED = "rejected"
-    REQUIRES_REVIEW = "requires_review"
+    REQUIRES_REVISION = "requires_revision"
 
-# Adicionar enum para tipos de modelo
-class ModelType(str, Enum):
-    ECG_CLASSIFIER = "ecg_classifier"
-    RISK_PREDICTOR = "risk_predictor"
-    ARRHYTHMIA_DETECTOR = "arrhythmia_detector"
+class NotificationPriority(str, Enum):
+    """Prioridade de notificações"""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+class NotificationType(str, Enum):
+    """Tipos de notificação"""
+    ECG_ANALYSIS_READY = "ecg_analysis_ready"
+    VALIDATION_REQUIRED = "validation_required"
+    VALIDATION_COMPLETED = "validation_completed"
+    CRITICAL_FINDING = "critical_finding"
+    SYSTEM_ALERT = "system_alert"
+    APPOINTMENT_REMINDER = "appointment_reminder"
+
+# Configurações do sistema
+MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
+ALLOWED_FILE_EXTENSIONS = {'.txt', '.edf', '.xml', '.pdf', '.csv'}
+MIN_ECG_DURATION = 10  # segundos
+MAX_ECG_DURATION = 86400  # 24 horas
+
+# Configurações de ML
+MODEL_CONFIDENCE_THRESHOLD = 0.85
+ENSEMBLE_MODELS = ["ecg_classifier", "rhythm_detector", "morphology_analyzer"]

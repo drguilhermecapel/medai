@@ -1,97 +1,38 @@
-# app/main.py - CORREÇÃO COMPLETA
+"""
+Aplicação FastAPI principal
+"""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import sys
-import os
-
-# Adicionar o diretório raiz ao path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# Importações locais
+from app.api.endpoints import api_router
 from app.core.config import settings
-from app.api.v1.endpoints import health
 
-# Lifecycle manager
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    print("Starting up CardioAI Pro API...")
-    yield
-    # Shutdown
-    print("Shutting down CardioAI Pro API...")
-
-# Criar aplicação
 app = FastAPI(
-    title=settings.APP_NAME,
-    version=settings.APP_VERSION,
-    lifespan=lifespan
+    title=settings.PROJECT_NAME,
+    version=settings.VERSION,
+    openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
-# CORS
+# Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Incluir routers
-app.include_router(health.router, prefix="/api/v1")
+# Incluir rotas
+app.include_router(api_router, prefix=settings.API_V1_STR)
 
-# Importar outros routers quando estiverem prontos
-try:
-    from app.api.v1.endpoints import auth, users, patients, ecg_analysis, validations, notifications
-    
-    app.include_router(auth.router, prefix="/api/v1")
-    app.include_router(users.router, prefix="/api/v1")
-    app.include_router(patients.router, prefix="/api/v1")
-    app.include_router(ecg_analysis.router, prefix="/api/v1")
-    app.include_router(validations.router, prefix="/api/v1")
-    app.include_router(notifications.router, prefix="/api/v1")
-except ImportError as e:
-    print(f"Warning: Could not import all routers: {e}")
+@app.on_event("startup")
+async def startup_event():
+    """Inicialização da aplicação"""
+    print(f"🚀 {settings.PROJECT_NAME} v{settings.VERSION} iniciado!")
 
-# Root endpoint
-@app.get("/")
-async def root():
-    return {
-        "message": "Welcome to CardioAI Pro API",
-        "version": settings.APP_VERSION,
-        "docs": "/docs",
-        "health": "/api/v1/health"
-    }
-
-# Health endpoints diretos para testes
-@app.get("/health")
-async def health_check():
-    return {
-        "status": "healthy",
-        "service": settings.APP_NAME,
-        "version": settings.APP_VERSION
-    }
-
-# Websocket endpoints para testes
-@app.websocket("/ws/ecg/{client_id}")
-async def ecg_websocket(websocket):
-    await websocket.accept()
-    try:
-        while True:
-            data = await websocket.receive_text()
-            await websocket.send_text(f"Echo: {data}")
-    except:
-        pass
-
-@app.websocket("/ws/notifications/{user_id}")
-async def notifications_websocket(websocket):
-    await websocket.accept()
-    try:
-        while True:
-            data = await websocket.receive_text()
-            await websocket.send_text(f"Notification: {data}")
-    except:
-        pass
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Finalização da aplicação"""
+    print("👋 Aplicação finalizada")
 
 if __name__ == "__main__":
     import uvicorn

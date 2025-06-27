@@ -1,31 +1,30 @@
-# app/models/__init__.py - CORREÇÃO COMPLETA
 """
-Modelos do banco de dados
-Importação ordenada para evitar dependências circulares
+Models package - ordem correta de imports para evitar dependências circulares
 """
 
-# Importar Base primeiro
-from app.models.base import Base
+# Imports base
+from .base import Base, TimestampMixin
 
-# Importar modelos na ordem correta de dependências
-from app.models.user import User
-from app.models.patient import Patient
-from app.models.ecg_record import ECGRecord
-from app.models.ecg_analysis import ECGAnalysis
-from app.models.validation import Validation
-from app.models.notification import Notification
-from app.models.diagnosis import Diagnosis
-from app.models.medication import Medication
+# Modelos independentes primeiro
+from .user import User
+from .patient import Patient
 
-# Exportar todos os modelos
+# Modelos que dependem dos anteriores
+from .ecg_record import ECGRecord
+from .ecg_analysis import ECGAnalysis
+from .notification import Notification
+from .validation import Validation
+from .prescription import Prescription
+from .medical_record import MedicalRecord
+from .clinical_protocol import ClinicalProtocol
+from .dataset import Dataset
+from .exam_request import ExamRequest
+
+# Re-exportar todos os modelos
 __all__ = [
-    "Base",
-    "User",
-    "Patient",
-    "ECGRecord",
-    "ECGAnalysis",
-    "Validation",
-    "Notification",
-    "Diagnosis",
-    "Medication"
+    'Base', 'TimestampMixin',
+    'User', 'Patient', 'ECGRecord', 'ECGAnalysis',
+    'Notification', 'Validation', 'Prescription',
+    'MedicalRecord', 'ClinicalProtocol', 'Dataset',
+    'ExamRequest'
 ]
