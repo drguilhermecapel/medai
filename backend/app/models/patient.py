@@ -1,288 +1,269 @@
-"""
-Modelos relacionados a pacientes
-"""
+# app/models/patient.py - CORREÇÃO COMPLETA
 from datetime import datetime, date
-from typing import Optional, List, Dict, Any
-from uuid import uuid4
-
-from sqlalchemy import String, DateTime, Date, Float, Integer, Boolean, Text, JSON, ForeignKey, Index, UniqueConstraint
-from sqlalchemy.orm import relationship as db_relationship, Mapped, mapped_column
-
-from app.database import Base
-from app.core.constants import Gender, BloodType
-
+from sqlalchemy import Column, Integer, String, Date, DateTime, Text, ForeignKey
+from sqlalchemy.orm import relationship
+from app.models.base import Base
 
 class Patient(Base):
-    """Modelo principal de paciente"""
     __tablename__ = "patients"
     
-    # Primary key
-    id: Mapped[str] = mapped_column(
-        String(36), 
-        primary_key=True, 
-        default=lambda: str(uuid4())
-    )
+    id = Column(Integer, primary_key=True, index=True)
+    patient_id = Column(String(50), unique=True, nullable=False, index=True)
     
-    # Informações básicas
-    first_name: Mapped[str] = mapped_column(String(100), nullable=False)
-    last_name: Mapped[str] = mapped_column(String(100), nullable=False)
-    middle_name: Mapped[Optional[str]] = mapped_column(String(100))
-    
-    # Documentos
-    cpf: Mapped[str] = mapped_column(String(11), unique=True, nullable=False)
-    rg: Mapped[Optional[str]] = mapped_column(String(20))
-    health_card_number: Mapped[Optional[str]] = mapped_column(String(50))
-    
-    # Dados pessoais
-    birth_date: Mapped[date] = mapped_column(Date, nullable=False)
-    gender: Mapped[str] = mapped_column(
-        String(20),
-        default=Gender.NOT_SPECIFIED,
-        nullable=False
-    )
+    # Informações pessoais
+    first_name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=False)
+    date_of_birth = Column(Date, nullable=False)
+    gender = Column(String(20), nullable=False)
     
     # Contato
-    email: Mapped[Optional[str]] = mapped_column(String(255), unique=True)
-    phone: Mapped[str] = mapped_column(String(20), nullable=False)
-    secondary_phone: Mapped[Optional[str]] = mapped_column(String(20))
+    email = Column(String(255), nullable=True)
+    phone = Column(String(20), nullable=True)
+    address = Column(Text, nullable=True)
     
-    # Endereço
-    address_street: Mapped[Optional[str]] = mapped_column(String(255))
-    address_number: Mapped[Optional[str]] = mapped_column(String(20))
-    address_complement: Mapped[Optional[str]] = mapped_column(String(100))
-    address_neighborhood: Mapped[Optional[str]] = mapped_column(String(100))
-    address_city: Mapped[Optional[str]] = mapped_column(String(100))
-    address_state: Mapped[Optional[str]] = mapped_column(String(2))
-    address_zip: Mapped[Optional[str]] = mapped_column(String(8))
+    # Informações médicas
+    blood_type = Column(String(10), nullable=True)
+    allergies = Column(Text, nullable=True)
+    medical_history = Column(Text, nullable=True)
+    current_medications = Column(Text, nullable=True)
     
-    # Informações médicas básicas
-    blood_type: Mapped[Optional[str]] = mapped_column(
-        String(10),
-        default=BloodType.UNKNOWN
-    )
-    
-    height_cm: Mapped[Optional[float]] = mapped_column(Float)
-    weight_kg: Mapped[Optional[float]] = mapped_column(Float)
-    
-    # Status
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    is_deceased: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    death_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    
-    # Preferências
-    preferred_language: Mapped[str] = mapped_column(String(10), default="pt-BR")
-    timezone: Mapped[str] = mapped_column(String(50), default="America/Sao_Paulo")
-    
-    # Observações
-    notes: Mapped[Optional[str]] = mapped_column(Text)
-    tags: Mapped[Optional[List[str]]] = mapped_column(JSON, default=list)
-    
-    # Timestamps
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=datetime.utcnow,
-        nullable=False
-    )
-    
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
-        nullable=False
-    )
+    # Metadados
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relacionamentos
-    ecg_records = db_relationship("ECGRecord", back_populates="patient", cascade="all, delete-orphan")
-    diagnoses = db_relationship("Diagnosis", back_populates="patient", cascade="all, delete-orphan")
-    medications = db_relationship("Medication", back_populates="patient", cascade="all, delete-orphan")
-    patient_history = db_relationship("PatientHistory", back_populates="patient", cascade="all, delete-orphan")
-    emergency_contacts = db_relationship("EmergencyContact", back_populates="patient", cascade="all, delete-orphan")
-    
-    # Índices
-    __table_args__ = (
-        Index("idx_patients_cpf", "cpf"),
-        Index("idx_patients_email", "email"),
-        Index("idx_patients_phone", "phone"),
-        Index("idx_patients_name", "first_name", "last_name"),
-        Index("idx_patients_birth_date", "birth_date"),
-        Index("idx_patients_created_at", "created_at"),
-    )
+    creator = relationship("User", back_populates="created_patients", lazy="select")
+    ecg_analyses = relationship("ECGAnalysis", back_populates="patient", cascade="all, delete-orphan", lazy="select")
+    ecg_records = relationship("ECGRecord", back_populates="patient", cascade="all, delete-orphan", lazy="select")
+    diagnoses = relationship("Diagnosis", back_populates="patient", cascade="all, delete-orphan", lazy="select")
     
     @property
-    def full_name(self) -> str:
-        """Retorna o nome completo do paciente"""
-        parts = [self.first_name]
-        if self.middle_name:
-            parts.append(self.middle_name)
-        parts.append(self.last_name)
-        return " ".join(parts)
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}"
     
     @property
-    def age(self) -> int:
-        """Calcula a idade do paciente"""
+    def age(self):
         today = date.today()
-        age = today.year - self.birth_date.year
-        if today.month < self.birth_date.month or (
-            today.month == self.birth_date.month and today.day < self.birth_date.day
-        ):
-            age -= 1
-        return age
-    
-    @property
-    def bmi(self) -> Optional[float]:
-        """Calcula o IMC do paciente"""
-        if self.height_cm and self.weight_kg:
-            height_m = self.height_cm / 100
-            return round(self.weight_kg / (height_m ** 2), 2)
-        return None
+        return today.year - self.date_of_birth.year - (
+            (today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day)
+        )
     
     def __repr__(self):
-        return f"<Patient {self.id} - {self.full_name}>"
+        return f"<Patient(id={self.id}, name={self.full_name})>"
 
+# app/models/ecg_analysis.py - CORREÇÃO COMPLETA
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Float, JSON, DateTime, ForeignKey, Text, Enum
+from sqlalchemy.orm import relationship
+from app.models.base import Base
+from app.core.constants import AnalysisStatus
 
-class PatientHistory(Base):
-    """Histórico médico do paciente"""
-    __tablename__ = "patient_history"
+class ECGAnalysis(Base):
+    __tablename__ = "ecg_analyses"
     
-    # Primary key
-    id: Mapped[str] = mapped_column(
-        String(36), 
-        primary_key=True, 
-        default=lambda: str(uuid4())
-    )
+    id = Column(Integer, primary_key=True, index=True)
+    patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     
-    # Foreign key
-    patient_id: Mapped[str] = mapped_column(
-        String(36),
-        ForeignKey("patients.id", ondelete="CASCADE"),
-        nullable=False
-    )
+    # Metadados do ECG
+    acquisition_date = Column(DateTime, nullable=False)
+    file_path = Column(String(500), nullable=False)
+    original_filename = Column(String(255), nullable=False)
     
-    # Tipo de histórico
-    history_type: Mapped[str] = mapped_column(
-        String(50),
-        nullable=False
-    )  # medical, surgical, family, social
+    # Parâmetros técnicos
+    sample_rate = Column(Integer, nullable=False)
+    duration_seconds = Column(Float, nullable=False)
+    leads_count = Column(Integer, nullable=False)
+    leads_names = Column(JSON, nullable=False)
+    
+    # Status e resultados
+    status = Column(Enum(AnalysisStatus), default=AnalysisStatus.PENDING)
+    analysis_results = Column(JSON, nullable=True)
+    ai_predictions = Column(JSON, nullable=True)
+    quality_metrics = Column(JSON, nullable=True)
+    
+    # Interpretação e validação
+    interpretation = Column(Text, nullable=True)
+    clinical_notes = Column(Text, nullable=True)
+    validated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    validated_at = Column(DateTime, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relacionamentos
+    patient = relationship("Patient", back_populates="ecg_analyses", lazy="select")
+    creator = relationship("User", foreign_keys=[created_by], back_populates="created_analyses", lazy="select")
+    validator = relationship("User", foreign_keys=[validated_by], back_populates="validated_analyses", lazy="select")
+    validations = relationship("Validation", back_populates="analysis", cascade="all, delete-orphan", lazy="select")
+    
+    def __repr__(self):
+        return f"<ECGAnalysis(id={self.id}, patient_id={self.patient_id}, status={self.status})>"
+
+# app/models/ecg_record.py - CORREÇÃO COMPLETA
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Float, JSON, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
+from app.models.base import Base
+
+class ECGRecord(Base):
+    __tablename__ = "ecg_records"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
+    uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
+    # Arquivo e metadados
+    file_path = Column(String(500), nullable=False)
+    file_hash = Column(String(64), nullable=False, unique=True)
+    file_size = Column(Integer, nullable=False)
+    
+    # Informações técnicas
+    sample_rate = Column(Integer, nullable=False)
+    duration = Column(Float, nullable=False)
+    leads = Column(JSON, nullable=False)
+    
+    # Qualidade e processamento
+    quality_score = Column(Float, nullable=True)
+    preprocessing_applied = Column(JSON, nullable=True)
+    
+    # Timestamps
+    recorded_at = Column(DateTime, nullable=False)
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relacionamentos
+    patient = relationship("Patient", back_populates="ecg_records", lazy="select")
+    uploader = relationship("User", back_populates="uploaded_records", lazy="select")
+    
+    def __repr__(self):
+        return f"<ECGRecord(id={self.id}, patient_id={self.patient_id})>"
+
+# app/models/notification.py - CORREÇÃO COMPLETA
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, ForeignKey, Enum
+from sqlalchemy.orm import relationship
+from app.models.base import Base
+from app.core.constants import NotificationType, ClinicalUrgency
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
+    # Conteúdo
+    title = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    notification_type = Column(Enum(NotificationType), nullable=False, default=NotificationType.INFO)
+    priority = Column(Enum(ClinicalUrgency), nullable=False, default=ClinicalUrgency.NORMAL)
+    
+    # Status
+    is_read = Column(Boolean, default=False)
+    read_at = Column(DateTime, nullable=True)
+    
+    # Relacionamento opcional
+    related_id = Column(Integer, nullable=True)
+    related_type = Column(String(50), nullable=True)  # 'analysis', 'validation', etc.
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relacionamentos
+    user = relationship("User", back_populates="notifications", lazy="select")
+    
+    def __repr__(self):
+        return f"<Notification(id={self.id}, user_id={self.user_id}, type={self.notification_type})>"
+
+# app/models/validation.py - CORREÇÃO COMPLETA
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, Enum
+from sqlalchemy.orm import relationship
+from app.models.base import Base
+from app.core.constants import ValidationStatus, ClinicalUrgency
+
+class Validation(Base):
+    __tablename__ = "validations"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    analysis_id = Column(Integer, ForeignKey("ecg_analyses.id"), nullable=False)
+    validator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
+    # Status da validação
+    status = Column(Enum(ValidationStatus), nullable=False, default=ValidationStatus.PENDING)
+    priority = Column(Enum(ClinicalUrgency), nullable=False, default=ClinicalUrgency.NORMAL)
+    
+    # Feedback
+    comments = Column(Text, nullable=True)
+    corrections = Column(Text, nullable=True)
+    
+    # Flags
+    is_urgent = Column(Boolean, default=False)
+    requires_senior_review = Column(Boolean, default=False)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    validated_at = Column(DateTime, nullable=True)
+    
+    # Relacionamentos
+    analysis = relationship("ECGAnalysis", back_populates="validations", lazy="select")
+    validator = relationship("User", back_populates="validations", lazy="select")
+    
+    def __repr__(self):
+        return f"<Validation(id={self.id}, analysis_id={self.analysis_id}, status={self.status})>"
+
+# app/models/diagnosis.py - CORREÇÃO COMPLETA
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON, Enum
+from sqlalchemy.orm import relationship
+from app.models.base import Base
+from app.core.constants import ClinicalUrgency
+
+class Diagnosis(Base):
+    __tablename__ = "diagnoses"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
+    analysis_id = Column(Integer, ForeignKey("ecg_analyses.id"), nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
+    # Diagnóstico
+    diagnosis_code = Column(String(20), nullable=False)  # ICD-10
+    diagnosis_text = Column(Text, nullable=False)
+    severity = Column(Enum(ClinicalUrgency), nullable=False, default=ClinicalUrgency.NORMAL)
     
     # Detalhes
-    condition: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text)
-    
-    # Datas
-    occurrence_date: Mapped[Optional[date]] = mapped_column(Date)
-    resolution_date: Mapped[Optional[date]] = mapped_column(Date)
-    
-    # Status
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    is_chronic: Mapped[bool] = mapped_column(Boolean, default=False)
-    
-    # Severidade
-    severity: Mapped[Optional[str]] = mapped_column(String(20))
-    
-    # Informações adicionais
-    related_medications: Mapped[Optional[List[str]]] = mapped_column(JSON)
-    complications: Mapped[Optional[List[str]]] = mapped_column(JSON)
-    notes: Mapped[Optional[str]] = mapped_column(Text)
-    
-    # Quem registrou
-    recorded_by: Mapped[Optional[str]] = mapped_column(
-        String(36),
-        ForeignKey("users.id")
-    )
+    findings = Column(JSON, nullable=True)
+    recommendations = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
     
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=datetime.utcnow,
-        nullable=False
-    )
-    
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
-        nullable=False
-    )
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relacionamentos
-    patient = db_relationship("Patient", back_populates="patient_history")
-    
-    # Índices
-    __table_args__ = (
-        Index("idx_patient_history_patient_id", "patient_id"),
-        Index("idx_patient_history_type", "history_type"),
-        Index("idx_patient_history_condition", "condition"),
-    )
+    patient = relationship("Patient", back_populates="diagnoses", lazy="select")
     
     def __repr__(self):
-        return f"<PatientHistory {self.id} - {self.condition}>"
+        return f"<Diagnosis(id={self.id}, patient_id={self.patient_id}, code={self.diagnosis_code})>"
 
+# app/models/medication.py - BÁSICO PARA COMPLETAR O IMPORT
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean
+from app.models.base import Base
 
-class EmergencyContact(Base):
-    """Contatos de emergência do paciente"""
-    __tablename__ = "emergency_contacts"
+class Medication(Base):
+    __tablename__ = "medications"
     
-    # Primary key
-    id: Mapped[str] = mapped_column(
-        String(36), 
-        primary_key=True, 
-        default=lambda: str(uuid4())
-    )
-    
-    # Foreign key
-    patient_id: Mapped[str] = mapped_column(
-        String(36),
-        ForeignKey("patients.id", ondelete="CASCADE"),
-        nullable=False
-    )
-    
-    # Informações do contato
-    name: Mapped[str] = mapped_column(String(200), nullable=False)
-    relationship_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    
-    # Contatos
-    primary_phone: Mapped[str] = mapped_column(String(20), nullable=False)
-    secondary_phone: Mapped[Optional[str]] = mapped_column(String(20))
-    email: Mapped[Optional[str]] = mapped_column(String(255))
-    
-    # Endereço (opcional)
-    address: Mapped[Optional[str]] = mapped_column(String(500))
-    
-    # Prioridade
-    priority: Mapped[int] = mapped_column(Integer, default=1)
-    
-    # Status
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    
-    # Autorização
-    can_make_decisions: Mapped[bool] = mapped_column(Boolean, default=False)
-    has_access_to_records: Mapped[bool] = mapped_column(Boolean, default=False)
-    
-    # Observações
-    notes: Mapped[Optional[str]] = mapped_column(Text)
-    
-    # Timestamps
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=datetime.utcnow,
-        nullable=False
-    )
-    
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
-        nullable=False
-    )
-    
-    # Relacionamentos
-    patient = db_relationship("Patient", back_populates="emergency_contacts")
-    
-    # Índices
-    __table_args__ = (
-        Index("idx_emergency_contacts_patient_id", "patient_id"),
-        Index("idx_emergency_contacts_priority", "priority"),
-    )
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    dosage = Column(String(100), nullable=False)
+    frequency = Column(String(100), nullable=False)
+    patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
+    prescribed_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
     
     def __repr__(self):
-        return f"<EmergencyContact {self.id} - {self.name} ({self.relationship_type})>"
+        return f"<Medication(id={self.id}, name={self.name})>"

@@ -1,26 +1,56 @@
-"""
-Base model for SQLAlchemy.
-"""
+# app/models/base.py - CORREÇÃO
+from sqlalchemy.orm import DeclarativeBase
 
-from datetime import datetime
+class Base(DeclarativeBase):
+    """Base class for all database models"""
+    pass
 
-from sqlalchemy import DateTime, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+# app/database.py - CORREÇÃO COMPLETA (substituir o arquivo existente)
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
+import os
+from typing import AsyncGenerator
 
+# URL do banco de dados
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+asyncpg://postgres:postgres@localhost:5432/medai"
+)
 
-class BaseModel(DeclarativeBase):
-    """Base model with common timestamp fields."""
+# Criar engine assíncrona
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,
+    poolclass=NullPool,  # Para evitar problemas com conexões em testes
+)
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
-        nullable=False
-    )
+# Criar session factory
+AsyncSessionLocal = sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False,
+)
 
-Base = BaseModel
+# Dependency para FastAPI
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
+# Criar todas as tabelas (usado apenas em desenvolvimento)
+async def create_all_tables():
+    from app.models.base import Base
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+# Dropar todas as tabelas (usado apenas em testes)
+async def drop_all_tables():
+    from app.models.base import Base
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
