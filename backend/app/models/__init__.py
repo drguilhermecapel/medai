@@ -1,36 +1,38 @@
-"""Database models."""
+"""
+Modelos do banco de dados MedAI
+"""
 
-from app.models.base import Base
+# Importa todos os modelos para garantir que sejam registrados no SQLAlchemy
+from app.models.user import User, UserSession, APIKey
+from app.models.patient import Patient, PatientHistory, EmergencyContact
+from app.models.ecg_record import ECGRecord, ECGData, ECGFile
 from app.models.ecg_analysis import ECGAnalysis, ECGAnnotation, ECGMeasurement
-from app.models.notification import (
-    Notification,
-    NotificationPreference,
-    NotificationTemplate,
-)
-from app.models.patient import Patient, PatientNote
-from app.models.user import APIKey, User, UserSession
-from app.models.validation import (
-    QualityMetric,
-    Validation,
-    ValidationResult,
-    ValidationRule,
-)
+from app.models.diagnosis import Diagnosis
+from app.models.medication import Medication
+from app.models.notification import Notification
 
+# Exporta os modelos principais
 __all__ = [
-    "Base",
+    # User models
     "User",
+    "UserSession", 
     "APIKey",
-    "UserSession",
+    
+    # Patient models
     "Patient",
-    "PatientNote",
+    "PatientHistory",
+    "EmergencyContact",
+    
+    # ECG models
+    "ECGRecord",
+    "ECGData",
+    "ECGFile",
     "ECGAnalysis",
-    "ECGMeasurement",
     "ECGAnnotation",
-    "Validation",
-    "ValidationRule",
-    "ValidationResult",
-    "QualityMetric",
+    "ECGMeasurement",
+    
+    # Other core models
+    "Diagnosis",
+    "Medication",
     "Notification",
-    "NotificationTemplate",
-    "NotificationPreference",
 ]
