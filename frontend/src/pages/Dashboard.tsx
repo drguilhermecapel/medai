@@ -40,7 +40,7 @@ const Dashboard: React.FC = (): JSX.Element => {
           totalPatients: patients.length || 0,
           totalRecords: records.length || 0,
           totalConsultations: consultations.length || 0,
-          aiDiagnostics: Math.floor(Math.random() * 50) + 10,
+          aiDiagnostics: 0, // Removido o valor aleatório, pode ser ajustado conforme necessário
         })
       } catch (error) {
         console.error('Error fetching stats:', error)
@@ -157,3 +157,5 @@ const Dashboard: React.FC = (): JSX.Element => {
 }
 
 export default Dashboard
+
+

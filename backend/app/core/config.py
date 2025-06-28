@@ -80,8 +80,8 @@ class Settings(BaseSettings):
         auth = f":{password}@" if password else ""
 
         return (
-            f"redis://{auth}{values.get('REDIS_HOST')}:"
-            f"{values.get('REDIS_PORT')}/{values.get('REDIS_DB')}"
+            f"redis://{auth}{values.get("REDIS_HOST")}:"
+            f"{values.get("REDIS_PORT")}/{values.get("REDIS_DB")}"
         )
 
     ALLOWED_HOSTS: list[str] = ["*"]
@@ -114,10 +114,6 @@ class Settings(BaseSettings):
     MODELS_DIR: str = "/app/models"
     MODEL_CACHE_SIZE: int = 3
     INFERENCE_TIMEOUT: int = 30
-
-    ECG_SAMPLE_RATE: int = 500
-    ECG_DURATION_SECONDS: int = 10
-    ECG_LEADS: list[str] = ["I", "II", "III", "aVR", "aVL", "aVF", "V1", "V2", "V3", "V4", "V5", "V6"]
 
     MIN_VALIDATION_SCORE: float = 0.8
     REQUIRE_DOUBLE_VALIDATION_CRITICAL: bool = True
@@ -162,9 +158,6 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER_EMAIL: str = "admin@cardioai.pro"
     FIRST_SUPERUSER_PASSWORD: str = "changeme123"
 
-    MAX_ECG_FILE_SIZE: int = 50 * 1024 * 1024  # 50MB
-    ECG_UPLOAD_DIR: str = "uploads/ecg"
-
     model_config = {
         "case_sensitive": True,
         "env_file": ".env",
@@ -174,3 +167,5 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+

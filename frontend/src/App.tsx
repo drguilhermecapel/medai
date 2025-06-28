@@ -125,7 +125,7 @@ const SPEIApp = (): JSX.Element => {
           </h3>
           <button
             onClick={() => setAiAssistantOpen(false)}
-            className="p-1 rounded-lg hover:bg-gray-700 transition-colors"
+            className="p-1 rounded-lg hover:bg-gray-800 transition-colors"
           >
             <X className="w-4 h-4 text-gray-400" />
           </button>
@@ -434,364 +434,149 @@ const SPEIApp = (): JSX.Element => {
               Sua IA está monitorando {stats[0].value} pacientes em tempo real
             </p>
           </div>
-          <div className="absolute -right-10 -top-10 w-40 h-40 bg-gradient-to-br from-cyan-500/20 to-purple-500/20 rounded-full blur-3xl" />
-        </div>
+          <div className="absolute -right-10 -top-10 w-40 h-40 bg-gradient-to-b from-purple-500/20 to-pink-500/20 rounded-full blur-3xl" />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {stats.map((stat, idx) => {
-            const Icon = stat.icon
-            return (
-              <div key={idx} className="relative group">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+            {stats.map((stat, index) => (
+              <div
+                key={index}
+                className={`relative p-5 rounded-xl shadow-lg overflow-hidden border border-gray-700 ${
+                  stat.bgGlow
+                }`}
+              >
                 <div
-                  className={`absolute inset-0 ${stat.bgGlow} rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-300`}
-                />
-
-                <div className="relative bg-gray-900/80 backdrop-blur-xl rounded-2xl p-6 border border-gray-700 hover:border-gray-600 transition-all duration-300">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.color} shadow-lg`}>
-                      <Icon className="w-6 h-6 text-white" />
-                    </div>
-                    <div
-                      className={`flex items-center space-x-1 text-sm font-medium ${
-                        stat.trend === 'up' ? 'text-green-400' : 'text-red-400'
-                      }`}
-                    >
-                      {stat.trend === 'up' ? (
-                        <TrendingUp className="w-4 h-4" />
-                      ) : (
-                        <TrendingDown className="w-4 h-4" />
-                      )}
-                      <span>{stat.change}</span>
-                    </div>
-                  </div>
-                  <h3 className="text-3xl font-bold text-white mb-1">{stat.value}</h3>
-                  <p className="text-sm text-gray-400">{stat.title}</p>
-
-                  <div className="mt-4 h-8 flex items-end space-x-0.5">
-                    {Array.from({ length: 8 }, (_, i) => (
-                      <div
-                        key={i}
-                        className={`flex-1 bg-gradient-to-t ${stat.color} rounded-sm opacity-40`}
-                        style={{ height: `${Math.random() * 100}%` }}
-                      />
-                    ))}
-                  </div>
+                  className={`absolute inset-0 opacity-20 ${
+                    stat.color
+                  } bg-opacity-30 text-white shadow-lg`}
+                >
+                  <stat.icon className="w-6 h-6" />
+                </div>
+                <div className="relative z-10 flex items-center mt-3 text-sm">
+                  {stat.trend === 'up' ? (
+                    <TrendingUp className="w-4 h-4 text-green-400 mr-1" />
+                  ) : (
+                    <TrendingDown className="w-4 h-4 text-red-400 mr-1" />
+                  )}
+                  <span
+                    className={`font-semibold ${
+                      stat.trend === 'up' ? 'text-green-400' : 'text-red-400'
+                    }`}
+                  >
+                    {stat.change}
+                  </span>
+                  <span className="text-gray-400 ml-1">desde ontem</span>
                 </div>
               </div>
-            )
-          })}
-        </div>
-
-        <div className="bg-gray-900/80 backdrop-blur-xl rounded-2xl border border-gray-700">
-          <div className="p-6 border-b border-gray-700">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Users className="w-5 h-5 text-cyan-400" />
-                Pacientes em Monitoramento
-              </h2>
-              <button className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors">
-                Ver todos →
-              </button>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-800/50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Paciente
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Risco IA
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Última Visita
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Ações
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-700">
-                {recentPatients.map(patient => (
-                  <tr key={patient.id} className="hover:bg-gray-800/30 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="relative">
-                          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
-                            <User className="w-5 h-5 text-gray-400" />
-                          </div>
-                          <div
-                            className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full ${
-                              patient.priority === 'high'
-                                ? 'bg-red-500'
-                                : patient.priority === 'medium'
-                                  ? 'bg-yellow-500'
-                                  : 'bg-green-500'
-                            } ring-2 ring-gray-900`}
-                          />
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-white">{patient.name}</div>
-                          <div className="text-xs text-gray-400">
-                            {patient.age} anos • {patient.conditions.join(', ') || 'Sem condições'}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-24 bg-gray-700 rounded-full h-2 overflow-hidden">
-                          <div
-                            className={`h-full rounded-full bg-gradient-to-r ${
-                              patient.aiRisk > 70
-                                ? 'from-red-500 to-orange-500'
-                                : patient.aiRisk > 40
-                                  ? 'from-yellow-500 to-orange-500'
-                                  : 'from-green-500 to-emerald-500'
-                            }`}
-                            style={{ width: `${patient.aiRisk}%` }}
-                          />
-                        </div>
-                        <span
-                          className={`text-xs font-medium ${
-                            patient.aiRisk > 70
-                              ? 'text-red-400'
-                              : patient.aiRisk > 40
-                                ? 'text-yellow-400'
-                                : 'text-green-400'
-                          }`}
-                        >
-                          {patient.aiRisk}%
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                      {patient.lastVisit}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          patient.status === 'Em consulta'
-                            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                            : patient.status === 'Aguardando'
-                              ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                              : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
-                        }`}
-                      >
-                        {patient.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center space-x-2">
-                        <button className="p-1.5 rounded-lg hover:bg-gray-700 transition-colors group">
-                          <Eye className="w-4 h-4 text-gray-400 group-hover:text-cyan-400" />
-                        </button>
-                        <button className="p-1.5 rounded-lg hover:bg-gray-700 transition-colors group">
-                          <FileText className="w-4 h-4 text-gray-400 group-hover:text-cyan-400" />
-                        </button>
-                        <button className="p-1.5 rounded-lg hover:bg-gray-700 transition-colors group">
-                          <BrainCircuit className="w-4 h-4 text-gray-400 group-hover:text-purple-400" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            ))}
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-300" />
-            <div className="relative bg-gray-900/80 backdrop-blur-xl rounded-2xl p-6 border border-gray-700">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-purple-400" />
-                  AI Insights em Tempo Real
-                </h3>
-                <span className="text-xs text-gray-400">Atualizado há 2 min</span>
-              </div>
-              <div className="space-y-3">
-                <div className="p-4 bg-gradient-to-r from-red-500/10 to-orange-500/10 rounded-xl border border-red-500/20">
-                  <div className="flex items-start space-x-3">
-                    <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-white">Alerta de Sepse</p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        2 pacientes apresentam sinais precoces. Protocolo automático ativado.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-4 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 rounded-xl border border-yellow-500/20">
-                  <div className="flex items-start space-x-3">
-                    <Pill className="w-5 h-5 text-yellow-400 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-white">Interações Medicamentosas</p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        3 prescrições requerem revisão por possíveis interações.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-4 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-xl border border-blue-500/20">
-                  <div className="flex items-start space-x-3">
-                    <TrendingUp className="w-5 h-5 text-blue-400 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-white">Otimização de Fluxo</p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        Sugestão: Reorganizar agenda pode reduzir tempo de espera em 23%.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <button className="mt-4 w-full py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-medium hover:from-purple-700 hover:to-pink-700 transition-all">
-                Ver Análise Completa
-              </button>
-            </div>
+          <div className="bg-gray-900/70 backdrop-blur-xl rounded-2xl p-6 border border-gray-700 shadow-lg">
+            <h2 className="text-xl font-bold text-white mb-4">Atividade Recente</h2>
+            <ActivityChart />
           </div>
 
-          <div className="bg-gray-900/80 backdrop-blur-xl rounded-2xl p-6 border border-gray-700">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Activity className="w-5 h-5 text-cyan-400" />
-                Monitoramento em Tempo Real
-              </h3>
-              <div className="flex items-center space-x-2">
-                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                <span className="text-xs text-gray-400">Live</span>
-              </div>
-            </div>
-
-            <ActivityChart />
-
-            <div className="grid grid-cols-3 gap-4 mt-6">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-cyan-400">98.2%</p>
-                <p className="text-xs text-gray-400">Uptime Sistema</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-green-400">1.2s</p>
-                <p className="text-xs text-gray-400">Resp. Média IA</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-purple-400">847</p>
-                <p className="text-xs text-gray-400">Análises/hora</p>
-              </div>
+          <div className="bg-gray-900/70 backdrop-blur-xl rounded-2xl p-6 border border-gray-700 shadow-lg">
+            <h2 className="text-xl font-bold text-white mb-4">Pacientes Recentes</h2>
+            <div className="space-y-4">
+              {recentPatients.map(patient => (
+                <div
+                  key={patient.id}
+                  className="flex items-center justify-between p-3 bg-gray-800/50 rounded-xl border border-gray-700"
+                >
+                  <div className="flex items-center space-x-3">
+                    <User className="w-6 h-6 text-cyan-400" />
+                    <div>
+                      <p className="text-white font-medium">{patient.name}</p>
+                      <p className="text-sm text-gray-400">{patient.age} anos</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-white text-sm">{patient.status}</p>
+                    <p className="text-gray-400 text-xs">{patient.lastVisit}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { icon: Calendar, label: 'Nova Consulta', color: 'from-blue-500 to-cyan-500' },
-            { icon: Pill, label: 'Prescrição Rápida', color: 'from-green-500 to-emerald-500' },
-            { icon: Microscope, label: 'Solicitar Exame', color: 'from-purple-500 to-pink-500' },
-            { icon: BrainCircuit, label: 'Análise IA', color: 'from-orange-500 to-red-500' },
-          ].map((action, idx) => {
-            const Icon = action.icon
-            return (
-              <button
-                key={idx}
-                className="group relative overflow-hidden rounded-xl bg-gray-900/80 backdrop-blur-xl border border-gray-700 p-4 hover:border-gray-600 transition-all duration-300"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-10 transition-opacity duration-300" />
-                <div className="relative flex flex-col items-center space-y-2">
-                  <div className={`p-3 rounded-xl bg-gradient-to-br ${action.color}`}>
-                    <Icon className="w-6 h-6 text-white" />
-                  </div>
-                  <span className="text-sm text-gray-300">{action.label}</span>
-                </div>
-              </button>
-            )
-          })}
+        <div className="bg-gray-900/70 backdrop-blur-xl rounded-2xl p-6 border border-gray-700 shadow-lg">
+          <h2 className="text-xl font-bold text-white mb-4">Insights de IA</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 bg-gray-800/50 rounded-xl border border-gray-700 flex items-center space-x-4">
+              <Eye className="w-8 h-8 text-purple-400" />
+              <div>
+                <p className="text-sm text-gray-400">Risco de Cardiopatia</p>
+                <p className="text-white font-semibold">{recentPatients[1].aiRisk}%</p>
+              </div>
+            </div>
+            <div className="p-4 bg-gray-800/50 rounded-xl border border-gray-700 flex items-center space-x-4">
+              <Pill className="w-8 h-8 text-green-400" />
+              <div>
+                <p className="text-sm text-gray-400">Adesão ao Tratamento</p>
+                <p className="text-white font-semibold">92%</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     )
   }
 
-  const renderModule = (): JSX.Element => {
-    switch (activeModule) {
-      case 'dashboard':
-        return <DashboardModule />
-      default:
-        return (
-          <div className="flex items-center justify-center h-[calc(100vh-200px)]">
-            <div className="text-center">
-              <div className="relative">
-                <BrainCircuit className="w-20 h-20 text-gray-700 mx-auto mb-4" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-24 h-24 bg-purple-500/20 rounded-full animate-ping" />
-                </div>
-              </div>
-              <p className="text-gray-400 text-lg">Módulo em desenvolvimento</p>
-              <p className="text-gray-500 text-sm mt-2">Em breve novas funcionalidades</p>
+  return (
+    <Router>
+      <AuthProvider>
+        <div className={`min-h-screen ${theme === 'dark' ? 'bg-gray-950' : 'bg-gray-100'}`}>
+          <Header />
+          <Sidebar />
+          <main
+            className={`pt-16 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-20'}
+            ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}
+          >
+            <div className="p-6">
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route
+                  path="/interface-automacao-medica"
+                  element={<InterfaceAutomacaoMedica />} // Rota para a nova interface
+                />
+                <Route
+                  path="/*"
+                  element={
+                    <PrivateRoute>
+                      <Routes>
+                        <Route path="/" element={<DashboardModule />} />
+                        <Route path="/dashboard" element={<DashboardModule />} />
+                        <Route path="/patients" element={<p>Gerenciamento de Pacientes</p>} />
+                        <Route path="/medical-records" element={<p>Prontuários Médicos</p>} />
+                        <Route path="/ai-diagnostics" element={<p>IA Diagnóstica</p>} />
+                        <Route path="/telemedicine" element={<p>Telemedicina</p>} />
+                        <Route path="*" element={<Navigate to="/" />} />
+                      </Routes>
+                    </PrivateRoute>
+                  }
+                />
+              </Routes>
             </div>
-          </div>
-        )
-    }
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-950">
-      <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-gray-950 to-black" />
-
-      <div className="relative z-10">
-        <Header />
-        <Sidebar />
-
-        <main
-          className={`transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-20'} mt-16 p-6`}
-        >
-          {renderModule()}
-        </main>
-
-        <AIAssistant />
-
-        <button
-          onClick={() => setAiAssistantOpen(!aiAssistantOpen)}
-          className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full shadow-lg shadow-purple-500/25 flex items-center justify-center hover:scale-110 transition-transform group"
-        >
-          <Sparkles className="w-6 h-6 text-white" />
-          <div className="absolute -top-2 -right-2 w-4 h-4 bg-green-400 rounded-full animate-pulse" />
-        </button>
-      </div>
-    </div>
+          </main>
+          <AIAssistant />
+        </div>
+      </AuthProvider>
+    </Router>
   )
 }
 
-function App(): JSX.Element {
+interface PrivateRouteProps {
+  children: JSX.Element
+}
+
+const PrivateRoute = ({ children }: PrivateRouteProps): JSX.Element => {
   const { isAuthenticated } = useAuth()
-
-  if (!isAuthenticated) {
-    return <LoginPage />
-  }
-
-  return (
-    <Routes>
-      <Route path="/" element={<Layout />}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<SPEIApp />} />
-        <Route path="automacao-medica" element={<InterfaceAutomacaoMedica />} />
-      </Route>
-    </Routes>
-  )
+  return isAuthenticated ? children : <Navigate to="/login" />
 }
 
-function AppWithAuth(): JSX.Element {
-  return (
-    <AuthProvider>
-      <Router>
-        <App />
-      </Router>
-    </AuthProvider>
-  )
-}
+export default SPEIApp
 
-export default AppWithAuth
+

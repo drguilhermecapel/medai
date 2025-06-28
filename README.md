@@ -15,8 +15,6 @@ Sistema completo de prontuário eletrônico com inteligência artificial, agora 
 ### 📊 **Dashboard Médico**
 - Métricas em tempo real
 - 247 Pacientes Ativos
-- 89 ECGs Analisados (hoje)
-- 98.5% Precisão da IA
 - Alertas críticos automáticos
 
 ### 👥 **Gestão de Pacientes**
@@ -24,13 +22,6 @@ Sistema completo de prontuário eletrônico com inteligência artificial, agora 
 - Histórico médico detalhado
 - Agendamento de consultas
 - Monitoramento de condições
-
-### 📈 **Análise ECG com IA**
-- Upload e análise automática de ECG
-- Gráficos em tempo real
-- Diagnóstico por inteligência artificial
-- Confiança de até 95.8%
-- Geração automática de laudos
 
 ### 🤖 **IA Diagnóstica**
 - Análise multimodal de dados
@@ -41,7 +32,6 @@ Sistema completo de prontuário eletrônico com inteligência artificial, agora 
 
 ### 📄 **Relatórios e Analytics**
 - 1.247 Pacientes cadastrados
-- 3.891 ECGs analisados
 - 97.8% Precisão diagnóstica
 - Exportação de dados
 
@@ -71,11 +61,6 @@ Sistema completo de prontuário eletrônico com inteligência artificial, agora 
 2. **Maria Santos** (32 anos) - Diabetes Tipo 2
 3. **Carlos Oliveira** (58 anos) - Cardiopatia
 
-### **Análises ECG Disponíveis**
-- Ritmo Sinusal Normal (João Silva)
-- Taquicardia Sinusal (Maria Santos)
-- Análise completa com IA
-
 ### **Diagnósticos IA**
 - Hipertensão Arterial Sistêmica
 - Predição de risco cardiovascular
@@ -86,7 +71,6 @@ Sistema completo de prontuário eletrônico com inteligência artificial, agora 
 ### **Frontend**
 - HTML5, CSS3, JavaScript ES6
 - Design responsivo
-- SVG para gráficos ECG
 - Interface médica profissional
 
 ### **Backend** (Estrutura)
@@ -96,7 +80,6 @@ Sistema completo de prontuário eletrônico com inteligência artificial, agora 
 - JWT Authentication
 
 ### **Inteligência Artificial**
-- Modelos de ML para ECG
 - Análise multimodal
 - Predição de riscos
 - Diagnóstico automatizado
@@ -136,7 +119,6 @@ https://sknkvzjx.manus.space
 ### **3. Funcionalidades Testadas**
 - ✅ Dashboard com métricas
 - ✅ Lista de pacientes
-- ✅ Análise de ECG
 - ✅ Diagnósticos IA
 - ✅ Relatórios médicos
 - ✅ Telemedicina
@@ -172,4 +154,5 @@ Para suporte técnico ou dúvidas:
 ---
 
 **MedAI Pro - Revolucionando a Medicina com Inteligência Artificial** 🏥⚕️
+
 
