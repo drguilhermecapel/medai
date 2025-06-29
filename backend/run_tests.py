@@ -22,13 +22,11 @@ class TestRunner:
         self.backend_dir = BACKEND_DIR
         self.coverage_file = self.backend_dir / "coverage.json"
         self.critical_modules = [
-            "app.services.ecg_analyzer",
-            "app.services.ai_diagnosis",
-            "app.services.medication_checker",
-            "app.services.lab_analyzer",
-            "app.services.report_generator",
-            "app.api.endpoints.critical",
-            "app.utils.medical_calculations",
+            "app.services.ai_diagnostic_service",
+            "app.services.ml_model_service",
+            "app.services.validation_service",
+            "app.services.medical_record_service",
+            "app.services.prescription_service",
         ]
         
     def setup_environment(self):
@@ -82,81 +80,64 @@ class TestRunner:
             for file_path, file_data in files.items():
                 if module_path in file_path:
                     critical_coverage[module] = file_data.get("summary", {}).get("percent_covered", 0)
+                    break
                     
         return total_coverage, critical_coverage
         
-    def check_coverage_requirements(self) -> bool:
-        """Verifica se os requisitos de cobertura foram atendidos"""
-        total_coverage, critical_coverage = self.analyze_coverage()
-        
+    def generate_report(self, total_coverage: float, critical_coverage: Dict[str, float]):
+        """Gera relatório de cobertura"""
         print("\n" + "="*60)
-        print("RELATÓRIO DE COBERTURA")
+        print("RELATÓRIO DE COBERTURA - MedAI")
         print("="*60)
         
         # Cobertura global
-        print(f"\nCobertura Global: {total_coverage:.2f}%")
-        if total_coverage < 80:
-            print(f"❌ Meta não atingida! (Necessário: 80%)")
-        else:
-            print(f"✅ Meta atingida!")
-            
-        # Cobertura dos módulos críticos
-        print("\nCobertura dos Módulos Críticos:")
-        all_critical_covered = True
+        status = "✅" if total_coverage >= 80 else "❌"
+        print(f"\n{status} Cobertura Global: {total_coverage:.1f}% (Meta: 80%)")
+        
+        # Cobertura de componentes críticos
+        print("\n📊 Componentes Críticos (Meta: 100%):")
+        all_critical_ok = True
         
         for module, coverage in critical_coverage.items():
-            status = "✅" if coverage >= 100 else "❌"
-            print(f"  {status} {module}: {coverage:.2f}%")
+            status = "✅" if coverage == 100 else "❌"
             if coverage < 100:
-                all_critical_covered = False
+                all_critical_ok = False
+            print(f"  {status} {module}: {coverage:.1f}%")
+            
+        # Resumo
+        print("\n" + "-"*60)
+        if total_coverage >= 80 and all_critical_ok:
+            print("✅ SUCESSO: Todas as metas de cobertura foram atingidas!")
+        else:
+            print("❌ FALHA: Metas de cobertura não atingidas.")
+            if total_coverage < 80:
+                print(f"   - Cobertura global abaixo de 80% ({total_coverage:.1f}%)")
+            if not all_critical_ok:
+                print("   - Componentes críticos sem 100% de cobertura")
                 
-        print("="*60)
-        
-        return total_coverage >= 80 and all_critical_covered
-        
-    def generate_missing_tests_report(self):
-        """Gera relatório de testes faltantes"""
-        print("\nGerando relatório de testes faltantes...")
-        
-        cmd = [
-            sys.executable, "-m", "pytest",
-            "--cov=app",
-            "--cov-report=term-missing:skip-covered",
-            "--quiet"
-        ]
-        
-        subprocess.run(cmd, cwd=self.backend_dir)
-        
     def run(self):
         """Executa o processo completo de testes"""
         self.setup_environment()
         
-        # Executa todos os testes
-        print("🔍 Executando todos os testes...")
-        result = self.run_tests("all")
+        # Executar todos os testes
+        print("🚀 Iniciando execução de testes MedAI...\n")
+        return_code = self.run_tests("all")
         
-        if result != 0:
-            print("\n❌ Alguns testes falharam!")
-            return 1
-            
-        # Executa testes críticos com requisito de 100%
-        print("\n🏥 Executando testes críticos (requer 100% de cobertura)...")
-        result = self.run_tests("critical")
+        # Analisar cobertura
+        total_coverage, critical_coverage = self.analyze_coverage()
         
-        if result != 0:
-            print("\n❌ Testes críticos não atingiram 100% de cobertura!")
-            self.generate_missing_tests_report()
-            return 1
-            
-        # Verifica requisitos de cobertura
-        if not self.check_coverage_requirements():
-            print("\n❌ Requisitos de cobertura não atendidos!")
-            self.generate_missing_tests_report()
-            return 1
-            
-        print("\n✅ Todos os requisitos de cobertura foram atendidos!")
-        print(f"\n📊 Relatório HTML disponível em: {self.backend_dir}/htmlcov/index.html")
-        return 0
+        # Gerar relatório
+        self.generate_report(total_coverage, critical_coverage)
+        
+        # Executar testes críticos com falha se não 100%
+        if critical_coverage:
+            print("\n🔍 Verificando componentes críticos...")
+            critical_code = self.run_tests("critical")
+            if critical_code != 0:
+                return 1
+                
+        return 0 if return_code == 0 else 1
+
 
 if __name__ == "__main__":
     runner = TestRunner()

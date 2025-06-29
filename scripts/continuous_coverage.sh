@@ -23,7 +23,7 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
 }
 
-# Função para enviar alertas (placeholder - implementar integração real)
+# Função para enviar alertas
 send_alert() {
     local level="$1"
     local message="$2"
@@ -76,7 +76,7 @@ run_backend_tests() {
     export TESTING=true
     
     # Executar testes com cobertura
-    python3.11 -m pytest \
+    python -m pytest \
         --cov=app \
         --cov-report=json:coverage.json \
         --cov-report=html:htmlcov \
@@ -102,227 +102,330 @@ run_frontend_tests() {
     fi
     
     # Executar testes com cobertura
-    npm run test:coverage -- --run || return 1
+    npm run test:coverage || return 1
     
     log "✅ Testes do frontend concluídos"
     return 0
 }
 
-# Função para analisar resultados de cobertura
+# Função para analisar cobertura
 analyze_coverage() {
-    log "📊 Analisando resultados de cobertura..."
+    log "📊 Analisando cobertura..."
     
     cd "$PROJECT_ROOT"
     
-    # Executar monitor de cobertura
-    python3.11 scripts/coverage_monitor.py --project-root . > coverage_analysis.txt 2>&1
+    # Executar script Python de análise
+    python scripts/coverage_monitor.py --project-root "$PROJECT_ROOT"
+    
+    # Capturar resultado
     local exit_code=$?
     
-    # Ler resultados
-    local coverage_summary=$(cat coverage_analysis.txt)
-    log "Resumo da cobertura:\n$coverage_summary"
-    
-    # Extrair cobertura global (simplificado - melhorar parsing)
-    local global_coverage=$(echo "$coverage_summary" | grep -o "Cobertura Global: [0-9.]*%" | grep -o "[0-9.]*" | head -1)
-    
-    if [ -n "$global_coverage" ]; then
-        local coverage_int=$(echo "$global_coverage" | cut -d. -f1)
+    if [ $exit_code -eq 0 ]; then
+        log "✅ Cobertura dentro dos limites aceitáveis"
+    else
+        log "❌ Cobertura abaixo dos limites"
         
-        if [ "$coverage_int" -lt "$CRITICAL_THRESHOLD" ]; then
-            send_alert "CRITICAL" "Cobertura global caiu para $global_coverage% (abaixo de $CRITICAL_THRESHOLD%)"
-        elif [ "$coverage_int" -lt "$ALERT_THRESHOLD" ]; then
-            send_alert "WARNING" "Cobertura global está em $global_coverage% (abaixo de $ALERT_THRESHOLD%)"
-        else
-            log "✅ Cobertura global está adequada: $global_coverage%"
+        # Ler cobertura atual do último relatório
+        local latest_report="$PROJECT_ROOT/coverage_reports/coverage_report_latest.json"
+        if [ -f "$latest_report" ]; then
+            local global_coverage=$(jq -r '.summary.global_coverage' "$latest_report")
+            
+            if (( $(echo "$global_coverage < $CRITICAL_THRESHOLD" | bc -l) )); then
+                send_alert "CRITICAL" "Cobertura global caiu para ${global_coverage}% (limite crítico: ${CRITICAL_THRESHOLD}%)"
+            elif (( $(echo "$global_coverage < $ALERT_THRESHOLD" | bc -l) )); then
+                send_alert "WARNING" "Cobertura global em ${global_coverage}% (limite de alerta: ${ALERT_THRESHOLD}%)"
+            fi
         fi
     fi
     
     return $exit_code
 }
 
-# Função para gerar relatório de tendências
-generate_trend_report() {
-    log "📈 Gerando relatório de tendências..."
+# Função para gerar relatório HTML
+generate_html_report() {
+    log "📝 Gerando relatório HTML consolidado..."
     
     local reports_dir="$PROJECT_ROOT/coverage_reports"
-    local trend_file="$reports_dir/coverage_trends.csv"
+    local html_file="$reports_dir/coverage_dashboard.html"
     
-    # Criar arquivo de tendências se não existir
-    if [ ! -f "$trend_file" ]; then
-        echo "timestamp,global_coverage,backend_coverage,frontend_coverage,critical_coverage" > "$trend_file"
-    fi
+    cat > "$html_file" << 'EOF'
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedAI - Dashboard de Cobertura</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .metric-card {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .metric-value {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .success { color: #28a745; }
+        .warning { color: #ffc107; }
+        .danger { color: #dc3545; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        .timestamp {
+            color: #6c757d;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 MedAI - Dashboard de Cobertura de Testes</h1>
+            <p class="timestamp">Última atualização: <span id="timestamp"></span></p>
+        </div>
+        
+        <div class="grid">
+            <div class="metric-card">
+                <h3>Cobertura Global</h3>
+                <div class="metric-value" id="global-coverage">--</div>
+                <div class="progress-bar">
+                    <div class="progress-fill success" id="global-progress"></div>
+                </div>
+                <p>Meta: 80%</p>
+            </div>
+            
+            <div class="metric-card">
+                <h3>Componentes Críticos</h3>
+                <div class="metric-value" id="critical-coverage">--</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="critical-progress"></div>
+                </div>
+                <p>Meta: 100%</p>
+            </div>
+            
+            <div class="metric-card">
+                <h3>Backend</h3>
+                <div class="metric-value" id="backend-coverage">--</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="backend-progress"></div>
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <h3>Frontend</h3>
+                <div class="metric-value" id="frontend-coverage">--</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="frontend-progress"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="metric-card">
+            <h3>Componentes Críticos - Detalhes</h3>
+            <ul id="critical-components"></ul>
+        </div>
+        
+        <div class="metric-card">
+            <h3>Recomendações</h3>
+            <ul id="recommendations"></ul>
+        </div>
+    </div>
     
-    # Extrair dados do último relatório
-    local latest_report="$reports_dir/coverage_report_latest.json"
-    if [ -f "$latest_report" ]; then
-        local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-        local global_cov=$(jq -r '.summary.global_coverage // 0' "$latest_report")
-        local backend_cov=$(jq -r '.backend.total_coverage // 0' "$latest_report")
-        local frontend_cov=$(jq -r '.frontend.total_coverage // 0' "$latest_report")
-        local critical_cov=$(jq -r '.summary.critical_coverage // 0' "$latest_report")
+    <script>
+        // Carrega dados do relatório mais recente
+        fetch('coverage_report_latest.json')
+            .then(response => response.json())
+            .then(data => {
+                // Atualiza timestamp
+                document.getElementById('timestamp').textContent = new Date(data.timestamp).toLocaleString('pt-BR');
+                
+                // Atualiza métricas
+                const globalCov = data.summary.global_coverage.toFixed(1);
+                const criticalCov = data.summary.critical_coverage.toFixed(1);
+                const backendCov = data.backend.total_coverage.toFixed(1);
+                const frontendCov = data.frontend.total_coverage.toFixed(1);
+                
+                document.getElementById('global-coverage').textContent = globalCov + '%';
+                document.getElementById('critical-coverage').textContent = criticalCov + '%';
+                document.getElementById('backend-coverage').textContent = backendCov + '%';
+                document.getElementById('frontend-coverage').textContent = frontendCov + '%';
+                
+                // Atualiza barras de progresso
+                document.getElementById('global-progress').style.width = globalCov + '%';
+                document.getElementById('critical-progress').style.width = criticalCov + '%';
+                document.getElementById('backend-progress').style.width = backendCov + '%';
+                document.getElementById('frontend-progress').style.width = frontendCov + '%';
+                
+                // Cores das barras
+                updateProgressColor('global-progress', globalCov, 80);
+                updateProgressColor('critical-progress', criticalCov, 100);
+                updateProgressColor('backend-progress', backendCov, 80);
+                updateProgressColor('frontend-progress', frontendCov, 80);
+                
+                // Componentes críticos
+                const criticalList = document.getElementById('critical-components');
+                Object.entries(data.backend.critical_components.components).forEach(([comp, cov]) => {
+                    const li = document.createElement('li');
+                    const icon = cov === 100 ? '✅' : '❌';
+                    li.innerHTML = `${icon} ${comp}: <strong>${cov.toFixed(1)}%</strong>`;
+                    criticalList.appendChild(li);
+                });
+                
+                // Recomendações
+                const recList = document.getElementById('recommendations');
+                data.recommendations.forEach(rec => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<strong>[${rec.type.toUpperCase()}]</strong> ${rec.message}<br>→ ${rec.action}`;
+                    recList.appendChild(li);
+                });
+            })
+            .catch(error => console.error('Erro ao carregar dados:', error));
         
-        echo "$timestamp,$global_cov,$backend_cov,$frontend_cov,$critical_cov" >> "$trend_file"
-        
-        log "📊 Dados de tendência atualizados"
+        function updateProgressColor(elementId, value, threshold) {
+            const element = document.getElementById(elementId);
+            element.classList.remove('success', 'warning', 'danger');
+            
+            if (value >= threshold) {
+                element.classList.add('success');
+            } else if (value >= threshold * 0.9) {
+                element.classList.add('warning');
+            } else {
+                element.classList.add('danger');
+            }
+        }
+    </script>
+</body>
+</html>
+EOF
+    
+    # Criar link simbólico para o relatório mais recente
+    local latest_json="$reports_dir/coverage_report_latest.json"
+    if [ -f "$latest_json" ]; then
+        log "✅ Dashboard HTML gerado: $html_file"
     fi
 }
 
-# Função para limpeza de arquivos antigos
-cleanup_old_files() {
-    log "🧹 Limpando arquivos antigos..."
+# Função principal de monitoramento
+monitor_loop() {
+    local interval=${1:-3600}  # Intervalo padrão: 1 hora
     
-    # Remover relatórios de cobertura com mais de 30 dias
-    find "$PROJECT_ROOT/coverage_reports" -name "coverage_report_*.json" -mtime +30 -delete 2>/dev/null || true
-    
-    # Remover logs com mais de 7 dias
-    find "$PROJECT_ROOT/logs" -name "*.log" -mtime +7 -delete 2>/dev/null || true
-    
-    log "✅ Limpeza concluída"
-}
-
-# Função principal
-main() {
-    local start_time=$(date +%s)
-    
-    echo -e "${BLUE}🚀 Iniciando monitoramento de cobertura MedAI${NC}"
-    
-    # Criar diretórios necessários
-    mkdir -p "$PROJECT_ROOT/logs"
-    mkdir -p "$PROJECT_ROOT/coverage_reports"
-    
-    log "=== Iniciando ciclo de monitoramento ==="
-    
-    # Verificar serviços
-    if ! check_services; then
-        log "❌ Serviços não disponíveis, abortando"
-        exit 1
-    fi
-    
-    # Executar testes
-    local backend_success=true
-    local frontend_success=true
-    
-    if ! run_backend_tests; then
-        backend_success=false
-        log "❌ Falha nos testes do backend"
-    fi
-    
-    if ! run_frontend_tests; then
-        frontend_success=false
-        log "❌ Falha nos testes do frontend"
-    fi
-    
-    # Analisar cobertura se pelo menos um conjunto de testes passou
-    if [ "$backend_success" = true ] || [ "$frontend_success" = true ]; then
-        if ! analyze_coverage; then
-            log "⚠️  Análise de cobertura indicou problemas"
-        fi
-        
-        generate_trend_report
-    else
-        send_alert "CRITICAL" "Todos os testes falharam - sistema pode estar com problemas graves"
-    fi
-    
-    # Limpeza
-    cleanup_old_files
-    
-    local end_time=$(date +%s)
-    local duration=$((end_time - start_time))
-    
-    log "=== Ciclo de monitoramento concluído em ${duration}s ==="
-    
-    # Status final
-    if [ "$backend_success" = true ] && [ "$frontend_success" = true ]; then
-        echo -e "${GREEN}✅ Monitoramento concluído com sucesso${NC}"
-        exit 0
-    else
-        echo -e "${RED}❌ Monitoramento concluído com falhas${NC}"
-        exit 1
-    fi
-}
-
-# Função para modo daemon
-run_daemon() {
-    local interval=${1:-3600}  # Default: 1 hora
-    
-    log "🔄 Iniciando modo daemon (intervalo: ${interval}s)"
+    log "🔄 Iniciando monitoramento contínuo (intervalo: ${interval}s)"
     
     while true; do
-        main
-        log "😴 Aguardando próximo ciclo em ${interval}s..."
+        log "=== Iniciando ciclo de verificação ==="
+        
+        # Verificar serviços
+        if check_services; then
+            # Executar testes
+            local backend_ok=true
+            local frontend_ok=true
+            
+            if ! run_backend_tests; then
+                backend_ok=false
+                send_alert "ERROR" "Falha ao executar testes do backend"
+            fi
+            
+            if ! run_frontend_tests; then
+                frontend_ok=false
+                send_alert "ERROR" "Falha ao executar testes do frontend"
+            fi
+            
+            # Analisar cobertura se pelo menos um conjunto passou
+            if [ "$backend_ok" = true ] || [ "$frontend_ok" = true ]; then
+                analyze_coverage
+                generate_html_report
+                
+                # Criar link para último relatório
+                cd "$PROJECT_ROOT/coverage_reports"
+                latest_report=$(ls -t coverage_report_*.json | head -1)
+                if [ -n "$latest_report" ]; then
+                    ln -sf "$latest_report" coverage_report_latest.json
+                fi
+            fi
+        else
+            send_alert "ERROR" "Serviços necessários não estão disponíveis"
+        fi
+        
+        log "=== Ciclo concluído. Próxima verificação em ${interval}s ==="
         sleep "$interval"
     done
 }
 
-# Função para mostrar ajuda
-show_help() {
-    cat << EOF
-Script de Monitoramento de Cobertura MedAI
+# Parse argumentos
+INTERVAL=3600
+DAEMON=false
 
-Uso: $0 [OPÇÃO]
-
-OPÇÕES:
-    -h, --help          Mostra esta ajuda
-    -d, --daemon        Executa em modo daemon
-    -i, --interval SEC  Intervalo em segundos para modo daemon (padrão: 3600)
-    -c, --check-only    Apenas verifica cobertura sem executar testes
-    -b, --backend-only  Executa apenas testes do backend
-    -f, --frontend-only Executa apenas testes do frontend
-
-EXEMPLOS:
-    $0                          # Execução única
-    $0 -d                       # Modo daemon (1 hora)
-    $0 -d -i 1800              # Modo daemon (30 minutos)
-    $0 -b                       # Apenas backend
-    $0 -c                       # Apenas análise
-
-EOF
-}
-
-# Parse de argumentos
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -h|--help)
-            show_help
-            exit 0
-            ;;
-        -d|--daemon)
-            DAEMON_MODE=true
-            shift
-            ;;
         -i|--interval)
             INTERVAL="$2"
             shift 2
             ;;
-        -c|--check-only)
-            CHECK_ONLY=true
+        -d|--daemon)
+            DAEMON=true
             shift
             ;;
-        -b|--backend-only)
-            BACKEND_ONLY=true
-            shift
-            ;;
-        -f|--frontend-only)
-            FRONTEND_ONLY=true
-            shift
+        -h|--help)
+            echo "Uso: $0 [opções]"
+            echo "Opções:"
+            echo "  -i, --interval <segundos>  Intervalo entre verificações (padrão: 3600)"
+            echo "  -d, --daemon              Executar como daemon"
+            echo "  -h, --help                Exibir esta ajuda"
+            exit 0
             ;;
         *)
             echo "Opção desconhecida: $1"
-            show_help
             exit 1
             ;;
     esac
 done
 
-# Executar baseado nos argumentos
-if [ "$DAEMON_MODE" = true ]; then
-    run_daemon "${INTERVAL:-3600}"
-elif [ "$CHECK_ONLY" = true ]; then
-    analyze_coverage
-elif [ "$BACKEND_ONLY" = true ]; then
-    check_services && run_backend_tests && analyze_coverage
-elif [ "$FRONTEND_ONLY" = true ]; then
-    run_frontend_tests && analyze_coverage
+# Criar diretórios necessários
+mkdir -p "$PROJECT_ROOT/logs"
+mkdir -p "$PROJECT_ROOT/coverage_reports"
+
+# Executar
+if [ "$DAEMON" = true ]; then
+    # Executar em background
+    nohup "$0" --interval "$INTERVAL" > "$LOG_FILE" 2>&1 &
+    PID=$!
+    echo "🚀 Monitor iniciado em background (PID: $PID)"
+    echo "$PID" > "$PROJECT_ROOT/coverage_monitor.pid"
 else
-    main
+    # Executar em foreground
+    monitor_loop "$INTERVAL"
 fi

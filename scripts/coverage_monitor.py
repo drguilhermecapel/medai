@@ -32,11 +32,11 @@ class CoverageMonitor:
         
         # Componentes críticos que devem ter 100% de cobertura
         self.critical_components = [
-            "app/services/ecg_service.py",
-            "app/services/ml_model_service.py", 
             "app/services/ai_diagnostic_service.py",
+            "app/services/ml_model_service.py",
             "app/services/validation_service.py",
-            "app/services/hybrid_ecg_service.py"
+            "app/services/medical_record_service.py",
+            "app/services/prescription_service.py"
         ]
 
     def run_backend_coverage(self) -> dict:
@@ -47,7 +47,7 @@ class CoverageMonitor:
         
         # Executar testes com cobertura
         cmd = [
-            "python3.11", "-m", "pytest",
+            "python", "-m", "pytest",
             "--cov=app",
             "--cov-report=json:coverage.json",
             "--cov-report=html:htmlcov",
@@ -57,10 +57,7 @@ class CoverageMonitor:
         ]
         
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, env={
-                **os.environ,
-                "PYTHONPATH": str(self.backend_path)
-            })
+            result = subprocess.run(cmd, capture_output=True, text=True)
             
             # Ler relatório de cobertura JSON
             coverage_file = self.backend_path / "coverage.json"
@@ -92,48 +89,32 @@ class CoverageMonitor:
         """Executa análise de cobertura do frontend."""
         print("🔍 Executando análise de cobertura do frontend...")
         
-        frontend_path = self.frontend_path
-        if not frontend_path.exists():
-            return {
-                "success": False,
-                "error": "Diretório frontend não encontrado"
-            }
+        os.chdir(self.frontend_path)
         
-        os.chdir(frontend_path)
-        
-        # Verificar se package.json existe
-        package_json = frontend_path / "package.json"
-        if not package_json.exists():
-            return {
-                "success": False,
-                "error": "package.json não encontrado no frontend"
-            }
+        # Executar testes com cobertura
+        cmd = ["npm", "run", "test:coverage"]
         
         try:
-            # Executar testes com cobertura
-            cmd = ["npm", "run", "test:coverage"]
             result = subprocess.run(cmd, capture_output=True, text=True)
             
-            # Procurar por arquivo de cobertura
-            coverage_files = [
-                frontend_path / "coverage" / "coverage-summary.json",
-                frontend_path / "coverage" / "lcov-report" / "index.html"
-            ]
-            
-            coverage_data = None
-            for coverage_file in coverage_files:
-                if coverage_file.exists() and coverage_file.suffix == ".json":
-                    with open(coverage_file, 'r') as f:
-                        coverage_data = json.load(f)
-                    break
-            
-            return {
-                "success": result.returncode == 0,
-                "coverage_data": coverage_data,
-                "stdout": result.stdout,
-                "stderr": result.stderr
-            }
-            
+            # Ler relatório de cobertura
+            coverage_file = self.frontend_path / "coverage" / "coverage-summary.json"
+            if coverage_file.exists():
+                with open(coverage_file, 'r') as f:
+                    coverage_data = json.load(f)
+                
+                return {
+                    "success": result.returncode == 0,
+                    "coverage_data": coverage_data,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": "Arquivo de cobertura não encontrado"
+                }
+                
         except Exception as e:
             return {
                 "success": False,
@@ -142,287 +123,266 @@ class CoverageMonitor:
 
     def analyze_critical_components(self, coverage_data: dict) -> dict:
         """Analisa cobertura dos componentes críticos."""
-        print("🎯 Analisando cobertura dos componentes críticos...")
-        
-        critical_analysis = {
-            "components": {},
-            "overall_critical_coverage": 0,
-            "meets_requirements": False
-        }
-        
-        if not coverage_data or "files" not in coverage_data:
-            return critical_analysis
-        
-        files_data = coverage_data["files"]
-        critical_coverages = []
+        critical_coverage = {}
+        files = coverage_data.get("files", {})
         
         for component in self.critical_components:
-            # Procurar arquivo nos dados de cobertura
-            file_found = False
-            for file_path, file_data in files_data.items():
-                if component in file_path:
-                    coverage_percent = file_data["summary"]["lines"]["pct_covered"]
-                    critical_analysis["components"][component] = {
-                        "coverage": coverage_percent,
-                        "meets_requirement": coverage_percent >= self.coverage_thresholds["critical_components"],
-                        "missing_lines": file_data["summary"]["lines"]["num_statements"] - file_data["summary"]["lines"]["covered_lines"]
-                    }
-                    critical_coverages.append(coverage_percent)
-                    file_found = True
+            found = False
+            for file_path, file_data in files.items():
+                if component in file_path or file_path.endswith(component):
+                    coverage = file_data.get("summary", {}).get("percent_covered", 0)
+                    critical_coverage[component] = coverage
+                    found = True
                     break
             
-            if not file_found:
-                critical_analysis["components"][component] = {
-                    "coverage": 0,
-                    "meets_requirement": False,
-                    "error": "Arquivo não encontrado nos dados de cobertura"
-                }
-                critical_coverages.append(0)
-        
-        # Calcular cobertura média dos componentes críticos
-        if critical_coverages:
-            critical_analysis["overall_critical_coverage"] = sum(critical_coverages) / len(critical_coverages)
-            critical_analysis["meets_requirements"] = all(
-                comp["meets_requirement"] for comp in critical_analysis["components"].values()
-            )
-        
-        return critical_analysis
-
-    def generate_coverage_report(self, backend_result: dict, frontend_result: dict) -> dict:
-        """Gera relatório consolidado de cobertura."""
-        print("📊 Gerando relatório consolidado de cobertura...")
-        
-        timestamp = datetime.now()
-        
-        report = {
-            "timestamp": timestamp.isoformat(),
-            "summary": {
-                "backend_success": backend_result.get("success", False),
-                "frontend_success": frontend_result.get("success", False),
-                "overall_success": False,
-                "global_coverage": 0,
-                "critical_coverage": 0
-            },
-            "backend": {},
-            "frontend": {},
-            "critical_components": {},
-            "recommendations": []
-        }
-        
-        # Analisar backend
-        if backend_result.get("success") and backend_result.get("coverage_data"):
-            backend_data = backend_result["coverage_data"]
-            total_coverage = backend_data.get("totals", {}).get("percent_covered", 0)
-            
-            report["backend"] = {
-                "total_coverage": total_coverage,
-                "meets_threshold": total_coverage >= self.coverage_thresholds["global"],
-                "lines_covered": backend_data.get("totals", {}).get("covered_lines", 0),
-                "lines_total": backend_data.get("totals", {}).get("num_statements", 0)
-            }
-            
-            # Analisar componentes críticos
-            critical_analysis = self.analyze_critical_components(backend_data)
-            report["critical_components"] = critical_analysis
-            report["summary"]["critical_coverage"] = critical_analysis["overall_critical_coverage"]
-        
-        # Analisar frontend
-        if frontend_result.get("success") and frontend_result.get("coverage_data"):
-            frontend_data = frontend_result["coverage_data"]
-            if "total" in frontend_data:
-                total_data = frontend_data["total"]
-                frontend_coverage = total_data.get("lines", {}).get("pct", 0)
+            if not found:
+                critical_coverage[component] = 0
                 
-                report["frontend"] = {
-                    "total_coverage": frontend_coverage,
-                    "meets_threshold": frontend_coverage >= self.coverage_thresholds["global"],
-                    "lines_covered": total_data.get("lines", {}).get("covered", 0),
-                    "lines_total": total_data.get("lines", {}).get("total", 0)
-                }
-        
-        # Calcular cobertura global
-        backend_coverage = report["backend"].get("total_coverage", 0)
-        frontend_coverage = report["frontend"].get("total_coverage", 0)
-        
-        if backend_coverage > 0 and frontend_coverage > 0:
-            report["summary"]["global_coverage"] = (backend_coverage + frontend_coverage) / 2
-        elif backend_coverage > 0:
-            report["summary"]["global_coverage"] = backend_coverage
-        elif frontend_coverage > 0:
-            report["summary"]["global_coverage"] = frontend_coverage
-        
-        # Determinar sucesso geral
-        report["summary"]["overall_success"] = (
-            report["summary"]["global_coverage"] >= self.coverage_thresholds["global"] and
-            report["summary"]["critical_coverage"] >= self.coverage_thresholds["critical_components"]
-        )
-        
-        # Gerar recomendações
-        report["recommendations"] = self.generate_recommendations(report)
-        
-        return report
+        return {
+            "components": critical_coverage,
+            "total_coverage": min(critical_coverage.values()) if critical_coverage else 0,
+            "all_100": all(cov == 100 for cov in critical_coverage.values())
+        }
 
-    def generate_recommendations(self, report: dict) -> list:
-        """Gera recomendações baseadas no relatório de cobertura."""
+    def generate_recommendations(self, coverage_analysis: dict) -> list:
+        """Gera recomendações baseadas na análise de cobertura."""
         recommendations = []
         
-        # Verificar cobertura global
-        global_coverage = report["summary"]["global_coverage"]
+        # Verifica cobertura global
+        global_coverage = coverage_analysis.get("global_coverage", 0)
         if global_coverage < self.coverage_thresholds["global"]:
             recommendations.append({
-                "type": "global_coverage",
-                "priority": "high",
-                "message": f"Cobertura global ({global_coverage:.1f}%) está abaixo do limite ({self.coverage_thresholds['global']}%)",
-                "action": "Adicionar mais testes para aumentar cobertura geral"
+                "type": "critical",
+                "message": f"Cobertura global ({global_coverage:.1f}%) abaixo da meta de {self.coverage_thresholds['global']}%",
+                "action": "Adicione mais testes unitários e de integração"
             })
         
-        # Verificar componentes críticos
-        critical_coverage = report["summary"]["critical_coverage"]
-        if critical_coverage < self.coverage_thresholds["critical_components"]:
-            recommendations.append({
-                "type": "critical_coverage",
-                "priority": "critical",
-                "message": f"Cobertura de componentes críticos ({critical_coverage:.1f}%) está abaixo do limite ({self.coverage_thresholds['critical_components']}%)",
-                "action": "Implementar testes para atingir 100% de cobertura nos componentes críticos"
-            })
-        
-        # Verificar componentes específicos
-        for component, data in report.get("critical_components", {}).get("components", {}).items():
-            if not data.get("meets_requirement", False):
+        # Verifica componentes críticos
+        critical_components = coverage_analysis.get("critical_components", {})
+        for component, coverage in critical_components.items():
+            if coverage < 100:
                 recommendations.append({
-                    "type": "component_coverage",
-                    "priority": "high",
-                    "component": component,
-                    "message": f"Componente {component} tem cobertura de {data.get('coverage', 0):.1f}%",
-                    "action": f"Adicionar {data.get('missing_lines', 0)} linhas de teste para {component}"
+                    "type": "critical",
+                    "message": f"Componente crítico '{component}' com apenas {coverage:.1f}% de cobertura",
+                    "action": f"Adicione testes para cobrir 100% do componente {component}"
                 })
+        
+        # Analisa arquivos com baixa cobertura
+        files = coverage_analysis.get("files", {})
+        low_coverage_files = []
+        
+        for file_path, file_data in files.items():
+            coverage = file_data.get("summary", {}).get("percent_covered", 0)
+            if coverage < 60 and not any(skip in file_path for skip in ["__init__.py", "config.py", "migrations"]):
+                low_coverage_files.append((file_path, coverage))
+        
+        if low_coverage_files:
+            low_coverage_files.sort(key=lambda x: x[1])
+            worst_files = low_coverage_files[:5]
+            
+            recommendations.append({
+                "type": "warning",
+                "message": "Arquivos com cobertura muito baixa detectados",
+                "action": "Priorize adicionar testes para: " + ", ".join([f[0] for f in worst_files])
+            })
         
         return recommendations
 
-    def save_report(self, report: dict) -> str:
-        """Salva relatório em arquivo."""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        report_file = self.reports_path / f"coverage_report_{timestamp}.json"
+    def generate_report(self, backend_result: dict, frontend_result: dict) -> dict:
+        """Gera relatório consolidado de cobertura."""
+        report = {
+            "timestamp": datetime.now().isoformat(),
+            "project": "MedAI",
+            "backend": {},
+            "frontend": {},
+            "recommendations": []
+        }
         
-        with open(report_file, 'w') as f:
-            json.dump(report, f, indent=2, ensure_ascii=False)
+        # Análise do backend
+        if backend_result.get("success"):
+            coverage_data = backend_result.get("coverage_data", {})
+            totals = coverage_data.get("totals", {})
+            
+            report["backend"] = {
+                "total_coverage": totals.get("percent_covered", 0),
+                "lines_covered": totals.get("covered_lines", 0),
+                "total_lines": totals.get("num_statements", 0),
+                "critical_components": self.analyze_critical_components(coverage_data)
+            }
+        else:
+            report["backend"]["error"] = backend_result.get("error", "Falha desconhecida")
         
-        # Também salvar como latest
-        latest_file = self.reports_path / "coverage_report_latest.json"
-        with open(latest_file, 'w') as f:
-            json.dump(report, f, indent=2, ensure_ascii=False)
+        # Análise do frontend
+        if frontend_result.get("success"):
+            coverage_data = frontend_result.get("coverage_data", {})
+            total = coverage_data.get("total", {})
+            
+            report["frontend"] = {
+                "total_coverage": total.get("lines", {}).get("pct", 0),
+                "lines_covered": total.get("lines", {}).get("covered", 0),
+                "total_lines": total.get("lines", {}).get("total", 0)
+            }
+        else:
+            report["frontend"]["error"] = frontend_result.get("error", "Falha desconhecida")
         
-        return str(report_file)
-
-    def print_summary(self, report: dict):
-        """Imprime resumo do relatório."""
-        print("\n" + "="*60)
-        print("📊 RELATÓRIO DE COBERTURA DE TESTES - MEDAI")
-        print("="*60)
+        # Calcula cobertura global
+        backend_coverage = report["backend"].get("total_coverage", 0)
+        frontend_coverage = report["frontend"].get("total_coverage", 0)
         
-        summary = report["summary"]
+        # Média ponderada (backend tem peso maior por ser mais crítico)
+        global_coverage = (backend_coverage * 0.7 + frontend_coverage * 0.3)
         
-        # Status geral
-        status_icon = "✅" if summary["overall_success"] else "❌"
-        print(f"\n{status_icon} Status Geral: {'APROVADO' if summary['overall_success'] else 'REPROVADO'}")
+        report["summary"] = {
+            "global_coverage": global_coverage,
+            "critical_coverage": report["backend"].get("critical_components", {}).get("total_coverage", 0),
+            "overall_success": (
+                global_coverage >= self.coverage_thresholds["global"] and
+                report["backend"].get("critical_components", {}).get("all_100", False)
+            )
+        }
         
-        # Cobertura global
-        global_coverage = summary["global_coverage"]
-        global_icon = "✅" if global_coverage >= self.coverage_thresholds["global"] else "❌"
-        print(f"{global_icon} Cobertura Global: {global_coverage:.1f}% (Meta: {self.coverage_thresholds['global']}%)")
+        # Gerar recomendações
+        coverage_analysis = {
+            "global_coverage": global_coverage,
+            "critical_components": report["backend"].get("critical_components", {}).get("components", {}),
+            "files": backend_result.get("coverage_data", {}).get("files", {})
+        }
         
-        # Cobertura crítica
-        critical_coverage = summary["critical_coverage"]
-        critical_icon = "✅" if critical_coverage >= self.coverage_thresholds["critical_components"] else "❌"
-        print(f"{critical_icon} Componentes Críticos: {critical_coverage:.1f}% (Meta: {self.coverage_thresholds['critical_components']}%)")
-        
-        # Backend
-        if "backend" in report:
-            backend = report["backend"]
-            backend_icon = "✅" if backend.get("meets_threshold", False) else "❌"
-            print(f"{backend_icon} Backend: {backend.get('total_coverage', 0):.1f}%")
-        
-        # Frontend
-        if "frontend" in report:
-            frontend = report["frontend"]
-            frontend_icon = "✅" if frontend.get("meets_threshold", False) else "❌"
-            print(f"{frontend_icon} Frontend: {frontend.get('total_coverage', 0):.1f}%")
-        
-        # Componentes críticos detalhados
-        if "critical_components" in report and "components" in report["critical_components"]:
-            print(f"\n🎯 Componentes Críticos Detalhados:")
-            for component, data in report["critical_components"]["components"].items():
-                icon = "✅" if data.get("meets_requirement", False) else "❌"
-                coverage = data.get("coverage", 0)
-                print(f"  {icon} {component}: {coverage:.1f}%")
-        
-        # Recomendações
-        recommendations = report.get("recommendations", [])
-        if recommendations:
-            print(f"\n💡 Recomendações ({len(recommendations)}):")
-            for i, rec in enumerate(recommendations[:5], 1):  # Mostrar apenas as 5 primeiras
-                priority_icon = "🔴" if rec["priority"] == "critical" else "🟡" if rec["priority"] == "high" else "🟢"
-                print(f"  {i}. {priority_icon} {rec['message']}")
-                print(f"     Ação: {rec['action']}")
-        
-        print("\n" + "="*60)
-
-    def run_full_analysis(self) -> dict:
-        """Executa análise completa de cobertura."""
-        print("🚀 Iniciando análise completa de cobertura de testes...")
-        
-        # Executar análise do backend
-        backend_result = self.run_backend_coverage()
-        
-        # Executar análise do frontend
-        frontend_result = self.run_frontend_coverage()
-        
-        # Gerar relatório consolidado
-        report = self.generate_coverage_report(backend_result, frontend_result)
-        
-        # Salvar relatório
-        report_file = self.save_report(report)
-        print(f"📄 Relatório salvo em: {report_file}")
-        
-        # Imprimir resumo
-        self.print_summary(report)
+        report["recommendations"] = self.generate_recommendations(coverage_analysis)
         
         return report
+
+    def save_report(self, report: dict):
+        """Salva o relatório de cobertura."""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Salva JSON
+        json_file = self.reports_path / f"coverage_report_{timestamp}.json"
+        with open(json_file, 'w') as f:
+            json.dump(report, f, indent=2)
+        
+        # Salva relatório resumido
+        summary_file = self.reports_path / f"coverage_summary_{timestamp}.txt"
+        with open(summary_file, 'w') as f:
+            f.write("=" * 60 + "\n")
+            f.write("RELATÓRIO DE COBERTURA - MedAI\n")
+            f.write(f"Data: {report['timestamp']}\n")
+            f.write("=" * 60 + "\n\n")
+            
+            summary = report.get("summary", {})
+            f.write(f"Cobertura Global: {summary.get('global_coverage', 0):.1f}%\n")
+            f.write(f"Componentes Críticos: {summary.get('critical_coverage', 0):.1f}%\n")
+            f.write(f"Status: {'✅ SUCESSO' if summary.get('overall_success') else '❌ FALHA'}\n\n")
+            
+            if report.get("recommendations"):
+                f.write("RECOMENDAÇÕES:\n")
+                for rec in report["recommendations"]:
+                    f.write(f"\n[{rec['type'].upper()}] {rec['message']}\n")
+                    f.write(f"  → {rec['action']}\n")
+        
+        print(f"\n📊 Relatórios salvos em: {self.reports_path}")
+        print(f"  - JSON: {json_file.name}")
+        print(f"  - Resumo: {summary_file.name}")
+
+    def run(self):
+        """Executa o monitoramento completo."""
+        print("🚀 Iniciando monitoramento de cobertura MedAI\n")
+        
+        # Executa análise do backend
+        backend_result = self.run_backend_coverage()
+        
+        # Executa análise do frontend
+        frontend_result = self.run_frontend_coverage()
+        
+        # Gera relatório consolidado
+        report = self.generate_report(backend_result, frontend_result)
+        
+        # Salva relatórios
+        self.save_report(report)
+        
+        # Exibe resumo
+        self.display_summary(report)
+        
+        # Retorna código de saída
+        return 0 if report["summary"]["overall_success"] else 1
+
+    def display_summary(self, report: dict):
+        """Exibe resumo do relatório no console."""
+        print("\n" + "=" * 60)
+        print("RESUMO DE COBERTURA")
+        print("=" * 60)
+        
+        summary = report.get("summary", {})
+        backend = report.get("backend", {})
+        frontend = report.get("frontend", {})
+        
+        # Status geral
+        status = "✅ SUCESSO" if summary.get("overall_success") else "❌ FALHA"
+        print(f"\nStatus Geral: {status}")
+        
+        # Cobertura global
+        print(f"\nCobertura Global: {summary.get('global_coverage', 0):.1f}% (Meta: {self.coverage_thresholds['global']}%)")
+        
+        # Backend
+        if not backend.get("error"):
+            print(f"\nBackend:")
+            print(f"  - Cobertura Total: {backend.get('total_coverage', 0):.1f}%")
+            print(f"  - Linhas Cobertas: {backend.get('lines_covered', 0)}/{backend.get('total_lines', 0)}")
+            
+            critical = backend.get("critical_components", {})
+            print(f"  - Componentes Críticos: {critical.get('total_coverage', 0):.1f}% (Meta: 100%)")
+            
+            if critical.get("components"):
+                for comp, cov in critical["components"].items():
+                    status_icon = "✅" if cov == 100 else "❌"
+                    print(f"    {status_icon} {comp}: {cov:.1f}%")
+        else:
+            print(f"\nBackend: ❌ Erro - {backend.get('error')}")
+        
+        # Frontend
+        if not frontend.get("error"):
+            print(f"\nFrontend:")
+            print(f"  - Cobertura Total: {frontend.get('total_coverage', 0):.1f}%")
+            print(f"  - Linhas Cobertas: {frontend.get('lines_covered', 0)}/{frontend.get('total_lines', 0)}")
+        else:
+            print(f"\nFrontend: ❌ Erro - {frontend.get('error')}")
+        
+        # Recomendações
+        if report.get("recommendations"):
+            print("\n📋 RECOMENDAÇÕES:")
+            for rec in report["recommendations"]:
+                print(f"\n  [{rec['type'].upper()}] {rec['message']}")
+                print(f"    → {rec['action']}")
+        
+        print("\n" + "=" * 60)
 
 
 def main():
     """Função principal."""
-    parser = argparse.ArgumentParser(description="Monitor de Cobertura MedAI")
+    parser = argparse.ArgumentParser(description="Monitor de Cobertura de Testes MedAI")
     parser.add_argument("--project-root", default=".", help="Caminho raiz do projeto")
-    parser.add_argument("--backend-only", action="store_true", help="Executar apenas análise do backend")
-    parser.add_argument("--frontend-only", action="store_true", help="Executar apenas análise do frontend")
-    parser.add_argument("--quiet", action="store_true", help="Modo silencioso")
-    
+    parser.add_argument("--backend-only", action="store_true", help="Analisar apenas o backend")
+    parser.add_argument("--frontend-only", action="store_true", help="Analisar apenas o frontend")
     args = parser.parse_args()
     
     monitor = CoverageMonitor(args.project_root)
     
-    try:
-        if args.backend_only:
-            result = monitor.run_backend_coverage()
-            if not args.quiet:
-                print("Backend coverage analysis completed")
-        elif args.frontend_only:
-            result = monitor.run_frontend_coverage()
-            if not args.quiet:
-                print("Frontend coverage analysis completed")
-        else:
-            report = monitor.run_full_analysis()
-            
-            # Exit code baseado no sucesso
-            exit_code = 0 if report["summary"]["overall_success"] else 1
-            sys.exit(exit_code)
-            
-    except Exception as e:
-        print(f"❌ Erro durante análise de cobertura: {e}")
-        sys.exit(1)
+    if args.backend_only:
+        backend_result = monitor.run_backend_coverage()
+        # Processar apenas backend
+        report = monitor.generate_report(backend_result, {"success": False, "error": "Não executado"})
+    elif args.frontend_only:
+        frontend_result = monitor.run_frontend_coverage()
+        # Processar apenas frontend
+        report = monitor.generate_report({"success": False, "error": "Não executado"}, frontend_result)
+    else:
+        sys.exit(monitor.run())
+    
+    monitor.display_summary(report)
+    monitor.save_report(report)
+    
+    sys.exit(0 if report["summary"]["overall_success"] else 1)
 
 
 if __name__ == "__main__":
     main()
-

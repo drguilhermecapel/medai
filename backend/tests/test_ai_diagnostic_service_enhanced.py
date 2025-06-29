@@ -1,572 +1,444 @@
 """
-Enhanced AI Diagnostic Service Tests - 100% Coverage Implementation
+Testes abrangentes para o AI Diagnostic Service - Componente Crítico
+Meta: 100% de cobertura
 """
 
 import pytest
-import numpy as np
+from datetime import datetime
 from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timedelta
-import json
+import asyncio
 
 from app.services.ai_diagnostic_service import AIDiagnosticService
-from app.core.constants import DiagnosisCategory, ClinicalUrgency, ConfidenceLevel
-from tests.smart_mocks import SmartECGMock, SmartPatientMock
+from app.models import Patient, Diagnosis
+from app.schemas.ai_diagnostic import (
+    DiagnosticRequest,
+    DiagnosticResponse,
+    SymptomInput,
+    VitalSignsInput
+)
+from app.core.exceptions import (
+    InvalidInputError,
+    DiagnosticError,
+    ServiceUnavailableError
+)
 
 
+@pytest.mark.critical
 class TestAIDiagnosticServiceCritical:
-    """Critical tests for AI Diagnostic Service - 100% coverage required."""
-
-    @pytest.fixture
-    def mock_db_session(self):
-        """Mock database session."""
-        return AsyncMock()
-
-    @pytest.fixture
-    def mock_knowledge_base(self):
-        """Mock medical knowledge base."""
-        kb = Mock()
-        kb.get_diagnosis_info.return_value = {
-            "icd10_codes": ["I48.91"],
-            "clinical_guidelines": ["Rate control", "Anticoagulation assessment"],
-            "differential_diagnoses": ["Atrial flutter", "MAT"],
-            "risk_factors": ["Age > 65", "Hypertension", "Diabetes"]
-        }
-        return kb
-
-    @pytest.fixture
-    def mock_nlp_service(self):
-        """Mock NLP service for report generation."""
-        nlp = AsyncMock()
-        nlp.generate_clinical_narrative.return_value = (
-            "ECG analysis reveals atrial fibrillation with rapid ventricular response. "
-            "Recommend rate control and anticoagulation assessment."
-        )
-        return nlp
-
-    @pytest.fixture
-    def ai_diagnostic_service(self, mock_db_session, mock_knowledge_base, mock_nlp_service):
-        """AI Diagnostic service instance."""
-        service = AIDiagnosticService(mock_db_session)
-        service.knowledge_base = mock_knowledge_base
-        service.nlp_service = mock_nlp_service
-        return service
-
-    @pytest.fixture
-    def ecg_analysis_result(self):
-        """Sample ECG analysis result."""
-        return {
-            "diagnosis": "Atrial Fibrillation",
-            "confidence": 0.92,
-            "features": {
-                "heart_rate": 145,
-                "rhythm_regularity": 0.2,
-                "p_wave_present": False,
-                "qrs_duration": 85,
-                "qt_interval": 380
-            },
-            "ml_predictions": {
-                "atrial_fibrillation": 0.92,
-                "normal": 0.05,
-                "other": 0.03
-            }
-        }
-
-    @pytest.fixture
-    def patient_context(self):
-        """Sample patient context."""
-        return SmartPatientMock.generate_patient_data(
-            age_range=(70, 80),
-            condition="cardiac"
-        )
-
-    @pytest.mark.critical
+    """Testes críticos do AI Diagnostic Service com 100% de cobertura"""
+    
     @pytest.mark.asyncio
-    async def test_generate_comprehensive_diagnosis(self, ai_diagnostic_service, 
-                                                  ecg_analysis_result, patient_context):
-        """Test comprehensive diagnosis generation."""
-        # Generate diagnosis
-        diagnosis = await ai_diagnostic_service.generate_diagnosis(
-            ecg_analysis=ecg_analysis_result,
-            patient_data=patient_context,
-            include_differentials=True,
-            include_recommendations=True
+    async def test_diagnose_respiratory_condition(self, ai_diagnostic_service, test_patient, sample_medical_data):
+        """Testa diagnóstico de condição respiratória"""
+        # Arrange
+        request = DiagnosticRequest(
+            patient_id=test_patient.id,
+            symptoms=["tosse", "febre", "falta de ar"],
+            duration_days=3,
+            vital_signs=VitalSignsInput(
+                temperature=38.5,
+                blood_pressure="120/80",
+                heart_rate=90,
+                respiratory_rate=22,
+                oxygen_saturation=94
+            ),
+            medical_history=["asma"],
+            current_medications=["salbutamol"]
         )
         
-        # Verify diagnosis structure
-        assert diagnosis["primary_diagnosis"] == "Atrial Fibrillation with RVR"
-        assert diagnosis["confidence_level"] == ConfidenceLevel.HIGH
-        assert diagnosis["clinical_urgency"] == ClinicalUrgency.HIGH
+        # Act
+        result = await ai_diagnostic_service.diagnose(request)
         
-        # Verify ICD codes
-        assert "I48.91" in diagnosis["icd10_codes"]
+        # Assert
+        assert result is not None
+        assert result.primary_diagnosis in ["Pneumonia", "COVID-19", "COPD Exacerbation", "Asthma"]
+        assert result.confidence > 0.7
+        assert len(result.differential_diagnoses) >= 2
+        assert len(result.recommendations) >= 3
+        assert result.severity in ["low", "moderate", "high"]
+        assert len(result.icd10_codes) > 0
         
-        # Verify differential diagnoses
-        assert len(diagnosis["differential_diagnoses"]) > 0
-        assert any("flutter" in d["diagnosis"].lower() 
-                  for d in diagnosis["differential_diagnoses"])
-        
-        # Verify recommendations
-        assert len(diagnosis["recommendations"]) > 0
-        assert any("rate control" in r.lower() 
-                  for r in diagnosis["recommendations"])
-        
-        # Verify risk assessment
-        assert "stroke_risk" in diagnosis["risk_assessment"]
-        assert diagnosis["risk_assessment"]["cha2ds2_vasc_score"] >= 2
-
-    @pytest.mark.critical
     @pytest.mark.asyncio
-    async def test_multimodal_data_integration(self, ai_diagnostic_service):
-        """Test integration of multiple data sources."""
-        # Multiple data sources
-        ecg_data = {
-            "diagnosis": "Possible MI",
-            "st_elevation": True,
-            "affected_leads": ["II", "III", "aVF"]
+    async def test_diagnose_cardiovascular_condition(self, ai_diagnostic_service, test_patient):
+        """Testa diagnóstico de condição cardiovascular"""
+        # Arrange
+        request = DiagnosticRequest(
+            patient_id=test_patient.id,
+            symptoms=["dor no peito", "sudorese", "náusea"],
+            duration_days=0,  # Início súbito
+            vital_signs=VitalSignsInput(
+                temperature=36.8,
+                blood_pressure="160/100",
+                heart_rate=110,
+                respiratory_rate=20,
+                oxygen_saturation=96
+            ),
+            medical_history=["hipertensão", "diabetes"],
+            current_medications=["losartana", "metformina"]
+        )
+        
+        # Act
+        result = await ai_diagnostic_service.diagnose(request)
+        
+        # Assert
+        assert result.severity in ["moderate", "high"]
+        assert any("urgente" in rec.lower() or "emergência" in rec.lower() 
+                  for rec in result.recommendations)
+        
+    @pytest.mark.asyncio
+    async def test_diagnose_with_lab_results(self, ai_diagnostic_service, test_patient, sample_medical_data):
+        """Testa diagnóstico com resultados laboratoriais"""
+        # Arrange
+        request = DiagnosticRequest(
+            patient_id=test_patient.id,
+            symptoms=sample_medical_data["symptoms"],
+            duration_days=sample_medical_data["duration_days"],
+            vital_signs=VitalSignsInput(**sample_medical_data["vital_signs"]),
+            lab_results=sample_medical_data["lab_results"]
+        )
+        
+        # Act
+        result = await ai_diagnostic_service.diagnose(request)
+        
+        # Assert
+        assert result is not None
+        assert result.lab_findings is not None
+        assert "leukocytes" in str(result.lab_findings)  # Leucócitos elevados
+        
+    @pytest.mark.asyncio
+    async def test_diagnose_invalid_symptoms(self, ai_diagnostic_service, test_patient):
+        """Testa diagnóstico com sintomas inválidos"""
+        # Arrange
+        request = DiagnosticRequest(
+            patient_id=test_patient.id,
+            symptoms=[],  # Sem sintomas
+            duration_days=1,
+            vital_signs=VitalSignsInput(
+                temperature=36.5,
+                blood_pressure="120/80",
+                heart_rate=70,
+                respiratory_rate=16,
+                oxygen_saturation=98
+            )
+        )
+        
+        # Act & Assert
+        with pytest.raises(InvalidInputError) as exc_info:
+            await ai_diagnostic_service.diagnose(request)
+            
+        assert "At least one symptom is required" in str(exc_info.value)
+        
+    @pytest.mark.asyncio
+    async def test_diagnose_service_unavailable(self, ai_diagnostic_service, test_patient, sample_medical_data):
+        """Testa comportamento quando serviço AI está indisponível"""
+        # Arrange
+        request = DiagnosticRequest(
+            patient_id=test_patient.id,
+            symptoms=sample_medical_data["symptoms"],
+            duration_days=sample_medical_data["duration_days"],
+            vital_signs=VitalSignsInput(**sample_medical_data["vital_signs"])
+        )
+        
+        # Mock falha do serviço
+        with patch.object(ai_diagnostic_service._ai_engine, 'diagnose') as mock_diagnose:
+            mock_diagnose.side_effect = Exception("AI service unavailable")
+            
+            # Act & Assert
+            with pytest.raises(ServiceUnavailableError):
+                await ai_diagnostic_service.diagnose(request)
+                
+    @pytest.mark.asyncio
+    async def test_diagnose_timeout(self, ai_diagnostic_service, test_patient, sample_medical_data):
+        """Testa timeout no diagnóstico"""
+        # Arrange
+        request = DiagnosticRequest(
+            patient_id=test_patient.id,
+            symptoms=sample_medical_data["symptoms"],
+            duration_days=sample_medical_data["duration_days"],
+            vital_signs=VitalSignsInput(**sample_medical_data["vital_signs"])
+        )
+        
+        # Mock para simular processamento lento
+        async def slow_diagnose(*args, **kwargs):
+            await asyncio.sleep(35)  # Excede timeout de 30s
+            
+        with patch.object(ai_diagnostic_service._ai_engine, 'diagnose', side_effect=slow_diagnose):
+            # Act & Assert
+            with pytest.raises(DiagnosticError) as exc_info:
+                await ai_diagnostic_service.diagnose(request)
+                
+            assert "timeout" in str(exc_info.value).lower()
+            
+    @pytest.mark.asyncio
+    async def test_save_diagnosis(self, ai_diagnostic_service, db_session, test_patient):
+        """Testa salvamento de diagnóstico no banco"""
+        # Arrange
+        diagnosis_data = {
+            "patient_id": test_patient.id,
+            "primary_diagnosis": "Pneumonia",
+            "icd10_codes": ["J18.9"],
+            "confidence": 0.89,
+            "severity": "moderate",
+            "differential_diagnoses": [
+                {"diagnosis": "COVID-19", "probability": 0.65},
+                {"diagnosis": "Bronchitis", "probability": 0.45}
+            ],
+            "recommendations": [
+                "Antibioticoterapia",
+                "Radiografia de tórax",
+                "Hemograma completo"
+            ]
         }
         
-        lab_data = SmartPatientMock.generate_lab_results(
-            test_type="cardiac",
-            condition="myocardial_infarction"
-        )
+        # Act
+        saved_diagnosis = await ai_diagnostic_service.save_diagnosis(diagnosis_data)
         
-        imaging_data = {
-            "modality": "echo",
-            "ejection_fraction": 35,
-            "wall_motion_abnormality": "inferior",
-            "valve_function": "normal"
-        }
+        # Assert
+        assert saved_diagnosis.id is not None
+        assert saved_diagnosis.patient_id == test_patient.id
+        assert saved_diagnosis.primary_diagnosis == "Pneumonia"
         
-        vitals_data = {
-            "blood_pressure": "140/90",
-            "heart_rate": 95,
-            "oxygen_saturation": 94,
-            "temperature": 37.2
-        }
+        # Verifica no banco
+        diagnosis_in_db = await db_session.get(Diagnosis, saved_diagnosis.id)
+        assert diagnosis_in_db is not None
         
-        # Integrate data
-        integrated_diagnosis = await ai_diagnostic_service.integrate_multimodal_data(
-            ecg=ecg_data,
-            labs=lab_data,
-            imaging=imaging_data,
-            vitals=vitals_data
-        )
-        
-        # Verify integration
-        assert integrated_diagnosis["diagnosis"] == "Acute Inferior STEMI"
-        assert integrated_diagnosis["data_sources_used"] == ["ecg", "labs", "imaging", "vitals"]
-        assert integrated_diagnosis["confidence_boost"] > 0  # Multiple sources increase confidence
-        assert integrated_diagnosis["clinical_correlation"]["troponin_elevated"] is True
-        assert integrated_diagnosis["clinical_correlation"]["wall_motion_matches_ecg"] is True
-
-    @pytest.mark.critical
     @pytest.mark.asyncio
-    async def test_clinical_decision_support(self, ai_diagnostic_service, ecg_analysis_result):
-        """Test clinical decision support system."""
-        # Generate clinical decision support
-        cds_result = await ai_diagnostic_service.get_clinical_decision_support(
-            diagnosis="STEMI",
-            patient_age=65,
-            symptom_onset_minutes=45,
-            contraindications=["aspirin_allergy"]
+    async def test_get_patient_diagnosis_history(self, ai_diagnostic_service, db_session, test_patient):
+        """Testa recuperação de histórico de diagnósticos"""
+        # Arrange - Cria múltiplos diagnósticos
+        for i in range(5):
+            diagnosis = Diagnosis(
+                patient_id=test_patient.id,
+                primary_diagnosis=f"Diagnosis {i}",
+                confidence=0.8 + i * 0.02,
+                severity="moderate" if i % 2 == 0 else "low",
+                icd10_codes=[f"A0{i}.0"]
+            )
+            db_session.add(diagnosis)
+        await db_session.commit()
+        
+        # Act
+        history = await ai_diagnostic_service.get_patient_history(test_patient.id, limit=3)
+        
+        # Assert
+        assert len(history) == 3
+        assert all(d.patient_id == test_patient.id for d in history)
+        
+    @pytest.mark.asyncio
+    async def test_diagnose_with_red_flags(self, ai_diagnostic_service, test_patient):
+        """Testa identificação de red flags"""
+        # Arrange - Sintomas críticos
+        request = DiagnosticRequest(
+            patient_id=test_patient.id,
+            symptoms=["dor no peito intensa", "falta de ar súbita", "sudorese fria"],
+            duration_days=0,
+            vital_signs=VitalSignsInput(
+                temperature=36.5,
+                blood_pressure="90/60",  # Hipotensão
+                heart_rate=130,  # Taquicardia
+                respiratory_rate=28,  # Taquipneia
+                oxygen_saturation=88  # Hipóxia
+            )
         )
         
-        # Verify immediate actions
-        assert "immediate_actions" in cds_result
-        assert any("cath lab" in action.lower() 
-                  for action in cds_result["immediate_actions"])
+        # Act
+        result = await ai_diagnostic_service.diagnose(request)
         
-        # Verify medication recommendations
-        assert "medications" in cds_result
-        assert not any("aspirin" in med["name"].lower() 
-                      for med in cds_result["medications"])  # Contraindication respected
+        # Assert
+        assert result.severity == "high"
+        assert result.red_flags is not None
+        assert len(result.red_flags) > 0
+        assert any("emergência" in rec.lower() for rec in result.recommendations)
         
-        # Verify time targets
-        assert cds_result["time_targets"]["door_to_balloon_minutes"] == 90
-        assert cds_result["time_critical"] is True
-        
-        # Verify clinical pathways
-        assert "clinical_pathway" in cds_result
-        assert cds_result["clinical_pathway"]["name"] == "STEMI Protocol"
-
-    @pytest.mark.critical
     @pytest.mark.asyncio
-    async def test_risk_stratification(self, ai_diagnostic_service, patient_context):
-        """Test comprehensive risk stratification."""
-        # Add cardiac risk factors
-        patient_context.update({
-            "hypertension": True,
-            "diabetes": True,
-            "smoking_status": "current",
-            "family_history_cad": True,
-            "ldl_cholesterol": 180
+    async def test_diagnose_pediatric_patient(self, ai_diagnostic_service, db_session):
+        """Testa diagnóstico para paciente pediátrico"""
+        # Arrange - Criar paciente criança
+        child_patient = Patient(
+            name="Ana Silva",
+            birth_date=datetime(2019, 1, 1),  # 5 anos
+            gender="F",
+            cpf="12345678901",
+            medical_record_number="PED001"
+        )
+        db_session.add(child_patient)
+        await db_session.commit()
+        
+        request = DiagnosticRequest(
+            patient_id=child_patient.id,
+            symptoms=["febre", "irritabilidade", "recusa alimentar"],
+            duration_days=2,
+            vital_signs=VitalSignsInput(
+                temperature=39.0,
+                blood_pressure="90/60",
+                heart_rate=120,  # Normal para idade
+                respiratory_rate=25,
+                oxygen_saturation=97
+            )
+        )
+        
+        # Act
+        result = await ai_diagnostic_service.diagnose(request)
+        
+        # Assert
+        assert result is not None
+        assert "pediátrico" in result.notes or "criança" in result.notes
+        
+    @pytest.mark.asyncio
+    async def test_diagnose_with_allergies(self, ai_diagnostic_service, test_patient):
+        """Testa diagnóstico considerando alergias"""
+        # Arrange
+        request = DiagnosticRequest(
+            patient_id=test_patient.id,
+            symptoms=["urticária", "edema", "prurido"],
+            duration_days=0,
+            vital_signs=VitalSignsInput(
+                temperature=36.8,
+                blood_pressure="110/70",
+                heart_rate=85,
+                respiratory_rate=18,
+                oxygen_saturation=97
+            ),
+            allergies=["penicilina", "dipirona"],
+            recent_medications=["amoxicilina"]  # Penicilina!
+        )
+        
+        # Act
+        result = await ai_diagnostic_service.diagnose(request)
+        
+        # Assert
+        assert any("alergia" in diag.lower() or "reação" in diag.lower() 
+                  for diag in [result.primary_diagnosis] + 
+                  [d["diagnosis"] for d in result.differential_diagnoses])
+        
+    @pytest.mark.asyncio
+    async def test_validate_vital_signs(self, ai_diagnostic_service):
+        """Testa validação de sinais vitais"""
+        # Casos inválidos
+        invalid_vitals = [
+            {"temperature": 45},  # Muito alta
+            {"temperature": 25},  # Muito baixa
+            {"heart_rate": 300},  # Impossível
+            {"blood_pressure": "300/200"},  # Muito alta
+            {"oxygen_saturation": 150},  # > 100%
+        ]
+        
+        for vitals in invalid_vitals:
+            valid_vitals = VitalSignsInput(
+                temperature=36.5,
+                blood_pressure="120/80",
+                heart_rate=70,
+                respiratory_rate=16,
+                oxygen_saturation=98
+            )
+            
+            # Atualiza com valor inválido
+            for key, value in vitals.items():
+                setattr(valid_vitals, key, value)
+                
+            # Deve identificar como inválido
+            is_valid = ai_diagnostic_service._validate_vital_signs(valid_vitals)
+            assert not is_valid
+            
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("symptoms,expected_category", [
+        (["tosse", "febre", "expectoração"], "respiratory"),
+        (["dor no peito", "palpitações"], "cardiovascular"),
+        (["cefaleia", "tontura", "confusão"], "neurological"),
+        (["dor abdominal", "náusea", "vômito"], "gastrointestinal"),
+        (["disúria", "polaciúria"], "urological")
+    ])
+    async def test_symptom_categorization(self, ai_diagnostic_service, symptoms, expected_category):
+        """Testa categorização de sintomas"""
+        # Act
+        category = ai_diagnostic_service._categorize_symptoms(symptoms)
+        
+        # Assert
+        assert category == expected_category
+
+
+@pytest.mark.critical
+class TestAIDiagnosticServiceIntegration:
+    """Testes de integração para garantir 100% de cobertura"""
+    
+    @pytest.mark.asyncio
+    async def test_full_diagnostic_workflow(self, ai_diagnostic_service, test_patient, sample_medical_data):
+        """Testa workflow completo de diagnóstico"""
+        # Arrange
+        request = DiagnosticRequest(
+            patient_id=test_patient.id,
+            symptoms=sample_medical_data["symptoms"],
+            duration_days=sample_medical_data["duration_days"],
+            vital_signs=VitalSignsInput(**sample_medical_data["vital_signs"]),
+            medical_history=sample_medical_data["medical_history"],
+            current_medications=sample_medical_data["medications"],
+            allergies=sample_medical_data["allergies"],
+            lab_results=sample_medical_data["lab_results"]
+        )
+        
+        # Act - Diagnóstico
+        result = await ai_diagnostic_service.diagnose(request)
+        
+        # Act - Salvar
+        saved = await ai_diagnostic_service.save_diagnosis({
+            "patient_id": test_patient.id,
+            "primary_diagnosis": result.primary_diagnosis,
+            "icd10_codes": result.icd10_codes,
+            "confidence": result.confidence,
+            "severity": result.severity,
+            "differential_diagnoses": result.differential_diagnoses,
+            "recommendations": result.recommendations
         })
         
-        ecg_findings = {
-            "diagnosis": "Atrial Fibrillation",
-            "heart_rate": 120,
-            "pvcs_per_hour": 50
-        }
+        # Act - Recuperar histórico
+        history = await ai_diagnostic_service.get_patient_history(test_patient.id)
         
-        # Calculate risk scores
-        risk_assessment = await ai_diagnostic_service.calculate_risk_scores(
-            patient_data=patient_context,
-            ecg_findings=ecg_findings
-        )
+        # Assert
+        assert saved.id in [d.id for d in history]
+        assert result.processing_time > 0
         
-        # Verify risk calculations
-        assert "cardiovascular_risk" in risk_assessment
-        assert risk_assessment["cardiovascular_risk"]["score"] > 20  # High risk
-        assert risk_assessment["cardiovascular_risk"]["category"] == "high"
-        
-        # Verify stroke risk (CHA2DS2-VASc)
-        assert risk_assessment["stroke_risk"]["cha2ds2_vasc"] >= 3
-        assert risk_assessment["stroke_risk"]["annual_stroke_risk"] > 3.0
-        
-        # Verify bleeding risk (HAS-BLED)
-        assert "bleeding_risk" in risk_assessment
-        assert risk_assessment["bleeding_risk"]["has_bled"] >= 0
-        
-        # Verify recommendations based on risk
-        assert risk_assessment["recommendations"]["anticoagulation"] == "strongly_recommended"
-
-    @pytest.mark.critical
     @pytest.mark.asyncio
-    async def test_treatment_recommendation_engine(self, ai_diagnostic_service):
-        """Test treatment recommendation engine."""
-        diagnosis_data = {
-            "primary": "Heart Failure with Reduced EF",
-            "ejection_fraction": 30,
-            "nyha_class": 3,
-            "comorbidities": ["diabetes", "ckd_stage_3"]
-        }
+    async def test_concurrent_diagnoses(self, ai_diagnostic_service, test_patient, sample_medical_data):
+        """Testa diagnósticos concorrentes"""
+        # Arrange
+        num_concurrent = 10
+        requests = []
         
-        # Get treatment recommendations
-        recommendations = await ai_diagnostic_service.get_treatment_recommendations(
-            diagnosis_data,
-            consider_interactions=True,
-            include_alternatives=True
-        )
-        
-        # Verify GDMT (Guideline-Directed Medical Therapy)
-        assert "medications" in recommendations
-        med_classes = [m["class"] for m in recommendations["medications"]]
-        assert "ACE_inhibitor" in med_classes or "ARB" in med_classes
-        assert "beta_blocker" in med_classes
-        assert "mineralocorticoid_antagonist" in med_classes
-        
-        # Verify dose adjustments for CKD
-        ace_med = next(m for m in recommendations["medications"] 
-                      if m["class"] in ["ACE_inhibitor", "ARB"])
-        assert ace_med["dose_adjustment"] == "reduce_for_ckd"
-        
-        # Verify device therapy recommendations
-        assert "device_therapy" in recommendations
-        assert recommendations["device_therapy"]["icd_indicated"] is True
-        assert recommendations["device_therapy"]["crt_indicated"] is True
-
-    @pytest.mark.critical
-    @pytest.mark.asyncio
-    async def test_natural_language_report_generation(self, ai_diagnostic_service, 
-                                                     ecg_analysis_result, patient_context):
-        """Test natural language report generation."""
-        # Generate clinical report
-        report = await ai_diagnostic_service.generate_clinical_report(
-            ecg_analysis=ecg_analysis_result,
-            patient_data=patient_context,
-            report_type="comprehensive",
-            audience="physician"
-        )
-        
-        # Verify report sections
-        assert "clinical_summary" in report
-        assert "findings" in report
-        assert "interpretation" in report
-        assert "recommendations" in report
-        assert "follow_up" in report
-        
-        # Verify content quality
-        assert len(report["clinical_summary"]) > 100  # Substantial content
-        assert "atrial fibrillation" in report["findings"].lower()
-        assert "anticoagulation" in report["recommendations"].lower()
-        
-        # Verify medical terminology usage
-        assert any(term in report["interpretation"].lower() 
-                  for term in ["irregularly irregular", "absent p waves"])
-
-    @pytest.mark.critical
-    @pytest.mark.asyncio
-    async def test_pediatric_diagnostic_adjustments(self, ai_diagnostic_service):
-        """Test pediatric-specific diagnostic adjustments."""
-        pediatric_patient = {
-            "age": 8,
-            "weight_kg": 28,
-            "height_cm": 130
-        }
-        
-        pediatric_ecg = {
-            "heart_rate": 110,  # Normal for age
-            "pr_interval": 140,
-            "qrs_duration": 70,
-            "qt_interval": 340
-        }
-        
-        # Generate pediatric diagnosis
-        diagnosis = await ai_diagnostic_service.generate_pediatric_diagnosis(
-            ecg_data=pediatric_ecg,
-            patient_data=pediatric_patient
-        )
-        
-        # Verify age-adjusted interpretation
-        assert diagnosis["age_adjusted_normal"] is True
-        assert diagnosis["heart_rate_percentile"] > 25 and diagnosis["heart_rate_percentile"] < 75
-        
-        # Verify pediatric-specific considerations
-        assert "growth_adjusted_parameters" in diagnosis
-        assert "congenital_screening" in diagnosis
-        assert diagnosis["congenital_screening"]["performed"] is True
-
-    @pytest.mark.critical
-    @pytest.mark.asyncio
-    async def test_emergency_diagnostic_pathway(self, ai_diagnostic_service):
-        """Test emergency diagnostic pathway with time tracking."""
-        # Emergency presentation
-        emergency_data = {
-            "presentation": "chest_pain",
-            "symptom_onset": datetime.now() - timedelta(minutes=30),
-            "vital_signs": {
-                "blood_pressure": "80/50",
-                "heart_rate": 140,
-                "respiratory_rate": 28
-            },
-            "ecg_findings": {
-                "st_elevation": True,
-                "new_lbbb": False,
-                "reciprocal_changes": True
-            }
-        }
-        
-        # Process emergency diagnosis
-        with patch('app.services.ai_diagnostic_service.datetime') as mock_datetime:
-            mock_datetime.now.return_value = datetime.now()
-            
-            emergency_diagnosis = await ai_diagnostic_service.process_emergency_diagnosis(
-                emergency_data
+        for i in range(num_concurrent):
+            request = DiagnosticRequest(
+                patient_id=test_patient.id,
+                symptoms=sample_medical_data["symptoms"],
+                duration_days=i,
+                vital_signs=VitalSignsInput(**sample_medical_data["vital_signs"])
             )
-        
-        # Verify emergency response
-        assert emergency_diagnosis["diagnosis"] == "Acute STEMI with Cardiogenic Shock"
-        assert emergency_diagnosis["urgency"] == ClinicalUrgency.CRITICAL
-        assert emergency_diagnosis["processing_time_seconds"] < 5
-        
-        # Verify critical alerts
-        assert emergency_diagnosis["alerts_triggered"] == ["cath_lab", "shock_team"]
-        assert emergency_diagnosis["time_to_treatment_target"] == 90
-
-    @pytest.mark.critical
-    @pytest.mark.asyncio
-    async def test_diagnostic_uncertainty_handling(self, ai_diagnostic_service):
-        """Test handling of diagnostic uncertainty."""
-        # Ambiguous ECG findings
-        uncertain_ecg = {
-            "ml_predictions": {
-                "normal": 0.4,
-                "atrial_fibrillation": 0.35,
-                "atrial_flutter": 0.25
-            },
-            "feature_quality": {
-                "signal_quality": 0.6,
-                "lead_dropout": ["V5", "V6"]
-            }
-        }
-        
-        # Process with uncertainty
-        diagnosis = await ai_diagnostic_service.handle_uncertain_diagnosis(
-            uncertain_ecg,
-            confidence_threshold=0.8
-        )
-        
-        # Verify uncertainty handling
-        assert diagnosis["confidence_level"] == ConfidenceLevel.LOW
-        assert diagnosis["requires_human_review"] is True
-        assert len(diagnosis["differential_diagnoses"]) >= 2
-        assert diagnosis["recommended_actions"] == ["repeat_ecg", "physician_review"]
-        assert diagnosis["uncertainty_reasons"] == ["low_confidence", "poor_signal_quality"]
-
-    @pytest.mark.critical
-    @pytest.mark.asyncio
-    async def test_longitudinal_analysis(self, ai_diagnostic_service):
-        """Test longitudinal ECG analysis and trend detection."""
-        # Historical ECG data
-        historical_ecgs = [
-            {
-                "date": datetime.now() - timedelta(days=365),
-                "heart_rate": 70,
-                "pr_interval": 160,
-                "qt_interval": 400,
-                "diagnosis": "Normal Sinus Rhythm"
-            },
-            {
-                "date": datetime.now() - timedelta(days=180),
-                "heart_rate": 75,
-                "pr_interval": 180,
-                "qt_interval": 410,
-                "diagnosis": "First Degree AV Block"
-            },
-            {
-                "date": datetime.now(),
-                "heart_rate": 80,
-                "pr_interval": 220,
-                "qt_interval": 440,
-                "diagnosis": "First Degree AV Block - Progressing"
-            }
-        ]
-        
-        # Analyze trends
-        trend_analysis = await ai_diagnostic_service.analyze_ecg_trends(
-            historical_ecgs,
-            patient_id=123
-        )
-        
-        # Verify trend detection
-        assert trend_analysis["pr_interval_trend"] == "increasing"
-        assert trend_analysis["progression_detected"] is True
-        assert trend_analysis["clinical_significance"] == "monitor_closely"
-        assert "consider EP consultation" in trend_analysis["recommendations"]
-
-    @pytest.mark.critical
-    @pytest.mark.asyncio
-    async def test_drug_interaction_checking(self, ai_diagnostic_service):
-        """Test drug interaction checking for cardiac medications."""
-        current_medications = [
-            "metoprolol",
-            "amiodarone",
-            "warfarin",
-            "digoxin"
-        ]
-        
-        proposed_medication = "verapamil"
-        
-        # Check interactions
-        interaction_result = await ai_diagnostic_service.check_drug_interactions(
-            current_medications,
-            proposed_medication,
-            patient_conditions=["atrial_fibrillation", "heart_failure"]
-        )
-        
-        # Verify interaction detection
-        assert interaction_result["has_interactions"] is True
-        assert len(interaction_result["interactions"]) > 0
-        
-        # Verify specific interactions
-        beta_blocker_interaction = next(
-            i for i in interaction_result["interactions"]
-            if "beta blocker" in i["description"].lower()
-        )
-        assert beta_blocker_interaction["severity"] == "major"
-        assert "bradycardia" in beta_blocker_interaction["effect"].lower()
-        
-        # Verify alternatives suggested
-        assert len(interaction_result["alternatives"]) > 0
-
-    @pytest.mark.critical
-    @pytest.mark.asyncio
-    async def test_evidence_based_recommendations(self, ai_diagnostic_service):
-        """Test evidence-based recommendation generation."""
-        diagnosis = "Heart Failure with Preserved EF"
-        patient_characteristics = {
-            "age": 75,
-            "gender": "female",
-            "comorbidities": ["hypertension", "obesity", "diabetes"],
-            "current_medications": ["lisinopril", "metformin"]
-        }
-        
-        # Get evidence-based recommendations
-        recommendations = await ai_diagnostic_service.get_evidence_based_recommendations(
-            diagnosis,
-            patient_characteristics,
-            include_citations=True
-        )
-        
-        # Verify recommendations
-        assert "lifestyle_modifications" in recommendations
-        assert "pharmacological" in recommendations
-        assert "monitoring" in recommendations
-        
-        # Verify evidence quality
-        for rec in recommendations["pharmacological"]:
-            assert "evidence_level" in rec
-            assert rec["evidence_level"] in ["A", "B", "C"]
-            assert "guideline_source" in rec
-            assert rec["guideline_source"] in ["ACC/AHA", "ESC", "NICE"]
+            requests.append(request)
             
-        # Verify citations
-        assert len(recommendations["citations"]) > 0
-        assert all("pmid" in cite or "doi" in cite 
-                  for cite in recommendations["citations"])
-
-    @pytest.mark.critical
-    @pytest.mark.asyncio
-    async def test_diagnostic_confidence_calibration(self, ai_diagnostic_service):
-        """Test diagnostic confidence calibration."""
-        # Multiple diagnostic scenarios with varying confidence
-        scenarios = [
-            {
-                "ml_confidence": 0.95,
-                "signal_quality": 0.9,
-                "clinical_correlation": 0.8
-            },
-            {
-                "ml_confidence": 0.7,
-                "signal_quality": 0.5,
-                "clinical_correlation": 0.6
-            }
-        ]
+        # Act - Executa diagnósticos em paralelo
+        tasks = [ai_diagnostic_service.diagnose(req) for req in requests]
+        results = await asyncio.gather(*tasks)
         
-        for scenario in scenarios:
-            calibrated_confidence = await ai_diagnostic_service.calibrate_diagnostic_confidence(
-                scenario
-            )
-            
-            # Verify calibration reduces overconfidence
-            assert calibrated_confidence["final_confidence"] <= scenario["ml_confidence"]
-            
-            # Verify quality impacts confidence
-            if scenario["signal_quality"] < 0.7:
-                assert calibrated_confidence["confidence_penalty"] > 0.1
-            
-            # Verify confidence level assignment
-            if calibrated_confidence["final_confidence"] > 0.8:
-                assert calibrated_confidence["level"] == ConfidenceLevel.HIGH
-            elif calibrated_confidence["final_confidence"] > 0.6:
-                assert calibrated_confidence["level"] == ConfidenceLevel.MEDIUM
-            else:
-                assert calibrated_confidence["level"] == ConfidenceLevel.LOW
-
-    @pytest.mark.critical
-    @pytest.mark.asyncio
-    async def test_clinical_validation_integration(self, ai_diagnostic_service):
-        """Test integration with clinical validation workflow."""
-        ai_diagnosis = {
-            "diagnosis": "Ventricular Tachycardia",
-            "confidence": 0.88,
-            "features_detected": ["wide_qrs", "av_dissociation", "capture_beats"]
-        }
+        # Assert
+        assert len(results) == num_concurrent
+        assert all(r.primary_diagnosis is not None for r in results)
         
-        # Submit for validation
-        validation_request = await ai_diagnostic_service.submit_for_clinical_validation(
-            ai_diagnosis,
-            priority="urgent",
-            validator_specialty="electrophysiology"
+    @pytest.mark.asyncio
+    async def test_diagnostic_with_cache(self, ai_diagnostic_service, test_patient, sample_medical_data, mock_redis):
+        """Testa diagnóstico com cache"""
+        # Arrange
+        request = DiagnosticRequest(
+            patient_id=test_patient.id,
+            symptoms=sample_medical_data["symptoms"],
+            duration_days=sample_medical_data["duration_days"],
+            vital_signs=VitalSignsInput(**sample_medical_data["vital_signs"])
         )
         
-        # Verify validation request
-        assert validation_request["status"] == "pending_validation"
-        assert validation_request["priority"] == "urgent"
-        assert validation_request["assigned_to_specialty"] == "electrophysiology"
-        assert validation_request["sla_hours"] == 2  # Urgent SLA
+        # Act - Primeiro diagnóstico
+        result1 = await ai_diagnostic_service.diagnose(request)
         
-        # Verify supporting materials included
-        assert "ecg_strips" in validation_request["supporting_materials"]
-        assert "feature_highlights" in validation_request["supporting_materials"]
-        assert validation_request["supporting_materials"]["ai_explanation"] is not None
+        # Act - Segundo diagnóstico (deve usar cache)
+        mock_redis.get.return_value = result1.json()
+        result2 = await ai_diagnostic_service.diagnose(request)
+        
+        # Assert
+        assert result1.primary_diagnosis == result2.primary_diagnosis
+        assert mock_redis.set.called
