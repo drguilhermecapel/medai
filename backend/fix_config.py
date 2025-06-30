@@ -1,4 +1,10 @@
+#!/usr/bin/env python3
 """
+Corrige o arquivo config.py para aceitar SQLite em testes
+"""
+
+# Novo conteúdo do config.py
+config_content = '''"""
 Configurações do sistema MedAI
 """
 import os
@@ -135,3 +141,12 @@ class Settings(BaseSettings):
 
 # Instância global das configurações
 settings = Settings()
+'''
+
+# Salvar o arquivo corrigido
+with open('app/core/config.py', 'w', encoding='utf-8') as f:
+    f.write(config_content)
+
+print("✅ Arquivo app/core/config.py corrigido com sucesso!")
+print("\n🚀 Agora execute novamente:")
+print("python run_tests.py")
