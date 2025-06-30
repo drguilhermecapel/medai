@@ -1,141 +1,383 @@
 #!/usr/bin/env python3
 """
-Script principal para executar testes do MedAI com cobertura
-Garante 80% de cobertura global e 100% em testes críticos
+Script principal para execução de testes do MedAI
+Executa todos os testes e gera relatório de cobertura
 """
-
 import os
 import sys
 import subprocess
-import json
+import time
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import List, Dict, Tuple
+import json
 
-# Adiciona o diretório backend ao Python path
-BACKEND_DIR = Path(__file__).parent
-sys.path.insert(0, str(BACKEND_DIR))
 
 class TestRunner:
-    """Gerenciador de execução de testes com análise de cobertura"""
+    """Executor de testes com relatório de cobertura"""
     
     def __init__(self):
-        self.backend_dir = BACKEND_DIR
-        self.coverage_file = self.backend_dir / "coverage.json"
+        self.project_root = Path(__file__).parent
+        self.coverage_threshold = {
+            "global": 80,
+            "critical": 100
+        }
         self.critical_modules = [
-            "app.services.ai_diagnostic_service",
-            "app.services.ml_model_service",
+            "app.core.security",
+            "app.core.config",
             "app.services.validation_service",
-            "app.services.medical_record_service",
-            "app.services.prescription_service"]
+            "app.services.ml_model_service",
+            "app.services.patient_service",
+            "app.services.exam_service",
+            "app.services.diagnostic_service",
+            "app.api.v1.endpoints.auth"
+        ]
         
     def setup_environment(self):
-        """Configura variáveis de ambiente para testes"""
-        os.environ["PYTHONPATH"] = str(self.backend_dir)
-        os.environ["TESTING"] = "true"
-        os.environ["DATABASE_URL"] = "postgresql://postgres:postgres@localhost:5432/medai_test"
-        os.environ["REDIS_URL"] = "redis://localhost:6379/1"
-        os.environ["SECRET_KEY"] = "test-secret-key"
-        os.environ["JWT_SECRET_KEY"] = "test-jwt-secret"
+        """Configura ambiente de testes"""
+        print("🔧 Configurando ambiente de testes...")
         
-    def run_tests(self, test_type: str = "all") -> int:
-        """Executa testes com cobertura"""
+        # Define variáveis de ambiente
+        os.environ["TESTING"] = "true"
+        os.environ["DATABASE_URL"] = "sqlite:///./test_medai.db"
+        os.environ["SECRET_KEY"] = "test-secret-key"
+        os.environ["ENVIRONMENT"] = "testing"
+        
+        # Cria diretórios necessários
+        dirs_to_create = [
+            self.project_root / "htmlcov",
+            self.project_root / "test_reports",
+            self.project_root / "ml_models",
+            self.project_root / "uploads"
+        ]
+        
+        for directory in dirs_to_create:
+            directory.mkdir(exist_ok=True)
+            
+    def install_dependencies(self):
+        """Instala dependências de teste se necessário"""
+        print("📦 Verificando dependências...")
+        
+        test_deps = [
+            "pytest>=7.0.0",
+            "pytest-cov>=4.0.0",
+            "pytest-asyncio>=0.21.0",
+            "pytest-mock>=3.10.0",
+            "pytest-timeout>=2.1.0",
+            "httpx>=0.24.0",
+            "faker>=18.0.0"
+        ]
+        
+        for dep in test_deps:
+            try:
+                subprocess.run(
+                    [sys.executable, "-m", "pip", "install", dep],
+                    check=True,
+                    capture_output=True
+                )
+            except subprocess.CalledProcessError:
+                print(f"⚠️ Erro ao instalar {dep}")
+                
+    def run_unit_tests(self) -> Tuple[bool, Dict]:
+        """Executa testes unitários"""
+        print("\n🧪 Executando testes unitários...")
+        
         cmd = [
             sys.executable, "-m", "pytest",
-            "-v", "--tb=short",
+            "tests/test_core_modules.py",
+            "tests/test_validation_service.py",
+            "tests/test_ml_model_service.py",
+            "tests/test_models.py",
+            "tests/test_schemas.py",
+            "tests/test_repositories.py",
+            "tests/test_services.py",
+            "tests/test_utilities.py",
+            "-v",
             "--cov=app",
-            "--cov-branch",
+            "--cov-report=json",
+            "-m", "not integration and not e2e"
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        return result.returncode == 0, self._parse_coverage_json()
+        
+    def run_integration_tests(self) -> Tuple[bool, Dict]:
+        """Executa testes de integração"""
+        print("\n🔗 Executando testes de integração...")
+        
+        cmd = [
+            sys.executable, "-m", "pytest",
+            "tests/test_integration.py",
+            "tests/test_auth_endpoints.py",
+            "-v",
+            "--cov=app",
+            "--cov-report=json",
+            "--cov-append",
+            "-m", "integration or not unit"
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        return result.returncode == 0, self._parse_coverage_json()
+        
+    def run_e2e_tests(self) -> Tuple[bool, Dict]:
+        """Executa testes end-to-end"""
+        print("\n🌐 Executando testes E2E...")
+        
+        cmd = [
+            sys.executable, "-m", "pytest",
+            "tests/test_e2e_comprehensive.py",
+            "-v",
+            "--cov=app",
+            "--cov-report=json",
+            "--cov-append",
+            "-m", "e2e or not unit"
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        return result.returncode == 0, self._parse_coverage_json()
+        
+    def run_all_tests(self) -> Tuple[bool, Dict]:
+        """Executa todos os testes"""
+        print("\n🚀 Executando todos os testes...")
+        
+        cmd = [
+            sys.executable, "-m", "pytest",
+            "tests/",
+            "-v",
+            "--cov=app",
+            "--cov-report=html",
             "--cov-report=term-missing",
-            "--cov-report=html:htmlcov",
-            "--cov-report=json:coverage.json"]
+            "--cov-report=json"
+        ]
         
-        if test_type == "unit":
-            cmd.extend(["-m", "unit"])
-        elif test_type == "integration":
-            cmd.extend(["-m", "integration"])
-        elif test_type == "critical":
-            cmd.extend(["-m", "critical", "--cov-fail-under=100"])
+        result = subprocess.run(cmd, capture_output=True, text=True)
         
-        print(f"Executando testes ({test_type})...")
-        result = subprocess.run(cmd, cwd=self.backend_dir)
-        return result.returncode
-        
-    def analyze_coverage(self) -> Tuple[float, Dict[str, float]]:
-        """Analisa a cobertura de código"""
-        if not self.coverage_file.exists():
-            print("Arquivo de cobertura não encontrado!")
-            return 0.0, {}
+        print(result.stdout)
+        if result.stderr:
+            print("Erros:", result.stderr)
             
-        with open(self.coverage_file, 'r') as f:
-            coverage_data = json.load(f)
-            
-        total_coverage = coverage_data.get("totals", {}).get("percent_covered", 0)
+        return result.returncode == 0, self._parse_coverage_json()
         
+    def _parse_coverage_json(self) -> Dict:
+        """Parse do arquivo JSON de cobertura"""
+        coverage_file = self.project_root / "coverage.json"
+        
+        if not coverage_file.exists():
+            return {}
+            
+        with open(coverage_file, 'r') as f:
+            data = json.load(f)
+            
+        return data
+        
+    def analyze_coverage(self, coverage_data: Dict) -> Dict:
+        """Analisa dados de cobertura"""
+        if not coverage_data:
+            return {
+                "global_coverage": 0,
+                "critical_coverage": {},
+                "missing_coverage": []
+            }
+            
+        # Cobertura global
+        totals = coverage_data.get("totals", {})
+        total_statements = totals.get("num_statements", 0)
+        covered_statements = totals.get("covered_lines", 0)
+        
+        global_coverage = (covered_statements / total_statements * 100) if total_statements > 0 else 0
+        
+        # Cobertura de módulos críticos
         critical_coverage = {}
         files = coverage_data.get("files", {})
         
         for module in self.critical_modules:
             module_path = module.replace(".", "/") + ".py"
+            
             for file_path, file_data in files.items():
                 if module_path in file_path:
-                    critical_coverage[module] = file_data.get("summary", {}).get("percent_covered", 0)
+                    summary = file_data.get("summary", {})
+                    percent_covered = summary.get("percent_covered", 0)
+                    critical_coverage[module] = percent_covered
                     break
-                    
-        return total_coverage, critical_coverage
-        
-    def generate_report(self, total_coverage: float, critical_coverage: Dict[str, float]):
-        """Gera relatório de cobertura"""
-        print("\n" + "="*60)
-        print("RELATÓRIO DE COBERTURA - MedAI")
-        print("="*60)
-        
-        # Cobertura global
-        status = "✅" if total_coverage >= 80 else "❌"
-        print(f"\n{status} Cobertura Global: {total_coverage:.1f}% (Meta: 80%)")
-        
-        # Cobertura de componentes críticos
-        print("\n📊 Componentes Críticos (Meta: 100%):")
-        all_critical_ok = True
-        
-        for module, coverage in critical_coverage.items():
-            status = "✅" if coverage == 100 else "❌"
-            if coverage < 100:
-                all_critical_ok = False
-            print(f"  {status} {module}: {coverage:.1f}%")
+            else:
+                critical_coverage[module] = 0
+                
+        # Arquivos com baixa cobertura
+        missing_coverage = []
+        for file_path, file_data in files.items():
+            summary = file_data.get("summary", {})
+            percent = summary.get("percent_covered", 0)
             
-        # Resumo
-        print("\n" + "-"*60)
-        if total_coverage >= 80 and all_critical_ok:
+            if percent < 80:
+                missing_coverage.append({
+                    "file": file_path,
+                    "coverage": percent,
+                    "missing_lines": file_data.get("missing_lines", [])
+                })
+                
+        return {
+            "global_coverage": global_coverage,
+            "critical_coverage": critical_coverage,
+            "missing_coverage": missing_coverage
+        }
+        
+    def generate_report(self, coverage_analysis: Dict):
+        """Gera relatório de cobertura"""
+        print("\n" + "=" * 60)
+        print("RELATÓRIO DE COBERTURA - MedAI")
+        print("=" * 60)
+        
+        global_cov = coverage_analysis["global_coverage"]
+        global_pass = global_cov >= self.coverage_threshold["global"]
+        
+        print(f"\n{'✅' if global_pass else '❌'} Cobertura Global: {global_cov:.1f}% (Meta: {self.coverage_threshold['global']}%)")
+        
+        print("\n📊 Componentes Críticos (Meta: 100%):\n")
+        
+        all_critical_pass = True
+        for module, coverage in coverage_analysis["critical_coverage"].items():
+            module_pass = coverage >= self.coverage_threshold["critical"]
+            all_critical_pass &= module_pass
+            
+            status = "✅" if module_pass else "❌"
+            module_name = module.split(".")[-1]
+            print(f"  {status} {module_name}: {coverage:.1f}%")
+            
+        if coverage_analysis["missing_coverage"]:
+            print("\n⚠️ Arquivos com baixa cobertura:")
+            for file_info in coverage_analysis["missing_coverage"][:5]:  # Top 5
+                file_name = Path(file_info["file"]).name
+                print(f"  - {file_name}: {file_info['coverage']:.1f}%")
+                
+        print("\n" + "-" * 60)
+        
+        success = global_pass and all_critical_pass
+        
+        if success:
             print("✅ SUCESSO: Todas as metas de cobertura foram atingidas!")
         else:
             print("❌ FALHA: Metas de cobertura não atingidas.")
-            if total_coverage < 80:
-                print(f"   - Cobertura global abaixo de 80% ({total_coverage:.1f}%)")
-            if not all_critical_ok:
-                print("   - Componentes críticos sem 100% de cobertura")
+            
+            if not global_pass:
+                print(f"   - Cobertura global abaixo de {self.coverage_threshold['global']}% ({global_cov:.1f}%)")
                 
-    def run(self):
+            if not all_critical_pass:
+                print("   - Alguns componentes críticos não atingiram 100% de cobertura")
+                
+        print("\n📄 Relatório HTML disponível em: htmlcov/index.html")
+        
+        return success
+        
+    def create_test_fixtures(self):
+        """Cria fixtures necessárias para testes"""
+        print("🔨 Criando fixtures de teste...")
+        
+        # Cria banco de dados de teste
+        from app.core.database import Base, engine
+        Base.metadata.create_all(bind=engine)
+        
+        # Cria modelos ML de teste
+        ml_models_dir = self.project_root / "ml_models"
+        ml_models_dir.mkdir(exist_ok=True)
+        
+        # Cria arquivo de configuração de teste
+        test_env = self.project_root / ".env.test"
+        test_env.write_text("""
+DATABASE_URL=sqlite:///./test_medai.db
+SECRET_KEY=test-secret-key
+ENVIRONMENT=testing
+DEBUG=True
+TESTING=True
+""")
+        
+    def cleanup(self):
+        """Limpa arquivos temporários"""
+        print("\n🧹 Limpando arquivos temporários...")
+        
+        temp_files = [
+            self.project_root / "test_medai.db",
+            self.project_root / ".coverage",
+            self.project_root / "coverage.json",
+            self.project_root / ".env.test"
+        ]
+        
+        for file in temp_files:
+            if file.exists():
+                file.unlink()
+                
+    def run(self, test_type: str = "all"):
         """Executa o processo completo de testes"""
+        print("🚀 Iniciando execução de testes MedAI...")
+        
+        # Setup
         self.setup_environment()
+        self.install_dependencies()
+        self.create_test_fixtures()
         
-        # Executar todos os testes
-        print("🚀 Iniciando execução de testes MedAI...\n")
-        return_code = self.run_tests("all")
+        # Executa testes baseado no tipo
+        success = False
+        coverage_data = {}
         
-        # Analisar cobertura
-        total_coverage, critical_coverage = self.analyze_coverage()
-        
-        # Gerar relatório
-        self.generate_report(total_coverage, critical_coverage)
-        
-        # Executar testes críticos com falha se não 100%
-        if critical_coverage:
-            print("\n🔍 Verificando componentes críticos...")
-            critical_code = self.run_tests("critical")
-            if critical_code != 0:
-                return 1
+        try:
+            if test_type == "unit":
+                success, coverage_data = self.run_unit_tests()
+            elif test_type == "integration":
+                success, coverage_data = self.run_integration_tests()
+            elif test_type == "e2e":
+                success, coverage_data = self.run_e2e_tests()
+            else:  # all
+                success, coverage_data = self.run_all_tests()
                 
-        return 0 if return_code == 0 else 1
+            # Analisa cobertura
+            coverage_analysis = self.analyze_coverage(coverage_data)
+            
+            # Gera relatório
+            coverage_success = self.generate_report(coverage_analysis)
+            
+            # Sucesso final
+            final_success = success and coverage_success
+            
+        except Exception as e:
+            print(f"\n❌ Erro durante execução dos testes: {str(e)}")
+            final_success = False
+            
+        finally:
+            # Cleanup
+            self.cleanup()
+            
+        # Exit code
+        sys.exit(0 if final_success else 1)
+
+
+def main():
+    """Função principal"""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Executor de testes MedAI")
+    parser.add_argument(
+        "type",
+        nargs="?",
+        default="all",
+        choices=["all", "unit", "integration", "e2e"],
+        help="Tipo de teste a executar"
+    )
+    parser.add_argument(
+        "--no-cleanup",
+        action="store_true",
+        help="Não limpar arquivos temporários após execução"
+    )
+    
+    args = parser.parse_args()
+    
+    runner = TestRunner()
+    
+    if args.no_cleanup:
+        runner.cleanup = lambda: None
+        
+    runner.run(args.type)
+
 
 if __name__ == "__main__":
-    runner = TestRunner()
-    sys.exit(runner.run())
+    main()

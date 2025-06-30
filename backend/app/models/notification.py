@@ -1,114 +1,148 @@
 """
-Notification models.
+Modelo de notificação do sistema MedAI
 """
-
+from sqlalchemy import Column, String, ForeignKey, Integer, DateTime, Text, Boolean, Enum, JSON
+from sqlalchemy.orm import relationship
 from datetime import datetime
-from typing import Any
+import enum
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from app.models.base import BaseModel
+from app.core.constants import Priority
 
-from app.core.constants import (
-    NotificationPriority,
-    NotificationType)
-from app.models.base import Base
 
-class Notification(Base):
-    """Notification model."""
+class NotificationType(str, enum.Enum):
+    """Tipos de notificação"""
+    EXAM_READY = "exam_ready"
+    APPOINTMENT_REMINDER = "appointment_reminder"
+    PRESCRIPTION_REMINDER = "prescription_reminder"
+    DIAGNOSTIC_COMPLETE = "diagnostic_complete"
+    CRITICAL_RESULT = "critical_result"
+    SYSTEM_MESSAGE = "system_message"
+    HEALTH_TIP = "health_tip"
 
+
+class NotificationChannel(str, enum.Enum):
+    """Canais de notificação"""
+    EMAIL = "email"
+    SMS = "sms"
+    PUSH = "push"
+    IN_APP = "in_app"
+
+
+class Notification(BaseModel):
+    """Modelo de notificação"""
+    
     __tablename__ = "notifications"
-    __table_args__ = {'extend_existing': True}
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, index=True
-    )
-
-    title: Mapped[str] = mapped_column(String(200), nullable=False)
-    message: Mapped[str] = mapped_column(Text, nullable=False)
-    notification_type: Mapped[NotificationType] = mapped_column(
-        String(50), nullable=False
-    )
-    priority: Mapped[NotificationPriority] = mapped_column(
-        String(20), nullable=False, default=NotificationPriority.NORMAL
-    )
-
-    channels: Mapped[list[str]] = mapped_column(JSON, nullable=False)
-
-    related_resource_type: Mapped[str | None] = mapped_column(String(50))
-    related_resource_id: Mapped[int | None] = mapped_column(Integer)
-
-    is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    is_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-
-    delivery_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    last_delivery_attempt: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    delivery_status: Mapped[str | None] = mapped_column(String(50))
-
-    notification_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON)
-    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-
-    def __repr__(self) -> str:
-        return f"<Notification(id={self.id}, type='{self.notification_type}', priority='{self.priority}')>"
-
-class NotificationTemplate(Base):
-    """Notification template model."""
-
-    __tablename__ = "notification_templates"
-    __table_args__ = {'extend_existing': True}
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-
-    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-    notification_type: Mapped[NotificationType] = mapped_column(
-        String(50), nullable=False
-    )
-
-    title_template: Mapped[str] = mapped_column(String(200), nullable=False)
-    message_template: Mapped[str] = mapped_column(Text, nullable=False)
-
-    email_subject_template: Mapped[str | None] = mapped_column(String(200))
-    email_body_template: Mapped[str | None] = mapped_column(Text)
-    sms_template: Mapped[str | None] = mapped_column(String(160))
-    push_template: Mapped[str | None] = mapped_column(Text)
-
-    default_channels: Mapped[list[str]] = mapped_column(JSON, nullable=False)
-    default_priority: Mapped[NotificationPriority] = mapped_column(
-        String(20), nullable=False, default=NotificationPriority.NORMAL
-    )
-
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-
-    def __repr__(self) -> str:
-        return f"<NotificationTemplate(id={self.id}, name='{self.name}', type='{self.notification_type}')>"
-
-class NotificationPreference(Base):
-    """User notification preference model."""
-
-    __tablename__ = "notification_preferences"
-    __table_args__ = {'extend_existing': True}
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, index=True
-    )
-
-    notification_type: Mapped[NotificationType] = mapped_column(
-        String(50), nullable=False
-    )
-    enabled_channels: Mapped[list[str]] = mapped_column(JSON, nullable=False)
-
-    quiet_hours_start: Mapped[str | None] = mapped_column(String(5))  # HH:MM
-    quiet_hours_end: Mapped[str | None] = mapped_column(String(5))    # HH:MM
-    timezone: Mapped[str] = mapped_column(String(50), nullable=False, default="UTC")
-
-    escalation_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    escalation_delay_minutes: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
-    escalation_channels: Mapped[list[str] | None] = mapped_column(JSON)
-
-    def __repr__(self) -> str:
-        return f"<NotificationPreference(id={self.id}, user_id={self.user_id}, type='{self.notification_type}')>"
+    
+    # Usuário destinatário
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user = relationship("User", back_populates="notifications")
+    
+    # Tipo e canal
+    notification_type = Column(Enum(NotificationType), nullable=False)
+    channel = Column(Enum(NotificationChannel), default=NotificationChannel.IN_APP, nullable=False)
+    priority = Column(Enum(Priority), default=Priority.MEDIUM, nullable=False)
+    
+    # Conteúdo
+    title = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    action_url = Column(String(255), nullable=True)
+    metadata = Column(JSON, nullable=True)
+    
+    # Status
+    is_read = Column(Boolean, default=False, nullable=False)
+    read_at = Column(DateTime, nullable=True)
+    is_sent = Column(Boolean, default=False, nullable=False)
+    sent_at = Column(DateTime, nullable=True)
+    
+    # Tentativas de envio
+    send_attempts = Column(Integer, default=0, nullable=False)
+    last_attempt_at = Column(DateTime, nullable=True)
+    error_message = Column(Text, nullable=True)
+    
+    # Agendamento
+    scheduled_for = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=True)
+    
+    def __repr__(self):
+        return f"<Notification(id={self.id}, type={self.notification_type.value}, user_id={self.user_id})>"
+    
+    @property
+    def is_expired(self) -> bool:
+        """Verifica se a notificação expirou"""
+        if not self.expires_at:
+            return False
+        return datetime.utcnow() > self.expires_at
+    
+    @property
+    def is_pending(self) -> bool:
+        """Verifica se está pendente de envio"""
+        return not self.is_sent and not self.is_expired
+    
+    @property
+    def should_send_now(self) -> bool:
+        """Verifica se deve ser enviada agora"""
+        if self.is_sent or self.is_expired:
+            return False
+        
+        if self.scheduled_for:
+            return datetime.utcnow() >= self.scheduled_for
+        
+        return True
+    
+    def mark_as_read(self):
+        """Marca como lida"""
+        self.is_read = True
+        self.read_at = datetime.utcnow()
+    
+    def mark_as_sent(self):
+        """Marca como enviada"""
+        self.is_sent = True
+        self.sent_at = datetime.utcnow()
+    
+    def increment_send_attempt(self, error: str = None):
+        """Incrementa tentativa de envio"""
+        self.send_attempts += 1
+        self.last_attempt_at = datetime.utcnow()
+        
+        if error:
+            self.error_message = error
+    
+    @classmethod
+    def create_exam_ready_notification(cls, user_id: int, exam_id: int, exam_type: str) -> 'Notification':
+        """Cria notificação de exame pronto"""
+        return cls(
+            user_id=user_id,
+            notification_type=NotificationType.EXAM_READY,
+            title="Exame Disponível",
+            message=f"Seu exame de {exam_type} está pronto para visualização.",
+            action_url=f"/exams/{exam_id}/result",
+            priority=Priority.HIGH,
+            metadata={"exam_id": exam_id, "exam_type": exam_type}
+        )
+    
+    @classmethod
+    def create_appointment_reminder(cls, user_id: int, appointment_id: int, appointment_time: datetime) -> 'Notification':
+        """Cria lembrete de consulta"""
+        return cls(
+            user_id=user_id,
+            notification_type=NotificationType.APPOINTMENT_REMINDER,
+            title="Lembrete de Consulta",
+            message=f"Você tem uma consulta agendada para {appointment_time.strftime('%d/%m/%Y às %H:%M')}.",
+            action_url=f"/appointments/{appointment_id}",
+            priority=Priority.HIGH,
+            metadata={"appointment_id": appointment_id},
+            scheduled_for=appointment_time
+        )
+    
+    @classmethod
+    def create_critical_result_notification(cls, doctor_id: int, patient_name: str, exam_type: str) -> 'Notification':
+        """Cria notificação de resultado crítico"""
+        return cls(
+            user_id=doctor_id,
+            notification_type=NotificationType.CRITICAL_RESULT,
+            title="Resultado Crítico Detectado",
+            message=f"Resultado crítico detectado no exame de {exam_type} do paciente {patient_name}.",
+            priority=Priority.CRITICAL,
+            channel=NotificationChannel.PUSH
+        )

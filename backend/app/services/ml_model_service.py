@@ -1,347 +1,494 @@
 """
-ML Model Service - Machine Learning model management and inference.
+Serviço de modelos de Machine Learning
 """
-
-import logging
-import time
-from pathlib import Path
-from typing import Any
-
+import os
+import json
+import pickle
 import numpy as np
-import onnxruntime as ort
+import pandas as pd
+from typing import Dict, Any, List, Optional, Tuple
+from datetime import datetime
+import logging
+from pathlib import Path
+
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 from app.core.config import settings
-from app.core.exceptions import MLModelException
-from app.utils.memory_monitor import MemoryMonitor
+from app.core.constants import ExamType, DiagnosticStatus
+from app.schemas.ml_model import (
+    MLModelCreate,
+    MLModelUpdate,
+    PredictionRequest,
+    PredictionResponse,
+    ModelMetrics
+)
 
 logger = logging.getLogger(__name__)
 
+
 class MLModelService:
-    """ML Model Service for ECG analysis using ONNX Runtime."""
-
-    def __init__(self) -> None:
-        self.models: dict[str, ort.InferenceSession] = {}
-        self.model_metadata: dict[str, dict[str, Any]] = {}
-        self.memory_monitor = MemoryMonitor()
-        self._load_models()
-
-    def _load_models(self) -> None:
-        """Load ML models from disk."""
-        try:
-            models_dir = Path(settings.MODELS_DIR)
-            if not models_dir.exists():
-                logger.warning(f"Models directory not found: {models_dir}")
-                return
-
-            if ecg_model_path.exists():
-                self._load_model("ecg_classifier", str(ecg_model_path))
-
-            rhythm_model_path = models_dir / "rhythm_detector.onnx"
-            if rhythm_model_path.exists():
-                self._load_model("rhythm_detector", str(rhythm_model_path))
-
-            quality_model_path = models_dir / "quality_assessor.onnx"
-            if quality_model_path.exists():
-                self._load_model("quality_assessor", str(quality_model_path))
-
-            logger.info(f"Loaded {len(self.models)} ML models")
-
-        except Exception as e:
-            logger.error(f"Failed to load models: {str(e)}")
-
-    def _load_model(self, model_name: str, model_path: str) -> None:
-        """Load a single ONNX model."""
-        try:
-            providers = ['CPUExecutionProvider']
-
-            if ort.get_device() == 'GPU':
-                providers.insert(0, 'CUDAExecutionProvider')
-
-            session_options = ort.SessionOptions()
-            session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-            session_options.intra_op_num_threads = 4
-            session_options.inter_op_num_threads = 2
-
-            session = ort.InferenceSession(
-                model_path,
-                sess_options=session_options,
-                providers=providers
-            )
-
-            self.models[model_name] = session
-
-            input_meta = session.get_inputs()[0]
-            output_meta = session.get_outputs()[0]
-
-            self.model_metadata[model_name] = {
-                "input_shape": input_meta.shape,
-                "input_type": input_meta.type,
-                "output_shape": output_meta.shape,
-                "output_type": output_meta.type,
-                "providers": session.get_providers(),
-            }
-
-            logger.info(
-                f"Loaded model {model_name} with input_shape={input_meta.shape} providers={session.get_providers()}"
-            )
-
-        except Exception as e:
-            logger.error(f"Failed to load model {model_name}: {str(e)}")
-            raise MLModelException(f"Failed to load model {model_name}: {str(e)}") from e
-
-    async def analyze_ecg(
-        self,
+    """Serviço para gerenciamento de modelos de ML"""
+    
+    def __init__(self):
+        self.models_dir = Path(settings.ML_MODELS_DIR)
+        self.models_dir.mkdir(exist_ok=True)
+        self.loaded_models = {}
+        self.scalers = {}
         
-        sample_rate: int,
-        leads_names: list[str]) -> dict[str, Any]:
-        """Analyze ECG data using ML models."""
+    def load_model(self, model_name: str, exam_type: ExamType) -> Any:
+        """Carrega um modelo do disco"""
         try:
-            start_time = time.time()
-
-            processed_data = await self._preprocess_for_inference(
-                ecg_data, sample_rate, leads_names
-            )
-
-            results = {
-                "confidence": 0.0,
-                "predictions": {},
-                "interpretability": {},
-                "rhythm": "Unknown",
-                "events": [],
-            }
-
-            if "ecg_classifier" in self.models:
-                classification_results = await self._run_classification(processed_data)
-                predictions = classification_results["predictions"]
-                if isinstance(predictions, dict):
-                    results_predictions = results["predictions"]
-                    if isinstance(results_predictions, dict):
-                        results_predictions.update(predictions)
-                results["confidence"] = classification_results["confidence"]
-
-                if classification_results["confidence"] > 0.5:
-                    interpretability = await self._generate_interpretability(
-                        processed_data, classification_results
-                    )
-                    results["interpretability"] = interpretability
-
-            if "rhythm_detector" in self.models:
-                rhythm_results = await self._run_rhythm_detection(processed_data)
-                results["rhythm"] = rhythm_results["rhythm"]
-                events = rhythm_results.get("events", [])
-                if isinstance(events, list):
-                    results_events = results["events"]
-                    if isinstance(results_events, list):
-                        results_events.extend(events)
-
-            if "quality_assessor" in self.models:
-                quality_results = await self._run_quality_assessment(processed_data)
-                results["quality_score"] = quality_results["score"]
-                results["quality_issues"] = quality_results.get("issues", [])
-
-            processing_time = time.time() - start_time
-            results["processing_time_seconds"] = processing_time
-
-            logger.info(
-                f"ECG analysis completed with confidence={results['confidence']} rhythm={results['rhythm']} processing_time={processing_time}"
-            )
-
-            return results
-
-        except Exception as e:
-            logger.error(f"ECG analysis failed: {str(e)}")
-            raise MLModelException(f"ECG analysis failed: {str(e)}") from e
-
-    async def _preprocess_for_inference(
-        self,
-        
-        sample_rate: int,
-        leads_names: list[str]) -> "np.ndarray[Any, np.dtype[np.float32]]":
-        """Preprocess ECG data for model inference."""
-        try:
-            if ecg_data.shape[1] < 12:
-                padded_data = np.zeros((ecg_data.shape[0], 12), dtype=np.float32)
-                padded_data[:, :ecg_data.shape[1]] = ecg_data
+            model_path = self.models_dir / f"{exam_type.value}_{model_name}.pkl"
+            
+            if model_path.exists():
+                with open(model_path, 'rb') as f:
+                    model = pickle.load(f)
+                self.loaded_models[f"{exam_type.value}_{model_name}"] = model
+                logger.info(f"Modelo {model_name} para {exam_type.value} carregado com sucesso")
+                return model
+            else:
+                logger.warning(f"Modelo {model_name} para {exam_type.value} não encontrado")
+                return None
                 
-            elif ecg_data.shape[1] > 12:
-
-            target_sample_rate = 500
-            if sample_rate != target_sample_rate:
-                from scipy import signal
-                num_samples = int(ecg_data.shape[0] * target_sample_rate / sample_rate)
-                resampled = signal.resample(ecg_data, num_samples, axis=0)
-                if isinstance(resampled, tuple):
-                    
-                else:
-
-            target_length = 5000
-            if ecg_data.shape[0] > target_length:
+        except Exception as e:
+            logger.error(f"Erro ao carregar modelo: {str(e)}")
+            raise
+    
+    def save_model(self, model: Any, model_name: str, exam_type: ExamType) -> bool:
+        """Salva um modelo no disco"""
+        try:
+            model_path = self.models_dir / f"{exam_type.value}_{model_name}.pkl"
+            
+            with open(model_path, 'wb') as f:
+                pickle.dump(model, f)
                 
-            elif ecg_data.shape[0] < target_length:
-                padded_data = np.zeros((target_length, 12), dtype=np.float32)
-                padded_data[:ecg_data.shape[0], :] = ecg_data
-
-            return ecg_data
-
-        except Exception as e:
-            logger.error(f"Preprocessing failed: {str(e)}")
-            raise MLModelException(f"Preprocessing failed: {str(e)}") from e
-
-    async def _run_classification(self, data: "np.ndarray[Any, np.dtype[np.float32]]") -> dict[str, Any]:
-        """Run ECG classification model."""
-        try:
-            model = self.models["ecg_classifier"]
-            input_name = model.get_inputs()[0].name
-
-            outputs = model.run(None, {input_name: data})
-            predictions = outputs[0][0]  # Remove batch dimension
-
-            condition_names = [
-                "normal",
-                "atrial_fibrillation",
-                "atrial_flutter",
-                "supraventricular_tachycardia",
-                "ventricular_tachycardia",
-                "ventricular_fibrillation",
-                "first_degree_block",
-                "second_degree_block",
-                "complete_heart_block",
-                "left_bundle_branch_block",
-                "right_bundle_branch_block",
-                "premature_atrial_contraction",
-                "premature_ventricular_contraction",
-                "stemi",
-                "nstemi"]
-
-            predictions_dict = {}
-            for i, condition in enumerate(condition_names):
-                if i < len(predictions):
-                    predictions_dict[condition] = float(predictions[i])
-
-            confidence = float(np.max(predictions))
-
-            return {
-                "predictions": predictions_dict,
-                "confidence": confidence,
-            }
-
-        except Exception as e:
-            logger.error(f"Classification failed: {str(e)}")
-            return {"predictions": {}, "confidence": 0.0}
-
-    async def _run_rhythm_detection(self, data: "np.ndarray[Any, np.dtype[np.float32]]") -> dict[str, Any]:
-        """Run rhythm detection model."""
-        try:
-            model = self.models["rhythm_detector"]
-            input_name = model.get_inputs()[0].name
-
-            outputs = model.run(None, {input_name: data})
-            rhythm_probs = outputs[0][0]
-
-            rhythm_types = [
-                "Sinus Rhythm",
-                "Atrial Fibrillation",
-                "Atrial Flutter",
-                "Supraventricular Tachycardia",
-                "Ventricular Tachycardia",
-                "Ventricular Fibrillation",
-                "Asystole"]
-
-            rhythm_idx = np.argmax(rhythm_probs)
-            rhythm = rhythm_types[rhythm_idx] if rhythm_idx < len(rhythm_types) else "Unknown"
-
-            events = []
-            if rhythm != "Sinus Rhythm" and rhythm_probs[rhythm_idx] > 0.7:
-                events.append({
-                    "label": f"{rhythm}_detected",
-                    "time_ms": 0.0,
-                    "confidence": float(rhythm_probs[rhythm_idx]),
-                    "properties": {"rhythm_type": rhythm},
-                })
-
-            return {
-                "rhythm": rhythm,
-                "rhythm_confidence": float(rhythm_probs[rhythm_idx]),
-                "events": events,
-            }
-
-        except Exception as e:
-            logger.error(f"Rhythm detection failed: {str(e)}")
-            return {"rhythm": "Unknown", "events": []}
-
-    async def _run_quality_assessment(self, data: "np.ndarray[Any, np.dtype[np.float32]]") -> dict[str, Any]:
-        """Run signal quality assessment model."""
-        try:
-            model = self.models["quality_assessor"]
-            input_name = model.get_inputs()[0].name
-
-            outputs = model.run(None, {input_name: data})
-            quality_score = float(outputs[0][0][0])
-
-            issues = []
-            if quality_score < 0.5:
-                issues.append("Poor signal quality")
-            if quality_score < 0.3:
-                issues.append("Significant noise detected")
-
-            return {
-                "score": quality_score,
-                "issues": issues,
-            }
-
-        except Exception as e:
-            logger.error(f"Quality assessment failed: {str(e)}")
-            return {"score": 0.5, "issues": ["Quality assessment unavailable"]}
-
-    async def _generate_interpretability(
-        self, data: "np.ndarray[Any, np.dtype[np.float32]]", classification_results: dict[str, Any]
-    ) -> dict[str, Any]:
-        """Generate interpretability maps using gradient-based methods."""
-        try:
-            interpretability = {
-                "attention_maps": {},
-                "feature_importance": {},
-                "explanation": "AI detected patterns consistent with the predicted condition",
-            }
-
-            leads = ["I", "II", "III", "aVR", "aVL", "aVF", "V1", "V2", "V3", "V4", "V5", "V6"]
-            for _i, lead in enumerate(leads):
-                attention = np.random.random(data.shape[2]) * classification_results["confidence"]
-                attention_maps = interpretability["attention_maps"]
-                if isinstance(attention_maps, dict):
-                    attention_maps[lead] = attention.tolist()
-
-            predictions = classification_results["predictions"]
-            top_prediction = max(predictions.items(), key=lambda x: x[1])
-
-            interpretability["feature_importance"] = {
-                "most_important_lead": "II",  # Simplified
-                "key_intervals": ["QRS", "ST_segment"],
-                "confidence_factors": [
-                    f"Strong {top_prediction[0]} pattern detected",
-                    f"Confidence: {top_prediction[1]:.2f}"],
-            }
-
-            return interpretability
-
-        except Exception as e:
-            logger.error(f"Interpretability generation failed: {str(e)}")
-            return {"explanation": "Interpretability analysis unavailable"}
-
-    def get_model_info(self) -> dict[str, Any]:
-        """Get information about loaded models."""
-        return {
-            "loaded_models": list(self.models.keys()),
-            "model_metadata": self.model_metadata,
-            "memory_usage": self.memory_monitor.get_memory_usage(),
-        }
-
-    def unload_model(self, model_name: str) -> bool:
-        """Unload a model to free memory."""
-        if model_name in self.models:
-            del self.models[model_name]
-            if model_name in self.model_metadata:
-                del self.model_metadata[model_name]
-            logger.info(f"Unloaded model {model_name}")
+            logger.info(f"Modelo {model_name} para {exam_type.value} salvo com sucesso")
             return True
-        return False
+            
+        except Exception as e:
+            logger.error(f"Erro ao salvar modelo: {str(e)}")
+            return False
+    
+    def train_model(
+        self,
+        data: pd.DataFrame,
+        target_column: str,
+        exam_type: ExamType,
+        model_name: str,
+        test_size: float = 0.2
+    ) -> Dict[str, Any]:
+        """Treina um novo modelo"""
+        try:
+            # Preparar dados
+            X = data.drop(columns=[target_column])
+            y = data[target_column]
+            
+            # Dividir dados
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=test_size, random_state=42
+            )
+            
+            # Normalizar dados
+            scaler = StandardScaler()
+            X_train_scaled = scaler.fit_transform(X_train)
+            X_test_scaled = scaler.transform(X_test)
+            
+            # Treinar modelo
+            model = RandomForestClassifier(
+                n_estimators=100,
+                random_state=42,
+                n_jobs=-1
+            )
+            model.fit(X_train_scaled, y_train)
+            
+            # Avaliar modelo
+            y_pred = model.predict(X_test_scaled)
+            
+            metrics = {
+                "accuracy": accuracy_score(y_test, y_pred),
+                "precision": precision_score(y_test, y_pred, average='weighted'),
+                "recall": recall_score(y_test, y_pred, average='weighted'),
+                "f1_score": f1_score(y_test, y_pred, average='weighted')
+            }
+            
+            # Salvar modelo e scaler
+            self.save_model(model, model_name, exam_type)
+            self.save_scaler(scaler, model_name, exam_type)
+            
+            # Manter em memória
+            model_key = f"{exam_type.value}_{model_name}"
+            self.loaded_models[model_key] = model
+            self.scalers[model_key] = scaler
+            
+            return {
+                "success": True,
+                "metrics": metrics,
+                "model_name": model_name,
+                "exam_type": exam_type.value,
+                "trained_at": datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Erro ao treinar modelo: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def predict(
+        self,
+        model_name: str,
+        exam_type: ExamType,
+        features: Dict[str, Any]
+    ) -> PredictionResponse:
+        """Realiza predição usando um modelo"""
+        try:
+            model_key = f"{exam_type.value}_{model_name}"
+            
+            # Carregar modelo se não estiver em memória
+            if model_key not in self.loaded_models:
+                model = self.load_model(model_name, exam_type)
+                if not model:
+                    raise ValueError(f"Modelo {model_name} não encontrado")
+            else:
+                model = self.loaded_models[model_key]
+            
+            # Carregar scaler
+            if model_key not in self.scalers:
+                scaler = self.load_scaler(model_name, exam_type)
+                if scaler:
+                    self.scalers[model_key] = scaler
+            
+            # Preparar features
+            feature_array = self._prepare_features(features, exam_type)
+            
+            # Normalizar se scaler disponível
+            if model_key in self.scalers:
+                feature_array = self.scalers[model_key].transform([feature_array])
+            else:
+                feature_array = [feature_array]
+            
+            # Predição
+            prediction = model.predict(feature_array)[0]
+            probabilities = model.predict_proba(feature_array)[0]
+            
+            # Preparar resposta
+            response = PredictionResponse(
+                prediction=str(prediction),
+                confidence=float(max(probabilities)),
+                probabilities={
+                    str(cls): float(prob)
+                    for cls, prob in zip(model.classes_, probabilities)
+                },
+                model_name=model_name,
+                exam_type=exam_type.value,
+                status=DiagnosticStatus.COMPLETED,
+                processed_at=datetime.utcnow()
+            )
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"Erro na predição: {str(e)}")
+            raise
+    
+    def _prepare_features(
+        self,
+        features: Dict[str, Any],
+        exam_type: ExamType
+    ) -> np.ndarray:
+        """Prepara features para predição baseado no tipo de exame"""
+        if exam_type == ExamType.ECG:
+            # Processar dados de ECG
+            return self._prepare_ecg_features(features)
+        elif exam_type == ExamType.BLOOD_TEST:
+            # Processar exame de sangue
+            return self._prepare_blood_test_features(features)
+        elif exam_type == ExamType.XRAY:
+            # Processar raio-X
+            return self._prepare_xray_features(features)
+        else:
+            # Processar outros tipos
+            return np.array(list(features.values()))
+    
+    def _prepare_ecg_features(self, features: Dict[str, Any]) -> np.ndarray:
+        """Prepara features específicas de ECG"""
+        # Extrair características do ECG
+        ecg_features = []
+        
+        # Taxa cardíaca
+        if 'heart_rate' in features:
+            ecg_features.append(features['heart_rate'])
+        else:
+            # Calcular a partir dos dados brutos se disponível
+            if 'raw_data' in features:
+                raw_data = np.array(features['raw_data'])
+                # Simplificação: usar frequência de amostragem padrão
+                if exam_type == ExamType.ECG:
+                    target_sample_rate = 500
+                else:
+                    target_sample_rate = 250
+                
+                heart_rate = self._calculate_heart_rate(raw_data, target_sample_rate)
+                ecg_features.append(heart_rate)
+        
+        # Intervalos
+        for interval in ['pr_interval', 'qrs_duration', 'qt_interval']:
+            if interval in features:
+                ecg_features.append(features[interval])
+        
+        # Amplitudes
+        for amplitude in ['p_wave_amplitude', 'qrs_amplitude', 't_wave_amplitude']:
+            if amplitude in features:
+                ecg_features.append(features[amplitude])
+        
+        # Variabilidade da frequência cardíaca
+        if 'hrv' in features:
+            ecg_features.append(features['hrv'])
+        
+        return np.array(ecg_features)
+    
+    def _prepare_blood_test_features(self, features: Dict[str, Any]) -> np.ndarray:
+        """Prepara features específicas de exame de sangue"""
+        blood_features = []
+        
+        # Hemograma
+        hemogram_params = [
+            'hemoglobin', 'hematocrit', 'red_cells', 'white_cells',
+            'platelets', 'mcv', 'mch', 'mchc'
+        ]
+        
+        for param in hemogram_params:
+            if param in features:
+                blood_features.append(features[param])
+        
+        # Bioquímica
+        biochemistry_params = [
+            'glucose', 'urea', 'creatinine', 'cholesterol_total',
+            'hdl', 'ldl', 'triglycerides', 'ast', 'alt'
+        ]
+        
+        for param in biochemistry_params:
+            if param in features:
+                blood_features.append(features[param])
+        
+        return np.array(blood_features)
+    
+    def _prepare_xray_features(self, features: Dict[str, Any]) -> np.ndarray:
+        """Prepara features específicas de raio-X"""
+        xray_features = []
+        
+        # Features extraídas da imagem
+        image_features = [
+            'lung_density', 'heart_size', 'mediastinum_width',
+            'diaphragm_position', 'bone_density'
+        ]
+        
+        for feature in image_features:
+            if feature in features:
+                xray_features.append(features[feature])
+        
+        # Presença de padrões
+        patterns = [
+            'infiltrate', 'consolidation', 'nodule',
+            'mass', 'cavity', 'calcification'
+        ]
+        
+        for pattern in patterns:
+            if pattern in features:
+                # Converter booleano para numérico
+                xray_features.append(1 if features[pattern] else 0)
+        
+        return np.array(xray_features)
+    
+    def _calculate_heart_rate(self, ecg_signal: np.ndarray, sample_rate: int) -> float:
+        """Calcula frequência cardíaca a partir do sinal ECG"""
+        # Implementação simplificada
+        # Em produção, usar algoritmo mais robusto (ex: Pan-Tompkins)
+        
+        # Detectar picos R (simplificado)
+        threshold = np.mean(ecg_signal) + 2 * np.std(ecg_signal)
+        peaks = np.where(ecg_signal > threshold)[0]
+        
+        if len(peaks) < 2:
+            return 60.0  # Valor padrão
+        
+        # Calcular intervalos RR
+        rr_intervals = np.diff(peaks) / sample_rate
+        
+        # Frequência cardíaca média
+        if len(rr_intervals) > 0:
+            mean_rr = np.mean(rr_intervals)
+            heart_rate = 60.0 / mean_rr
+            return np.clip(heart_rate, 40, 200)  # Limitar a valores fisiológicos
+        
+        return 60.0
+    
+    def save_scaler(self, scaler: StandardScaler, model_name: str, exam_type: ExamType) -> bool:
+        """Salva o scaler do modelo"""
+        try:
+            scaler_path = self.models_dir / f"{exam_type.value}_{model_name}_scaler.pkl"
+            
+            with open(scaler_path, 'wb') as f:
+                pickle.dump(scaler, f)
+                
+            return True
+            
+        except Exception as e:
+            logger.error(f"Erro ao salvar scaler: {str(e)}")
+            return False
+    
+    def load_scaler(self, model_name: str, exam_type: ExamType) -> Optional[StandardScaler]:
+        """Carrega o scaler do modelo"""
+        try:
+            scaler_path = self.models_dir / f"{exam_type.value}_{model_name}_scaler.pkl"
+            
+            if scaler_path.exists():
+                with open(scaler_path, 'rb') as f:
+                    return pickle.load(f)
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Erro ao carregar scaler: {str(e)}")
+            return None
+    
+    def get_model_info(self, model_name: str, exam_type: ExamType) -> Dict[str, Any]:
+        """Obtém informações sobre um modelo"""
+        model_path = self.models_dir / f"{exam_type.value}_{model_name}.pkl"
+        
+        if not model_path.exists():
+            return {"exists": False}
+        
+        model_key = f"{exam_type.value}_{model_name}"
+        
+        # Carregar modelo se necessário
+        if model_key not in self.loaded_models:
+            self.load_model(model_name, exam_type)
+        
+        model = self.loaded_models.get(model_key)
+        
+        if model:
+            info = {
+                "exists": True,
+                "name": model_name,
+                "exam_type": exam_type.value,
+                "type": type(model).__name__,
+                "created_at": datetime.fromtimestamp(model_path.stat().st_ctime).isoformat(),
+                "modified_at": datetime.fromtimestamp(model_path.stat().st_mtime).isoformat(),
+                "size_bytes": model_path.stat().st_size
+            }
+            
+            # Adicionar informações específicas do modelo
+            if hasattr(model, 'n_estimators'):
+                info['n_estimators'] = model.n_estimators
+            if hasattr(model, 'feature_importances_'):
+                info['n_features'] = len(model.feature_importances_)
+            
+            return info
+        
+        return {"exists": False}
+    
+    def list_models(self, exam_type: Optional[ExamType] = None) -> List[Dict[str, Any]]:
+        """Lista todos os modelos disponíveis"""
+        models = []
+        
+        for model_file in self.models_dir.glob("*.pkl"):
+            if model_file.name.endswith("_scaler.pkl"):
+                continue
+                
+            parts = model_file.stem.split("_", 1)
+            if len(parts) == 2:
+                file_exam_type, model_name = parts
+                
+                if exam_type and file_exam_type != exam_type.value:
+                    continue
+                
+                try:
+                    exam_type_enum = ExamType(file_exam_type)
+                    model_info = self.get_model_info(model_name, exam_type_enum)
+                    if model_info.get("exists"):
+                        models.append(model_info)
+                except ValueError:
+                    logger.warning(f"Tipo de exame inválido: {file_exam_type}")
+        
+        return models
+    
+    def delete_model(self, model_name: str, exam_type: ExamType) -> bool:
+        """Remove um modelo"""
+        try:
+            # Remover arquivos
+            model_path = self.models_dir / f"{exam_type.value}_{model_name}.pkl"
+            scaler_path = self.models_dir / f"{exam_type.value}_{model_name}_scaler.pkl"
+            
+            if model_path.exists():
+                model_path.unlink()
+            
+            if scaler_path.exists():
+                scaler_path.unlink()
+            
+            # Remover da memória
+            model_key = f"{exam_type.value}_{model_name}"
+            
+            if model_key in self.loaded_models:
+                del self.loaded_models[model_key]
+            
+            if model_key in self.scalers:
+                del self.scalers[model_key]
+            
+            logger.info(f"Modelo {model_name} para {exam_type.value} removido com sucesso")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Erro ao remover modelo: {str(e)}")
+            return False
+    
+    def evaluate_model(
+        self,
+        model_name: str,
+        exam_type: ExamType,
+        test_data: pd.DataFrame,
+        target_column: str
+    ) -> ModelMetrics:
+        """Avalia um modelo com dados de teste"""
+        try:
+            model_key = f"{exam_type.value}_{model_name}"
+            
+            # Carregar modelo
+            if model_key not in self.loaded_models:
+                model = self.load_model(model_name, exam_type)
+                if not model:
+                    raise ValueError(f"Modelo {model_name} não encontrado")
+            else:
+                model = self.loaded_models[model_key]
+            
+            # Preparar dados
+            X_test = test_data.drop(columns=[target_column])
+            y_test = test_data[target_column]
+            
+            # Normalizar se scaler disponível
+            if model_key in self.scalers:
+                X_test = self.scalers[model_key].transform(X_test)
+            
+            # Predições
+            y_pred = model.predict(X_test)
+            
+            # Calcular métricas
+            metrics = ModelMetrics(
+                accuracy=accuracy_score(y_test, y_pred),
+                precision=precision_score(y_test, y_pred, average='weighted'),
+                recall=recall_score(y_test, y_pred, average='weighted'),
+                f1_score=f1_score(y_test, y_pred, average='weighted'),
+                model_name=model_name,
+                exam_type=exam_type.value,
+                evaluated_at=datetime.utcnow()
+            )
+            
+            return metrics
+            
+        except Exception as e:
+            logger.error(f"Erro ao avaliar modelo: {str(e)}")
+            raise

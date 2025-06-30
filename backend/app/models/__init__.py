@@ -1,28 +1,22 @@
 """
-Models package - ordem correta de imports para evitar dependências circulares
+Modelos do banco de dados MedAI
 """
+from app.models.base import Base
+from app.models.user import User
+from app.models.patient import Patient
+from app.models.exam import Exam
+from app.models.diagnostic import Diagnostic
+from app.models.prescription import Prescription
+from app.models.appointment import Appointment
+from app.models.notification import Notification
 
-# Imports base
-from .base import Base, TimestampMixin
-
-# Modelos independentes primeiro
-from .user import User
-from .patient import Patient
-
-# Modelos que dependem dos anteriores
-from .notification import Notification
-from .validation import Validation
-from .prescription import Prescription
-from .medical_record import MedicalRecord
-from .clinical_protocol import ClinicalProtocol
-from .dataset import Dataset
-from .exam_request import ExamRequest
-
-# Re-exportar todos os modelos
 __all__ = [
-    'Base', 'TimestampMixin',
-    'User', 'Patient', 'ECGRecord', 'ECGAnalysis',
-    'Notification', 'Validation', 'Prescription',
-    'MedicalRecord', 'ClinicalProtocol', 'Dataset',
-    'ExamRequest'
+    'Base',
+    'User',
+    'Patient',
+    'Exam',
+    'Diagnostic',
+    'Prescription',
+    'Appointment',
+    'Notification'
 ]

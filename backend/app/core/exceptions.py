@@ -1,149 +1,178 @@
 """
-Custom exceptions for CardioAI Pro.
+Exceções customizadas do sistema MedAI
 """
+from typing import Any, Dict, Optional, Union
+from fastapi import HTTPException, status
 
-from typing import Any
 
-class CardioAIException(Exception):
-    """Base exception for CardioAI Pro."""
-
+class MedAIException(HTTPException):
+    """Exceção base do sistema MedAI"""
+    
     def __init__(
         self,
-        message: str,
-        error_code: str = "CARDIOAI_ERROR",
-        status_code: int = 500,
-        details: dict[str, Any] | None = None) -> None:
-        self.message = message
-        self.error_code = error_code
-        self.status_code = status_code
-        self.details = details or {}
-        super().__init__(self.message)
+        detail: str,
+        status_code: int = status.HTTP_400_BAD_REQUEST,
+        headers: Optional[Dict[str, str]] = None
+    ):
+        super().__init__(status_code=status_code, detail=detail, headers=headers)
 
-class ValidationException(CardioAIException):
-    """Validation error exception."""
 
-    def __init__(
-        self,
-        message: str = "Validation failed",
-        errors: list[dict[str, Any]] | None = None) -> None:
-        self.errors = errors or []
+class AuthenticationError(MedAIException):
+    """Erro de autenticação"""
+    
+    def __init__(self, detail: str = "Authentication failed"):
         super().__init__(
-            message=message,
-            error_code="VALIDATION_ERROR",
-            status_code=422,
-            details={"errors": self.errors})
+            detail=detail,
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            headers={"WWW-Authenticate": "Bearer"}
+        )
 
-class AuthenticationException(CardioAIException):
-    """Authentication error exception."""
 
-    def __init__(self, message: str = "Authentication failed") -> None:
+class AuthorizationError(MedAIException):
+    """Erro de autorização"""
+    
+    def __init__(self, detail: str = "Not enough permissions"):
         super().__init__(
-            message=message,
-            error_code="AUTHENTICATION_ERROR",
-            status_code=401)
+            detail=detail,
+            status_code=status.HTTP_403_FORBIDDEN
+        )
 
-class PermissionDeniedException(CardioAIException):
-    """Permission denied exception."""
 
-    def __init__(self, message: str = "Permission denied") -> None:
+class ValidationError(MedAIException):
+    """Erro de validação de dados"""
+    
+    def __init__(self, errors: Union[str, Dict[str, Any]]):
+        if isinstance(errors, str):
+            detail = errors
+        else:
+            detail = {"validation_errors": errors}
+            
         super().__init__(
-            message=message,
-            error_code="PERMISSION_DENIED",
-            status_code=403)
+            detail=detail,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
+        )
+        self.errors = errors
 
-class NotFoundException(CardioAIException):
-    """Resource not found exception."""
 
-    def __init__(self, message: str = "Resource not found") -> None:
+class NotFoundError(MedAIException):
+    """Erro de recurso não encontrado"""
+    
+    def __init__(self, resource: str, identifier: Any):
+        detail = f"{resource} with identifier {identifier} not found"
         super().__init__(
-            message=message,
-            error_code="NOT_FOUND",
-            status_code=404)
+            detail=detail,
+            status_code=status.HTTP_404_NOT_FOUND
+        )
 
-class ConflictException(CardioAIException):
-    """Resource conflict exception."""
 
-    def __init__(self, message: str = "Resource conflict") -> None:
+class DuplicateError(MedAIException):
+    """Erro de recurso duplicado"""
+    
+    def __init__(self, field: str, value: Any):
+        detail = f"{field} '{value}' already exists"
         super().__init__(
-            message=message,
-            error_code="CONFLICT",
-            status_code=409)
+            detail=detail,
+            status_code=status.HTTP_409_CONFLICT
+        )
 
 
-
-class MLModelException(CardioAIException):
-    """ML model error exception."""
-
-    def __init__(self, message: str, model_name: str | None = None) -> None:
-        details = {"model_name": model_name} if model_name else {}
+class BusinessLogicError(MedAIException):
+    """Erro de lógica de negócio"""
+    
+    def __init__(self, detail: str):
         super().__init__(
-            message=message,
-            error_code="ML_MODEL_ERROR",
-            status_code=500,
-            details=details)
+            detail=detail,
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
 
-class ValidationNotFoundException(NotFoundException):
-    """Validation not found exception."""
 
-    def __init__(self, validation_id: str) -> None:
-        super().__init__(f"Validation {validation_id} not found")
-
-class AnalysisNotFoundException(NotFoundException):
-    """Analysis not found exception."""
-
-    def __init__(self, analysis_id: str) -> None:
-        super().__init__(f"Analysis {analysis_id} not found")
-
-class ValidationAlreadyExistsException(ConflictException):
-    """Validation already exists exception."""
-
-    def __init__(self, analysis_id: str) -> None:
-        super().__init__(f"Validation for analysis {analysis_id} already exists")
-
-class InsufficientPermissionsException(PermissionDeniedException):
-    """Insufficient permissions exception."""
-
-    def __init__(self, required_permission: str) -> None:
-        super().__init__(f"Insufficient permissions. Required: {required_permission}")
-
-class RateLimitExceededException(CardioAIException):
-    """Rate limit exceeded exception."""
-
-    def __init__(self, message: str = "Rate limit exceeded") -> None:
+class ExternalServiceError(MedAIException):
+    """Erro de serviço externo"""
+    
+    def __init__(self, service: str, detail: str):
         super().__init__(
-            message=message,
-            error_code="RATE_LIMIT_EXCEEDED",
-            status_code=429)
+            detail=f"Error communicating with {service}: {detail}",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
 
-class FileProcessingException(CardioAIException):
-    """File processing error exception."""
 
-    def __init__(self, message: str, filename: str | None = None) -> None:
-        details = {"filename": filename} if filename else {}
+class RateLimitError(MedAIException):
+    """Erro de limite de taxa"""
+    
+    def __init__(self, detail: str = "Rate limit exceeded"):
         super().__init__(
-            message=message,
-            error_code="FILE_PROCESSING_ERROR",
-            status_code=422,
-            details=details)
+            detail=detail,
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={"Retry-After": "60"}
+        )
 
-class DatabaseException(CardioAIException):
-    """Database error exception."""
 
-    def __init__(self, message: str) -> None:
+class FileUploadError(MedAIException):
+    """Erro de upload de arquivo"""
+    
+    def __init__(self, detail: str):
         super().__init__(
-            message=message,
-            error_code="DATABASE_ERROR",
-            status_code=500)
+            detail=f"File upload error: {detail}",
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
 
-class ExternalServiceException(CardioAIException):
-    """External service error exception."""
 
-    def __init__(self, message: str, service_name: str | None = None) -> None:
-        details = {"service_name": service_name} if service_name else {}
+class MLModelError(MedAIException):
+    """Erro relacionado a modelo de ML"""
+    
+    def __init__(self, detail: str):
         super().__init__(
-            message=message,
-            error_code="EXTERNAL_SERVICE_ERROR",
-            status_code=502,
-            details=details)
+            detail=f"ML Model error: {detail}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
+class DatabaseError(MedAIException):
+    """Erro de banco de dados"""
+    
+    def __init__(self, detail: str):
+        super().__init__(
+            detail=f"Database error: {detail}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+class ConfigurationError(MedAIException):
+    """Erro de configuração"""
+    
+    def __init__(self, detail: str):
+        super().__init__(
+            detail=f"Configuration error: {detail}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+class TokenError(MedAIException):
+    """Erro relacionado a tokens"""
+    
+    def __init__(self, detail: str = "Invalid or expired token"):
+        super().__init__(
+            detail=detail,
+            status_code=status.HTTP_401_UNAUTHORIZED
+        )
+
+
+class PermissionError(MedAIException):
+    """Erro de permissão"""
+    
+    def __init__(self, action: str, resource: str):
+        detail = f"Permission denied to {action} {resource}"
+        super().__init__(
+            detail=detail,
+            status_code=status.HTTP_403_FORBIDDEN
+        )
+
+
+class LGPDComplianceError(MedAIException):
+    """Erro de compliance com LGPD"""
+    
+    def __init__(self, detail: str):
+        super().__init__(
+            detail=f"LGPD compliance error: {detail}",
+            status_code=status.HTTP_451_UNAVAILABLE_FOR_LEGAL_REASONS
+        )

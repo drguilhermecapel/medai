@@ -1,670 +1,1178 @@
 """
-Testes End-to-End (E2E) para MedAI
+Testes End-to-End abrangentes para o sistema MedAI
 """
-
-import asyncio
 import pytest
-import tempfile
-import json
-from unittest.mock import AsyncMock, Mock, patch
-import numpy as np
+import asyncio
 from datetime import datetime, timedelta
+from fastapi.testclient import TestClient
+from unittest.mock import patch, AsyncMock
+import json
+import base64
+import io
+from PIL import Image
+import numpy as np
 
-from app.core.constants import AnalysisStatus, ClinicalUrgency
+from app.main import app
+from app.core.database import Base, engine
+from app.core.config import settings
+from app.core.constants import UserRole, ExamType, ExamStatus, Priority
 
-class TestE2ECriticalPatientJourney:
-    """Test complete end-to-end critical patient journey."""
 
-    @pytest.fixture
-    async def e2e_environment(self, mock_db_session):
-        """Setup complete E2E testing environment."""
-        # Mock all external dependencies
-        environment = {
-            "db": mock_db_session,
-            "file_storage": AsyncMock(),
-            "notification_system": AsyncMock(),
-            "ml_models": AsyncMock(),
-            "audit_logger": AsyncMock()
+@pytest.fixture(scope="module")
+def client():
+    """Cliente de teste para E2E"""
+    # Setup
+    Base.metadata.create_all(bind=engine)
+    
+    with TestClient(app) as test_client:
+        yield test_client
+    
+    # Teardown
+    Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture
+def admin_token(client):
+    """Token de administrador para testes"""
+    # Registra admin
+    client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "admin@medai.com",
+            "username": "admin",
+            "password": "Admin@123456",
+            "full_name": "System Admin",
+            "role": "admin"
+        }
+    )
+    
+    # Login
+    response = client.post(
+        "/api/v1/auth/login",
+        data={
+            "username": "admin@medai.com",
+            "password": "Admin@123456"
+        }
+    )
+    
+    return response.json()["access_token"]
+
+
+@pytest.fixture
+def doctor_token(client):
+    """Token de médico para testes"""
+    # Registra médico
+    client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "doctor@medai.com",
+            "username": "doctor",
+            "password": "Doctor@123456",
+            "full_name": "Dr. House",
+            "role": "doctor",
+            "crm": "12345-SP"
+        }
+    )
+    
+    # Login
+    response = client.post(
+        "/api/v1/auth/login",
+        data={
+            "username": "doctor@medai.com",
+            "password": "Doctor@123456"
+        }
+    )
+    
+    return response.json()["access_token"]
+
+
+@pytest.fixture
+def patient_token(client):
+    """Token de paciente para testes"""
+    # Registra paciente
+    client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "patient@medai.com",
+            "username": "patient",
+            "password": "Patient@123456",
+            "full_name": "João Silva",
+            "role": "patient",
+            "cpf": "123.456.789-09",
+            "date_of_birth": "1990-01-01",
+            "phone": "(11) 98765-4321"
+        }
+    )
+    
+    # Login
+    response = client.post(
+        "/api/v1/auth/login",
+        data={
+            "username": "patient@medai.com",
+            "password": "Patient@123456"
+        }
+    )
+    
+    return response.json()["access_token"]
+
+
+class TestCompletePatientJourney:
+    """Testa a jornada completa do paciente no sistema"""
+    
+    def test_patient_registration_and_profile(self, client):
+        """Testa registro e criação de perfil do paciente"""
+        # 1. Registro
+        register_data = {
+            "email": "newpatient@example.com",
+            "username": "newpatient",
+            "password": "NewPatient@123456",
+            "full_name": "Maria Santos",
+            "role": "patient",
+            "cpf": "987.654.321-00",
+            "date_of_birth": "1985-05-15",
+            "phone": "(11) 91234-5678",
+            "gender": "female",
+            "blood_type": "A+",
+            "allergies": ["Penicilina", "Dipirona"],
+            "medical_conditions": ["Hipertensão"],
+            "emergency_contact": {
+                "name": "José Santos",
+                "phone": "(11) 98888-7777",
+                "relationship": "Esposo"
+            }
         }
         
-        # Setup realistic responses
-        environment["ml_models"].classify_ecg.return_value = {
-            "predictions": {"stemi": 0.96, "normal": 0.04},
-            "confidence": 0.98,
-            "primary_diagnosis": "ST-Elevation Myocardial Infarction"
-        }
+        response = client.post("/api/v1/auth/register", json=register_data)
+        assert response.status_code == 201
+        user_data = response.json()
         
-        environment["notification_system"].send_alert.return_value = {
-            "alert_id": "ALERT_001",
-            "sent_at": datetime.now(),
-            "recipients": ["cardiology_team", "emergency_physician"]
-        }
-        
-        return environment
-
-    @pytest.mark.e2e
-    @pytest.mark.asyncio
-    async def test_stemi_patient_complete_journey(self, e2e_environment):
-        """Test complete STEMI patient journey from arrival to treatment."""
-        from tests.smart_mocks         
-        # === Phase 1: Patient Arrival ===
-        arrival_time = datetime.now()
-        
-        # Generate critical patient
-        patient_data = SmartPatientMock.generate_patient_data(
-            age_range=(65, 75),
-            condition="cardiac"
+        # 2. Login
+        login_response = client.post(
+            "/api/v1/auth/login",
+            data={
+                "username": "newpatient@example.com",
+                "password": "NewPatient@123456"
+            }
         )
-        patient_data.update({
-            "chest_pain": True,
-            "pain_duration_minutes": 45,
-            "pain_score": 8,
-            "symptoms": ["chest pressure", "shortness of breath", "diaphoresis"]
-        })
+        assert login_response.status_code == 200
+        token = login_response.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
         
-        # Triage assessment
-        triage_result = {
-            "triage_time": arrival_time + timedelta(minutes=2),
-            "triage_category": "ESI-1",  # Emergency Severity Index
-            "vital_signs": {
-                "blood_pressure": "150/95",
-                "heart_rate": 110,
-                "oxygen_saturation": 94,
-                "respiratory_rate": 22
-            }
+        # 3. Visualizar perfil
+        profile_response = client.get("/api/v1/patients/me", headers=headers)
+        assert profile_response.status_code == 200
+        profile = profile_response.json()
+        
+        assert profile["cpf"] == "987.654.321-00"
+        assert profile["blood_type"] == "A+"
+        assert len(profile["allergies"]) == 2
+        
+        # 4. Atualizar perfil
+        update_data = {
+            "address": "Rua das Flores, 123",
+            "city": "São Paulo",
+            "state": "SP",
+            "zip_code": "01234-567",
+            "insurance_provider": "Unimed",
+            "insurance_number": "123456789"
         }
         
-        # === Phase 2: ECG Acquisition ===
-
-        # Generate STEMI ECG
-        stemi_ecg = SmartECGMock.generate_arrhythmia_ecg("stemi")
+        update_response = client.patch(
+            "/api/v1/patients/me",
+            headers=headers,
+            json=update_data
+        )
+        assert update_response.status_code == 200
         
-        # ECG metadata
+        # 5. Verificar atualização
+        updated_profile = client.get("/api/v1/patients/me", headers=headers).json()
+        assert updated_profile["address"] == "Rua das Flores, 123"
+        assert updated_profile["insurance_provider"] == "Unimed"
+    
+    def test_patient_exam_request_flow(self, client, patient_token, doctor_token):
+        """Testa fluxo de solicitação de exame pelo paciente"""
+        patient_headers = {"Authorization": f"Bearer {patient_token}"}
+        doctor_headers = {"Authorization": f"Bearer {doctor_token}"}
         
-            "acquisition_time": ecg_acquisition_time,
-            "device_id": "ECG_DEVICE_001",
-            "technician_id": "TECH_123",
-            "leads_quality": {lead: "good" for lead in 
-                            ["I", "II", "III", "aVR", "aVL", "aVF", 
-                             "V1", "V2", "V3", "V4", "V5", "V6"]}
+        # 1. Paciente solicita agendamento
+        appointment_data = {
+            "doctor_id": 2,  # ID do médico
+            "preferred_date": (datetime.now() + timedelta(days=3)).isoformat(),
+            "reason": "Check-up anual",
+            "symptoms": ["Dor de cabeça frequente", "Tontura"]
         }
         
-        # === Phase 3: Automated Analysis ===
-        analysis_start_time = ecg_acquisition_time + timedelta(seconds=10)
+        appointment_response = client.post(
+            "/api/v1/appointments",
+            headers=patient_headers,
+            json=appointment_data
+        )
+        assert appointment_response.status_code == 201
+        appointment_id = appointment_response.json()["id"]
         
-        # Process ECG through ML pipeline
-        ml_analysis = await e2e_environment["ml_models"].classify_ecg(stemi_ecg)
+        # 2. Médico aprova e solicita exames
+        approval_response = client.patch(
+            f"/api/v1/appointments/{appointment_id}/approve",
+            headers=doctor_headers
+        )
+        assert approval_response.status_code == 200
         
-        # Detailed STEMI analysis
-        stemi_analysis = {
-            "analysis_time": analysis_start_time + timedelta(seconds=5),
-            "stemi_detected": True,
-            "confidence": ml_analysis["confidence"],
-            "affected_leads": ["II", "III", "aVF"],
-            "st_elevation_mm": {"II": 3.5, "III": 4.0, "aVF": 3.8},
-            "reciprocal_changes": {"aVL": -2.0, "I": -1.5},
-            "infarct_location": "Inferior",
-            "suspected_vessel": "Right Coronary Artery",
-            "door_to_ecg_time": (ecg_acquisition_time - arrival_time).seconds / 60
-        }
-        
-        # === Phase 4: Clinical Decision Support ===
-        clinical_recommendations = {
-            "immediate_actions": [
-                "Activate Cath Lab STAT",
-                "Administer Aspirin 325mg",
-                "Obtain IV access x2",
-                "Draw cardiac biomarkers",
-                "Continuous cardiac monitoring"
-            ],
-            "medications": {
-                "aspirin": {"dose": "325mg", "route": "PO", "stat": True},
-                "ticagrelor": {"dose": "180mg", "route": "PO", "stat": True},
-                "heparin": {"dose": "60 units/kg", "route": "IV", "stat": True}
-            },
-            "target_times": {
-                "door_to_balloon": 90,  # minutes
-                "first_medical_contact_to_device": 120  # minutes
-            }
-        }
-        
-        # === Phase 5: Emergency Response ===
-        emergency_activation_time = stemi_analysis["analysis_time"] + timedelta(seconds=30)
-        
-        # Cath lab activation
-        cath_lab_activation = await e2e_environment["notification_system"].send_alert({
-            "type": "CATH_LAB_ACTIVATION",
-            "priority": "STAT",
-            "patient_id": patient_data["id"],
-            "activation_time": emergency_activation_time,
-            "estimated_arrival": emergency_activation_time + timedelta(minutes=15)
-        })
-        
-        # Team notifications
-        team_notifications = {
-            "interventional_cardiologist": {
-                "notified_at": emergency_activation_time,
-                "response": "En route, ETA 10 minutes"
-            },
-            "cath_lab_team": {
-                "notified_at": emergency_activation_time,
-                "response": "Lab preparing, ready in 15 minutes"
-            },
-            "anesthesiology": {
-                "notified_at": emergency_activation_time + timedelta(minutes=2),
-                "response": "Standing by"
-            }
-        }
-        
-        # === Phase 6: Pre-procedure Preparation ===
-        prep_start_time = emergency_activation_time + timedelta(minutes=5)
-        
-        pre_procedure_checklist = {
-            "consent_obtained": True,
-            "consent_time": prep_start_time + timedelta(minutes=3),
-            "allergies_verified": True,
-            "labs_drawn": {
-                "troponin": "Pending",
-                "basic_metabolic": "Resulted",
-                "cbc": "Resulted",
-                "ptt": "Pending",
-                "type_and_screen": "In process"
-            },
-            "medications_given": {
-                "aspirin": {"time": prep_start_time, "given": True},
-                "ticagrelor": {"time": prep_start_time + timedelta(minutes=2), "given": True},
-                "heparin": {"time": prep_start_time + timedelta(minutes=5), "given": True}
-            },
-            "iv_access": "Bilateral 18G",
-            "foley_placed": True
-        }
-        
-        # === Phase 7: Cath Lab Procedure ===
-        procedure_start_time = emergency_activation_time + timedelta(minutes=25)
-        
-        procedure_details = {
-            "start_time": procedure_start_time,
-            "door_to_balloon_time": (procedure_start_time - arrival_time).seconds / 60,
-            "access_site": "Right radial artery",
-            "findings": {
-                "culprit_vessel": "Proximal RCA",
-                "stenosis_percentage": 100,
-                "timi_flow_pre": 0,
-                "collaterals": "Grade 1 from LCX"
-            },
-            "intervention": {
-                "type": "Primary PCI",
-                "devices": ["Drug-eluting stent 3.5x23mm"],
-                "timi_flow_post": 3,
-                "residual_stenosis": 0,
-                "complications": None
-            },
-            "end_time": procedure_start_time + timedelta(minutes=45)
-        }
-        
-        # === Phase 8: Post-procedure Care ===
-        post_procedure = {
-            "transfer_to_ccu": procedure_details["end_time"] + timedelta(minutes=15),
-            "post_ecg": "No ST elevation, Q waves developing in inferior leads",
-            "medications_started": [
-                "Dual antiplatelet therapy",
-                "High-intensity statin",
-                "Beta-blocker",
-                "ACE inhibitor"
-            ],
-            "monitoring": "Continuous telemetry, Q2h vitals",
-            "labs_post": {
-                "troponin_peak": "15.6 ng/mL",
-                "ejection_fraction": "45% (mild reduction)"
-            }
-        }
-        
-        # === Phase 9: Quality Metrics ===
-        quality_metrics = {
-            "door_to_ecg_time": stemi_analysis["door_to_ecg_time"],
-            "door_to_balloon_time": procedure_details["door_to_balloon_time"],
-            "target_met_door_to_balloon": procedure_details["door_to_balloon_time"] <= 90,
-            "ecg_to_activation_time": (emergency_activation_time - ecg_acquisition_time).seconds / 60,
-            "false_activation": False,
-            "complications": None,
-            "mortality": False
-        }
-        
-        # === Phase 10: Audit and Documentation ===
-        audit_trail = await e2e_environment["audit_logger"].log_complete_journey({
-            "patient_id": patient_data["id"],
-            "arrival_time": arrival_time,
-            "key_timestamps": {
-                "door": arrival_time,
-                "triage": triage_result["triage_time"],
-                : ecg_acquisition_time,
-                "stemi_detection": stemi_analysis["analysis_time"],
-                "cath_lab_activation": emergency_activation_time,
-                "balloon": procedure_start_time
-            },
-            "quality_metrics": quality_metrics,
-            "clinical_outcome": "Successful primary PCI"
-        })
-        
-        # === Verify Complete Journey ===
-        assert quality_metrics["door_to_ecg_time"] < 10  # Within 10 minutes
-        assert quality_metrics["door_to_balloon_time"] < 90  # Within 90 minutes
-        assert quality_metrics["target_met_door_to_balloon"] is True
-        assert stemi_analysis["confidence"] > 0.95
-        assert procedure_details["intervention"]["timi_flow_post"] == 3
-        assert audit_trail is not None
-
-    @pytest.mark.e2e
-    @pytest.mark.asyncio
-    async def test_pediatric_emergency_workflow(self, e2e_environment):
-        """Test pediatric emergency ECG workflow."""
-        from tests.smart_mocks         
-        # Generate pediatric patient with concerning symptoms
-        pediatric_patient = {
-            "id": 12345,
-            "age": 8,
-            "weight_kg": 28,
-            "height_cm": 130,
-            "chief_complaint": "Syncope during soccer practice",
-            "past_medical_history": ["None"],
-            "family_history": ["Sudden cardiac death in uncle at age 35"]
-        }
-        
-        # Generate abnormal pediatric ECG
-        pediatric_ecg = SmartECGMock.generate_normal_ecg()
-        # Simulate long QT syndrome pattern
-        pediatric_ecg[:, :] *= 1.2  # Prolong intervals
-        
-        # Pediatric-specific analysis
-        pediatric_analysis = {
-            "age_adjusted_intervals": {
-                "heart_rate": 85,
-                "pr_interval": 140,
-                "qrs_duration": 80,
-                "qt_interval": 480,  # Prolonged
-                "qtc_bazett": 520  # Significantly prolonged
-            },
-            "pediatric_diagnosis": "Long QT Syndrome suspected",
-            "risk_factors": [
-                "QTc > 500ms",
-                "Family history of sudden death",
-                "Syncope with exertion"
-            ],
-            "immediate_recommendations": [
-                "Continuous cardiac monitoring",
-                "Avoid QT-prolonging medications",
-                "Pediatric cardiology consultation STAT",
-                "Consider genetic testing",
-                "Family screening recommended"
-            ]
-        }
-        
-        # Verify pediatric-specific handling
-        assert pediatric_analysis["qtc_bazett"] > 500
-        assert "genetic testing" in str(pediatric_analysis["immediate_recommendations"])
-        assert "family" in str(pediatric_analysis["risk_factors"]).lower()
-
-    @pytest.mark.e2e
-    @pytest.mark.asyncio
-    async def test_mass_casualty_ecg_triage(self, e2e_environment):
-        """Test ECG triage system during mass casualty event."""
-        from tests.smart_mocks         
-        # Simulate mass casualty incident
-        casualty_count = 20
-        incident_time = datetime.now()
-        
-        casualties = []
-        for i in range(casualty_count):
-            # Generate varied severity cases
-            if i < 3:  # Critical
-                ecg = SmartECGMock.generate_arrhythmia_ecg("stemi")
-                severity = "critical"
-            elif i < 8:  # Urgent
-                ecg = SmartECGMock.generate_arrhythmia_ecg("atrial_fibrillation")
-                severity = "urgent"
-            else:  # Stable
-                ecg = SmartECGMock.generate_normal_ecg()
-                severity = "stable"
-            
-            casualties.append({
-                "patient_id": f"MCI_{i:03d}",
-                "arrival_time": incident_time + timedelta(minutes=i*2),
-                "ecg_data": ecg,
-                "initial_severity": severity,
-                "triage_tag": None
-            })
-        
-        # Process through rapid triage system
-        triage_results = []
-        for casualty in casualties:
-            # Rapid ECG analysis
-            rapid_analysis = await e2e_environment["ml_models"].classify_ecg(
-                casualty["ecg_data"]
-            )
-            
-            # Assign triage priority
-            if "stemi" in str(rapid_analysis).lower():
-                triage_priority = 1  # Immediate
-                color = "RED"
-            elif rapid_analysis["confidence"] > 0.8 and "fibrillation" in str(rapid_analysis):
-                triage_priority = 2  # Urgent
-                color = "YELLOW"
-            else:
-                triage_priority = 3  # Delayed
-                color = "GREEN"
-            
-            triage_results.append({
-                "patient_id": casualty["patient_id"],
-                "triage_priority": triage_priority,
-                "triage_color": color,
-                "ecg_finding": rapid_analysis.get("primary_diagnosis", "Normal"),
-                "processing_time": 15  # seconds
-            })
-        
-        # Sort by priority
-        triage_results.sort(key=lambda x: x["triage_priority"])
-        
-        # Generate mass casualty report
-        mci_report = {
-            "incident_time": incident_time,
-            "total_casualties": casualty_count,
-            "triage_summary": {
-                "immediate": sum(1 for t in triage_results if t["triage_priority"] == 1),
-                "urgent": sum(1 for t in triage_results if t["triage_priority"] == 2),
-                "delayed": sum(1 for t in triage_results if t["triage_priority"] == 3)
-            },
-            "average_triage_time": 15,  # seconds per patient
-            "critical_findings": [t for t in triage_results if t["triage_priority"] == 1]
-        }
-        
-        # Verify mass casualty handling
-        assert mci_report["total_casualties"] == casualty_count
-        assert mci_report["average_triage_time"] < 30  # Rapid triage
-        assert mci_report["triage_summary"]["immediate"] >= 3
-        assert len(mci_report["critical_findings"]) == mci_report["triage_summary"]["immediate"]
-
-    @pytest.mark.e2e
-    @pytest.mark.asyncio
-    async def test_regulatory_compliance_workflow(self, e2e_environment):
-        """Test complete regulatory compliance for medical device software."""
-        # FDA 510(k) compliance check
-        fda_compliance = {
-            "device_classification": "Class II",
-            "predicate_device": "K123456",
-            "intended_use": "ECG analysis for arrhythmia detection",
-            "clinical_validation": {
-                "sensitivity": 0.98,
-                "specificity": 0.97,
-                "total_samples": 10000,
-                "validation_protocol": "Multi-center prospective study"
-            }
-        }
-        
-        # HIPAA compliance
-        hipaa_compliance = {
-            "encryption_at_rest": True,
-            "encryption_in_transit": True,
-            "access_controls": "Role-based with MFA",
-            "audit_logging": True,
-            "data_retention": "7 years per medical records requirement",
-            "patient_consent": "Electronic consent with timestamp"
-        }
-        
-        # EU MDR compliance
-        eu_mdr_compliance = {
-            "ce_marking": "Class IIa",
-            "clinical_evaluation": "MEDDEV 2.7/1 rev 4 compliant",
-            "post_market_surveillance": True,
-            "unique_device_identification": "UDI-123456789"
-        }
-        
-        # Quality management system
-        qms_compliance = {
-            "iso_13485": True,
-            "risk_management": "ISO 14971 compliant",
-            "software_lifecycle": "IEC 62304 Class C",
-            "cybersecurity": "FDA cybersecurity guidance compliant"
-        }
-        
-        # Generate compliance report
-        compliance_report = {
-            "report_date": datetime.now(),
-            "fda_status": fda_compliance,
-            "hipaa_status": hipaa_compliance,
-            "eu_mdr_status": eu_mdr_compliance,
-            "qms_status": qms_compliance,
-            "overall_compliance": all([
-                fda_compliance["clinical_validation"]["sensitivity"] > 0.95,
-                hipaa_compliance["encryption_at_rest"],
-                hipaa_compliance["encryption_in_transit"],
-                qms_compliance["iso_13485"]
-            ])
-        }
-        
-        # Verify compliance
-        assert compliance_report["overall_compliance"] is True
-        assert fda_compliance["clinical_validation"]["sensitivity"] > 0.95
-        assert hipaa_compliance["audit_logging"] is True
-        assert qms_compliance["software_lifecycle"] == "IEC 62304 Class C"
-
-    @pytest.mark.e2e
-    @pytest.mark.asyncio
-    async def test_ai_explainability_workflow(self, e2e_environment):
-        """Test AI explainability for clinical decision support."""
-        from tests.smart_mocks         
-        # Generate complex ECG
-        complex_ecg = SmartECGMock.generate_arrhythmia_ecg("atrial_fibrillation")
-        
-        # Standard ML analysis
-        ml_result = await e2e_environment["ml_models"].classify_ecg(complex_ecg)
-        
-        # Generate explainability report
-        explainability_report = {
-            "prediction": ml_result["primary_diagnosis"],
-            "confidence": ml_result["confidence"],
-            "feature_importance": {
-                "rhythm_irregularity": 0.35,
-                "p_wave_absence": 0.30,
-                "rr_interval_variance": 0.20,
-                "qrs_morphology": 0.10,
-                "baseline_wander": 0.05
-            },
-            "attention_maps": {
-                "temporal_regions": [
-                    {"start_ms": 1000, "end_ms": 2000, "importance": 0.9},
-                    {"start_ms": 3500, "end_ms": 4500, "importance": 0.85}
-                ],
-                "lead_importance": {
-                    "II": 0.9,
-                    "V1": 0.85,
-                    "V5": 0.7
-                }
-            },
-            "similar_cases": [
-                {
-                    "case_id": "HIST_001",
-                    "similarity": 0.92,
-                    "outcome": "Successful rate control"
-                },
-                {
-                    "case_id": "HIST_002",
-                    "similarity": 0.88,
-                    "outcome": "Cardioversion performed"
-                }
-            ],
-            "clinical_correlation": {
-                "supporting_features": [
-                    "Irregular R-R intervals consistent with AF",
-                    "Absence of organized P waves",
-                    "Narrow QRS complexes"
-                ],
-                "differential_considerations": [
-                    "Atrial flutter with variable block (ruled out - no flutter waves)",
-                    "MAT (ruled out - consistent morphology)"
-                ]
-            },
-            "uncertainty_quantification": {
-                "epistemic_uncertainty": 0.05,
-                "aleatoric_uncertainty": 0.08,
-                "out_of_distribution_score": 0.12
-            }
-        }
-        
-        # Verify explainability
-        assert sum(explainability_report["feature_importance"].values()) == 1.0
-        assert explainability_report["uncertainty_quantification"]["out_of_distribution_score"] < 0.2
-        assert len(explainability_report["clinical_correlation"]["supporting_features"]) >= 3
-
-    @pytest.mark.e2e
-    @pytest.mark.performance
-    @pytest.mark.asyncio
-    async def test_system_resilience_and_recovery(self, e2e_environment):
-        """Test system resilience under various failure scenarios."""
-        import random
-        
-        # Test scenarios - CORREÇÃO AQUI
-        failure_scenarios = [
+        # Solicita exames
+        exam_requests = [
             {
-                "name": "Database connection failure",
-                "simulate": lambda: setattr(e2e_environment["db"].execute, 'side_effect', ConnectionError("DB down"))
+                "patient_id": 3,  # ID do paciente
+                "exam_type": "blood_test",
+                "priority": "medium",
+                "notes": "Hemograma completo, glicemia, colesterol"
             },
             {
-                "name": "ML model service timeout",
-                "simulate": lambda: setattr(e2e_environment["ml_models"].classify_ecg, 'side_effect', asyncio.TimeoutError())
-            },
-            {
-                "name": "High load condition",
-                "simulate": lambda: asyncio.sleep(5)  # Simulate delay
+                "patient_id": 3,
+                "exam_type": "ecg",
+                "priority": "medium",
+                "notes": "ECG de repouso"
             }
         ]
         
-        recovery_times = []
+        exam_ids = []
+        for exam_request in exam_requests:
+            exam_response = client.post(
+                "/api/v1/exams",
+                headers=doctor_headers,
+                json=exam_request
+            )
+            assert exam_response.status_code == 201
+            exam_ids.append(exam_response.json()["id"])
         
-        for scenario in failure_scenarios:
-            # Normal operation
-            normal_start = datetime.now()
-            try:
-                # Simulate normal ECG processing
-                result = await e2e_environment["ml_models"].classify_ecg(
-                    np.random.randn(5000, 12)
-                )
-                normal_time = (datetime.now() - normal_start).total_seconds()
-            except:
-                normal_time = 0
-            
-            # Introduce failure
-            scenario["simulate"]()
-            
-            # Attempt operation with failure
-            failure_start = datetime.now()
-            failed = False
-            try:
-                result = await asyncio.wait_for(
-                    e2e_environment["ml_models"].classify_ecg(np.random.randn(5000, 12)),
-                    timeout=10.0
-                )
-            except Exception:
-                failed = True
-            
-            # Reset to normal
-            e2e_environment["ml_models"].classify_ecg.side_effect = None
-            e2e_environment["ml_models"].classify_ecg.return_value = {
-                "predictions": {"normal": 0.9},
-                "confidence": 0.9
-            }
-            
-            # Measure recovery
-            recovery_start = datetime.now()
-            recovered = False
-            attempts = 0
-            
-            while not recovered and attempts < 5:
-                try:
-                    result = await e2e_environment["ml_models"].classify_ecg(
-                        np.random.randn(5000, 12)
-                    )
-                    recovered = True
-                except:
-                    attempts += 1
-                    await asyncio.sleep(1)
-            
-            recovery_time = (datetime.now() - recovery_start).total_seconds()
-            recovery_times.append({
-                "scenario": scenario["name"],
-                "failed": failed,
-                "recovered": recovered,
-                "recovery_time": recovery_time,
-                "attempts": attempts
-            })
+        # 3. Paciente visualiza exames solicitados
+        patient_exams = client.get(
+            "/api/v1/exams/my-exams",
+            headers=patient_headers
+        ).json()
         
-        # Verify resilience
-        for recovery in recovery_times:
-            assert recovery["recovered"] is True
-            assert recovery["recovery_time"] < 30  # Recovery within 30 seconds
-            assert recovery["attempts"] < 5
+        assert len(patient_exams) >= 2
+        assert all(exam["status"] == "pending" for exam in patient_exams)
+        
+        # 4. Paciente agenda realização dos exames
+        for exam_id in exam_ids:
+            schedule_response = client.post(
+                f"/api/v1/exams/{exam_id}/schedule",
+                headers=patient_headers,
+                json={
+                    "scheduled_date": (datetime.now() + timedelta(days=5)).isoformat(),
+                    "location": "Laboratório Central"
+                }
+            )
+            assert schedule_response.status_code == 200
+    
+    def test_patient_medical_history_access(self, client, patient_token):
+        """Testa acesso do paciente ao histórico médico"""
+        headers = {"Authorization": f"Bearer {patient_token}"}
+        
+        # 1. Visualizar histórico completo
+        history_response = client.get(
+            "/api/v1/patients/me/medical-history",
+            headers=headers
+        )
+        assert history_response.status_code == 200
+        history = history_response.json()
+        
+        # 2. Filtrar por período
+        date_filter = {
+            "start_date": (datetime.now() - timedelta(days=365)).isoformat(),
+            "end_date": datetime.now().isoformat()
+        }
+        
+        filtered_history = client.get(
+            "/api/v1/patients/me/medical-history",
+            headers=headers,
+            params=date_filter
+        ).json()
+        
+        # 3. Exportar histórico
+        export_response = client.get(
+            "/api/v1/patients/me/medical-history/export",
+            headers=headers,
+            params={"format": "pdf"}
+        )
+        assert export_response.status_code == 200
+        assert export_response.headers["content-type"] == "application/pdf"
+        
+        # 4. Compartilhar com médico
+        share_data = {
+            "doctor_id": 2,
+            "share_type": "full_history",
+            "valid_until": (datetime.now() + timedelta(days=30)).isoformat()
+        }
+        
+        share_response = client.post(
+            "/api/v1/patients/me/share-history",
+            headers=headers,
+            json=share_data
+        )
+        assert share_response.status_code == 201
+        share_token = share_response.json()["share_token"]
+        assert share_token is not None
 
-    @pytest.mark.e2e
-    @pytest.mark.asyncio
-    async def test_continuous_improvement_workflow(self, e2e_environment):
-        """Test continuous improvement through feedback integration."""
-        # Collect physician feedback
-        feedback_collection = []
+
+class TestCompleteDoctorWorkflow:
+    """Testa fluxo completo de trabalho do médico"""
+    
+    def test_doctor_patient_management(self, client, doctor_token):
+        """Testa gerenciamento de pacientes pelo médico"""
+        headers = {"Authorization": f"Bearer {doctor_token}"}
         
-        for i in range(100):  # Simulate 100 cases
-            # Generate ECG and get AI prediction
-            ecg = np.random.randn(5000, 12)
-            ai_prediction = {
-                "diagnosis": random.choice(["Normal", "AF", "STEMI", "VT"]),
-                "confidence": random.uniform(0.7, 0.99)
-            }
-            
-            # Simulate physician review
-            physician_diagnosis = ai_prediction["diagnosis"] if random.random() > 0.1 else "Different"
-            
-            feedback = {
-                "case_id": f"CASE_{i:04d}",
-                "ai_diagnosis": ai_prediction["diagnosis"],
-                "ai_confidence": ai_prediction["confidence"],
-                "physician_diagnosis": physician_diagnosis,
-                "agreement": ai_prediction["diagnosis"] == physician_diagnosis,
-                "physician_confidence": random.choice(["High", "Medium", "Low"]),
-                "educational_value": random.choice([True, False]),
-                "comments": "Edge case" if not feedback["agreement"] else None
-            }
-            
-            feedback_collection.append(feedback)
+        # 1. Listar pacientes
+        patients_response = client.get(
+            "/api/v1/doctors/patients",
+            headers=headers
+        )
+        assert patients_response.status_code == 200
+        patients = patients_response.json()
         
-        # Analyze feedback for improvement
-        performance_metrics = {
-            "total_cases": len(feedback_collection),
-            "agreement_rate": sum(f["agreement"] for f in feedback_collection) / len(feedback_collection),
-            "high_confidence_accuracy": sum(
-                f["agreement"] for f in feedback_collection 
-                if f["ai_confidence"] > 0.9
-            ) / sum(1 for f in feedback_collection if f["ai_confidence"] > 0.9),
-            "educational_cases": sum(f["educational_value"] for f in feedback_collection),
-            "edge_cases_identified": sum(1 for f in feedback_collection if f["comments"])
+        # 2. Buscar paciente específico
+        if patients:
+            patient_id = patients[0]["id"]
+            patient_detail = client.get(
+                f"/api/v1/patients/{patient_id}",
+                headers=headers
+            ).json()
+            
+            assert patient_detail["id"] == patient_id
+        
+        # 3. Adicionar anotação ao prontuário
+        clinical_note = {
+            "patient_id": patient_id,
+            "note_type": "consultation",
+            "content": "Paciente apresenta melhora significativa...",
+            "vital_signs": {
+                "blood_pressure": "120/80",
+                "heart_rate": 70,
+                "temperature": 36.5,
+                "respiratory_rate": 16,
+                "oxygen_saturation": 98
+            }
         }
         
-        # Generate improvement recommendations
-        improvement_plan = {
-            "model_retraining_needed": performance_metrics["agreement_rate"] < 0.95,
-            "focus_areas": [
-                f["ai_diagnosis"] for f in feedback_collection 
-                if not f["agreement"]
-            ][:5],  # Top 5 problematic diagnoses
-            "confidence_calibration_needed": abs(
-                performance_metrics["high_confidence_accuracy"] - 0.95
-            ) > 0.05,
-            "new_training_data_required": performance_metrics["edge_cases_identified"],
-            "physician_education_topics": [
-                f for f in feedback_collection 
-                if f["educational_value"]
-            ][:10]
+        note_response = client.post(
+            "/api/v1/clinical-notes",
+            headers=headers,
+            json=clinical_note
+        )
+        assert note_response.status_code == 201
+        
+        # 4. Prescrever medicamento
+        prescription = {
+            "patient_id": patient_id,
+            "medications": [
+                {
+                    "name": "Paracetamol",
+                    "dosage": "500mg",
+                    "frequency": "6/6h",
+                    "duration": "5 dias",
+                    "instructions": "Tomar com água, após refeições"
+                }
+            ],
+            "valid_until": (datetime.now() + timedelta(days=30)).isoformat()
         }
         
-        # Verify continuous improvement
-        assert performance_metrics["total_cases"] == 100
-        assert performance_metrics["agreement_rate"] > 0.85
-        assert improvement_plan is not None
-        assert len(improvement_plan["focus_areas"]) <= 5
+        prescription_response = client.post(
+            "/api/v1/prescriptions",
+            headers=headers,
+            json=prescription
+        )
+        assert prescription_response.status_code == 201
+    
+    def test_doctor_exam_analysis_workflow(self, client, doctor_token):
+        """Testa fluxo de análise de exames pelo médico"""
+        headers = {"Authorization": f"Bearer {doctor_token}"}
+        
+        # 1. Listar exames pendentes de análise
+        pending_exams = client.get(
+            "/api/v1/exams/pending-analysis",
+            headers=headers
+        ).json()
+        
+        if pending_exams:
+            exam_id = pending_exams[0]["id"]
+            
+            # 2. Visualizar detalhes do exame
+            exam_detail = client.get(
+                f"/api/v1/exams/{exam_id}",
+                headers=headers
+            ).json()
+            
+            # 3. Analisar resultados com IA
+            ai_analysis_response = client.post(
+                f"/api/v1/exams/{exam_id}/ai-analysis",
+                headers=headers
+            )
+            assert ai_analysis_response.status_code == 200
+            ai_results = ai_analysis_response.json()
+            
+            # 4. Criar diagnóstico
+            diagnosis = {
+                "exam_id": exam_id,
+                "findings": ai_results.get("findings", []),
+                "diagnosis": "Exame dentro dos padrões normais",
+                "recommendations": [
+                    "Manter acompanhamento regular",
+                    "Repetir exame em 6 meses"
+                ],
+                "follow_up_required": True,
+                "follow_up_date": (datetime.now() + timedelta(days=180)).isoformat()
+            }
+            
+            diagnosis_response = client.post(
+                "/api/v1/diagnostics",
+                headers=headers,
+                json=diagnosis
+            )
+            assert diagnosis_response.status_code == 201
+            
+            # 5. Notificar paciente
+            notification = {
+                "patient_id": exam_detail["patient_id"],
+                "type": "exam_ready",
+                "message": "Seu exame está pronto. Entre em contato para agendar retorno."
+            }
+            
+            notify_response = client.post(
+                "/api/v1/notifications",
+                headers=headers,
+                json=notification
+            )
+            assert notify_response.status_code == 201
+    
+    def test_doctor_statistics_dashboard(self, client, doctor_token):
+        """Testa dashboard de estatísticas do médico"""
+        headers = {"Authorization": f"Bearer {doctor_token}"}
+        
+        # 1. Estatísticas gerais
+        stats_response = client.get(
+            "/api/v1/doctors/statistics",
+            headers=headers
+        )
+        assert stats_response.status_code == 200
+        stats = stats_response.json()
+        
+        assert "total_patients" in stats
+        assert "total_consultations" in stats
+        assert "pending_exams" in stats
+        assert "average_consultation_time" in stats
+        
+        # 2. Estatísticas por período
+        period_stats = client.get(
+            "/api/v1/doctors/statistics",
+            headers=headers,
+            params={
+                "start_date": (datetime.now() - timedelta(days=30)).isoformat(),
+                "end_date": datetime.now().isoformat()
+            }
+        ).json()
+        
+        # 3. Relatório de produtividade
+        productivity_report = client.get(
+            "/api/v1/doctors/productivity-report",
+            headers=headers,
+            params={"month": datetime.now().month, "year": datetime.now().year}
+        ).json()
+        
+        assert "consultations_per_day" in productivity_report
+        assert "average_patients_per_day" in productivity_report
+
+
+class TestCompleteAdminOperations:
+    """Testa operações administrativas completas"""
+    
+    def test_admin_user_management(self, client, admin_token):
+        """Testa gerenciamento de usuários pelo admin"""
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        
+        # 1. Listar todos usuários
+        users_response = client.get(
+            "/api/v1/admin/users",
+            headers=headers
+        )
+        assert users_response.status_code == 200
+        users = users_response.json()
+        
+        # 2. Criar novo usuário (médico)
+        new_doctor = {
+            "email": "newdoctor@medai.com",
+            "username": "newdoctor",
+            "password": "TempPass@123",
+            "full_name": "Dr. New Doctor",
+            "role": "doctor",
+            "crm": "98765-SP",
+            "specialties": ["Cardiologia", "Clínica Geral"]
+        }
+        
+        create_response = client.post(
+            "/api/v1/admin/users",
+            headers=headers,
+            json=new_doctor
+        )
+        assert create_response.status_code == 201
+        new_user_id = create_response.json()["id"]
+        
+        # 3. Atualizar permissões
+        permissions_update = {
+            "permissions": [
+                "view_all_patients",
+                "create_diagnosis",
+                "prescribe_medication",
+                "order_exams"
+            ]
+        }
+        
+        perm_response = client.patch(
+            f"/api/v1/admin/users/{new_user_id}/permissions",
+            headers=headers,
+            json=permissions_update
+        )
+        assert perm_response.status_code == 200
+        
+        # 4. Suspender usuário
+        suspend_response = client.patch(
+            f"/api/v1/admin/users/{new_user_id}/suspend",
+            headers=headers,
+            json={"reason": "Documentação pendente"}
+        )
+        assert suspend_response.status_code == 200
+        
+        # 5. Reativar usuário
+        reactivate_response = client.patch(
+            f"/api/v1/admin/users/{new_user_id}/activate",
+            headers=headers
+        )
+        assert reactivate_response.status_code == 200
+    
+    def test_admin_system_configuration(self, client, admin_token):
+        """Testa configuração do sistema pelo admin"""
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        
+        # 1. Configurações atuais
+        config_response = client.get(
+            "/api/v1/admin/system-config",
+            headers=headers
+        )
+        assert config_response.status_code == 200
+        current_config = config_response.json()
+        
+        # 2. Atualizar configurações
+        new_config = {
+            "appointment_duration_minutes": 30,
+            "max_appointments_per_day": 20,
+            "exam_result_retention_days": 365,
+            "enable_ai_diagnostics": True,
+            "ai_confidence_threshold": 0.85,
+            "notification_settings": {
+                "email_enabled": True,
+                "sms_enabled": True,
+                "push_enabled": True
+            }
+        }
+        
+        update_config_response = client.patch(
+            "/api/v1/admin/system-config",
+            headers=headers,
+            json=new_config
+        )
+        assert update_config_response.status_code == 200
+        
+        # 3. Configurar integrações
+        integration_config = {
+            "laboratory_api": {
+                "enabled": True,
+                "endpoint": "https://lab.example.com/api",
+                "api_key": "lab-api-key-123"
+            },
+            "pharmacy_integration": {
+                "enabled": True,
+                "provider": "FarmaciaPopular"
+            }
+        }
+        
+        integration_response = client.post(
+            "/api/v1/admin/integrations",
+            headers=headers,
+            json=integration_config
+        )
+        assert integration_response.status_code == 201
+    
+    def test_admin_audit_and_compliance(self, client, admin_token):
+        """Testa auditoria e compliance"""
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        
+        # 1. Logs de auditoria
+        audit_logs = client.get(
+            "/api/v1/admin/audit-logs",
+            headers=headers,
+            params={
+                "start_date": (datetime.now() - timedelta(days=7)).isoformat(),
+                "end_date": datetime.now().isoformat()
+            }
+        ).json()
+        
+        assert "logs" in audit_logs
+        assert "total_count" in audit_logs
+        
+        # 2. Relatório de compliance LGPD
+        lgpd_report = client.get(
+            "/api/v1/admin/compliance/lgpd-report",
+            headers=headers
+        ).json()
+        
+        assert "data_subjects_count" in lgpd_report
+        assert "data_processing_activities" in lgpd_report
+        assert "consent_records" in lgpd_report
+        
+        # 3. Exportar dados para auditoria
+        export_response = client.post(
+            "/api/v1/admin/audit/export",
+            headers=headers,
+            json={
+                "format": "csv",
+                "include_pii": False,
+                "date_range": {
+                    "start": (datetime.now() - timedelta(days=30)).isoformat(),
+                    "end": datetime.now().isoformat()
+                }
+            }
+        )
+        assert export_response.status_code == 200
+
+
+class TestCompleteExamProcessing:
+    """Testa processamento completo de diferentes tipos de exames"""
+    
+    def test_ecg_exam_complete_flow(self, client, patient_token, doctor_token):
+        """Testa fluxo completo de exame ECG"""
+        patient_headers = {"Authorization": f"Bearer {patient_token}"}
+        doctor_headers = {"Authorization": f"Bearer {doctor_token}"}
+        
+        # 1. Médico solicita ECG
+        exam_request = {
+            "patient_id": 3,
+            "exam_type": "ecg",
+            "priority": "high",
+            "notes": "Paciente com palpitações",
+            "clinical_indication": "Investigação de arritmia"
+        }
+        
+        exam_response = client.post(
+            "/api/v1/exams",
+            headers=doctor_headers,
+            json=exam_request
+        )
+        assert exam_response.status_code == 201
+        exam_id = exam_response.json()["id"]
+        
+        # 2. Técnico realiza o exame (simula upload de dados)
+        ecg_data = {
+            "heart_rate": 75,
+            "pr_interval": 160,
+            "qrs_duration": 100,
+            "qt_interval": 400,
+            "rhythm": "sinus",
+            "leads": {
+                "I": np.random.randn(5000).tolist(),
+                "II": np.random.randn(5000).tolist(),
+                "III": np.random.randn(5000).tolist(),
+                "aVR": np.random.randn(5000).tolist(),
+                "aVL": np.random.randn(5000).tolist(),
+                "aVF": np.random.randn(5000).tolist(),
+                "V1": np.random.randn(5000).tolist(),
+                "V2": np.random.randn(5000).tolist(),
+                "V3": np.random.randn(5000).tolist(),
+                "V4": np.random.randn(5000).tolist(),
+                "V5": np.random.randn(5000).tolist(),
+                "V6": np.random.randn(5000).tolist()
+            }
+        }
+        
+        # Técnico faz login
+        tech_token = client.post(
+            "/api/v1/auth/login",
+            data={
+                "username": "tech@medai.com",
+                "password": "Tech@123456"
+            }
+        ).json().get("access_token")
+        
+        tech_headers = {"Authorization": f"Bearer {tech_token}"}
+        
+        upload_response = client.post(
+            f"/api/v1/exams/{exam_id}/upload-results",
+            headers=tech_headers,
+            json=ecg_data
+        )
+        assert upload_response.status_code == 200
+        
+        # 3. Sistema processa com IA
+        ai_process_response = client.post(
+            f"/api/v1/exams/{exam_id}/process-ai",
+            headers=tech_headers
+        )
+        assert ai_process_response.status_code == 200
+        ai_results = ai_process_response.json()
+        
+        # 4. Médico revisa resultados
+        review_response = client.get(
+            f"/api/v1/exams/{exam_id}/ai-results",
+            headers=doctor_headers
+        )
+        assert review_response.status_code == 200
+        
+        # 5. Médico finaliza diagnóstico
+        final_diagnosis = {
+            "exam_id": exam_id,
+            "ai_findings": ai_results.get("findings", []),
+            "doctor_assessment": "ECG normal, ritmo sinusal regular",
+            "diagnosis_code": "Z00.00",  # CID-10
+            "recommendations": [
+                "ECG dentro dos padrões normais",
+                "Manter acompanhamento clínico"
+            ]
+        }
+        
+        diagnosis_response = client.post(
+            "/api/v1/diagnostics",
+            headers=doctor_headers,
+            json=final_diagnosis
+        )
+        assert diagnosis_response.status_code == 201
+        
+        # 6. Paciente acessa resultado
+        patient_result = client.get(
+            f"/api/v1/exams/{exam_id}/result",
+            headers=patient_headers
+        ).json()
+        
+        assert patient_result["status"] == "completed"
+        assert "diagnosis" in patient_result
+    
+    def test_blood_test_complete_flow(self, client, patient_token, doctor_token):
+        """Testa fluxo completo de exame de sangue"""
+        doctor_headers = {"Authorization": f"Bearer {doctor_token}"}
+        
+        # 1. Solicitar exame de sangue completo
+        exam_request = {
+            "patient_id": 3,
+            "exam_type": "blood_test",
+            "priority": "medium",
+            "tests_requested": [
+                "hemograma_completo",
+                "glicemia",
+                "colesterol_total",
+                "hdl",
+                "ldl",
+                "triglicerides",
+                "creatinina",
+                "ureia",
+                "ast",
+                "alt"
+            ]
+        }
+        
+        exam_response = client.post(
+            "/api/v1/exams",
+            headers=doctor_headers,
+            json=exam_request
+        )
+        assert exam_response.status_code == 201
+        exam_id = exam_response.json()["id"]
+        
+        # 2. Laboratório envia resultados
+        lab_results = {
+            "hemoglobin": 14.5,
+            "hematocrit": 42.0,
+            "red_cells": 4.8,
+            "white_cells": 7500,
+            "platelets": 250000,
+            "glucose": 92,
+            "cholesterol_total": 180,
+            "hdl": 55,
+            "ldl": 100,
+            "triglycerides": 125,
+            "creatinine": 0.9,
+            "urea": 35,
+            "ast": 25,
+            "alt": 30
+        }
+        
+        # Simula integração com laboratório
+        lab_upload_response = client.post(
+            f"/api/v1/exams/{exam_id}/lab-results",
+            headers={"X-API-Key": "lab-integration-key"},
+            json={
+                "lab_id": "LAB123",
+                "results": lab_results,
+                "collection_date": datetime.now().isoformat(),
+                "validation_date": datetime.now().isoformat()
+            }
+        )
+        assert lab_upload_response.status_code == 200
+        
+        # 3. Sistema analisa valores de referência
+        analysis_response = client.get(
+            f"/api/v1/exams/{exam_id}/reference-analysis",
+            headers=doctor_headers
+        ).json()
+        
+        assert "normal_values" in analysis_response
+        assert "alerts" in analysis_response
+    
+    def test_imaging_exam_flow(self, client, patient_token, doctor_token):
+        """Testa fluxo de exame de imagem"""
+        doctor_headers = {"Authorization": f"Bearer {doctor_token}"}
+        
+        # 1. Solicitar raio-X
+        exam_request = {
+            "patient_id": 3,
+            "exam_type": "xray",
+            "priority": "high",
+            "body_region": "chest",
+            "clinical_indication": "Suspeita de pneumonia",
+            "contrast_required": False
+        }
+        
+        exam_response = client.post(
+            "/api/v1/exams",
+            headers=doctor_headers,
+            json=exam_request
+        )
+        assert exam_response.status_code == 201
+        exam_id = exam_response.json()["id"]
+        
+        # 2. Upload de imagem DICOM (simulado)
+        # Cria imagem fake para teste
+        img = Image.new('L', (512, 512), color=128)
+        img_buffer = io.BytesIO()
+        img.save(img_buffer, format='PNG')
+        img_base64 = base64.b64encode(img_buffer.getvalue()).decode()
+        
+        image_upload = {
+            "exam_id": exam_id,
+            "images": [{
+                "filename": "chest_pa.dcm",
+                "data": img_base64,
+                "metadata": {
+                    "study_date": datetime.now().isoformat(),
+                    "modality": "CR",
+                    "body_part": "CHEST",
+                    "view_position": "PA"
+                }
+            }]
+        }
+        
+        tech_token = "tech_token"  # Assumindo token do técnico
+        tech_headers = {"Authorization": f"Bearer {tech_token}"}
+        
+        upload_response = client.post(
+            f"/api/v1/exams/{exam_id}/upload-images",
+            headers=tech_headers,
+            json=image_upload
+        )
+        assert upload_response.status_code == 200
+        
+        # 3. Análise por IA de imagem
+        ai_image_analysis = client.post(
+            f"/api/v1/exams/{exam_id}/analyze-image",
+            headers=doctor_headers
+        ).json()
+        
+        assert "findings" in ai_image_analysis
+        assert "confidence_scores" in ai_image_analysis
+
+
+class TestSystemIntegrations:
+    """Testa integrações do sistema"""
+    
+    @patch('app.services.email_service.EmailService.send_email')
+    def test_notification_system(self, mock_email, client, patient_token, doctor_token):
+        """Testa sistema de notificações"""
+        patient_headers = {"Authorization": f"Bearer {patient_token}"}
+        doctor_headers = {"Authorization": f"Bearer {doctor_token}"}
+        
+        # 1. Configurar preferências de notificação
+        preferences = {
+            "email_notifications": True,
+            "sms_notifications": True,
+            "push_notifications": False,
+            "notification_types": {
+                "exam_ready": True,
+                "appointment_reminder": True,
+                "prescription_reminder": True,
+                "health_tips": False
+            }
+        }
+        
+        pref_response = client.patch(
+            "/api/v1/users/notification-preferences",
+            headers=patient_headers,
+            json=preferences
+        )
+        assert pref_response.status_code == 200
+        
+        # 2. Trigger de notificação (exame pronto)
+        # Simula conclusão de exame
+        exam_complete_notification = {
+            "user_id": 3,
+            "type": "exam_ready",
+            "title": "Exame Disponível",
+            "message": "Seu exame de sangue está pronto para visualização",
+            "action_url": "/exams/123/result"
+        }
+        
+        # Verifica se email foi enviado
+        assert mock_email.called
+    
+    def test_appointment_scheduling_system(self, client, patient_token, doctor_token):
+        """Testa sistema de agendamento"""
+        patient_headers = {"Authorization": f"Bearer {patient_token}"}
+        
+        # 1. Buscar horários disponíveis
+        availability_response = client.get(
+            "/api/v1/appointments/availability",
+            headers=patient_headers,
+            params={
+                "doctor_id": 2,
+                "date": (datetime.now() + timedelta(days=7)).date().isoformat(),
+                "duration_minutes": 30
+            }
+        )
+        assert availability_response.status_code == 200
+        available_slots = availability_response.json()
+        
+        # 2. Agendar consulta
+        if available_slots:
+            appointment_data = {
+                "doctor_id": 2,
+                "datetime": available_slots[0]["datetime"],
+                "duration_minutes": 30,
+                "type": "consultation",
+                "reason": "Consulta de rotina"
+            }
+            
+            booking_response = client.post(
+                "/api/v1/appointments",
+                headers=patient_headers,
+                json=appointment_data
+            )
+            assert booking_response.status_code == 201
+            appointment_id = booking_response.json()["id"]
+            
+            # 3. Reagendar
+            new_datetime = datetime.now() + timedelta(days=10, hours=14)
+            reschedule_response = client.patch(
+                f"/api/v1/appointments/{appointment_id}/reschedule",
+                headers=patient_headers,
+                json={"new_datetime": new_datetime.isoformat()}
+            )
+            assert reschedule_response.status_code == 200
+            
+            # 4. Cancelar
+            cancel_response = client.delete(
+                f"/api/v1/appointments/{appointment_id}",
+                headers=patient_headers,
+                json={"reason": "Motivo pessoal"}
+            )
+            assert cancel_response.status_code == 200
+    
+    def test_billing_integration(self, client, admin_token):
+        """Testa integração com sistema de faturamento"""
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        
+        # 1. Gerar fatura para paciente
+        billing_data = {
+            "patient_id": 3,
+            "items": [
+                {
+                    "type": "consultation",
+                    "description": "Consulta médica",
+                    "quantity": 1,
+                    "unit_price": 150.00
+                },
+                {
+                    "type": "exam",
+                    "description": "Hemograma completo",
+                    "quantity": 1,
+                    "unit_price": 45.00
+                },
+                {
+                    "type": "exam",
+                    "description": "ECG",
+                    "quantity": 1,
+                    "unit_price": 80.00
+                }
+            ],
+            "insurance_coverage": {
+                "provider": "Unimed",
+                "coverage_percentage": 70,
+                "authorization_number": "AUTH123456"
+            }
+        }
+        
+        invoice_response = client.post(
+            "/api/v1/billing/invoices",
+            headers=headers,
+            json=billing_data
+        )
+        assert invoice_response.status_code == 201
+        invoice = invoice_response.json()
+        
+        assert invoice["total_amount"] == 275.00
+        assert invoice["insurance_covered"] == 192.50
+        assert invoice["patient_amount"] == 82.50
+        
+        # 2. Processar pagamento
+        payment_data = {
+            "invoice_id": invoice["id"],
+            "payment_method": "credit_card",
+            "amount": 82.50,
+            "installments": 1
+        }
+        
+        payment_response = client.post(
+            "/api/v1/billing/payments",
+            headers=headers,
+            json=payment_data
+        )
+        assert payment_response.status_code == 200
+
+
+class TestSecurityAndCompliance:
+    """Testa segurança e compliance do sistema"""
+    
+    def test_data_privacy_lgpd(self, client, patient_token):
+        """Testa compliance com LGPD"""
+        headers = {"Authorization": f"Bearer {patient_token}"}
+        
+        # 1. Solicitar todos os dados pessoais
+        data_request = client.get(
+            "/api/v1/privacy/my-data",
+            headers=headers
+        )
+        assert data_request.status_code == 200
+        personal_data = data_request.json()
+        
+        assert "personal_info" in personal_data
+        assert "medical_records" in personal_data
+        assert "exam_history" in personal_data
+        
+        # 2. Baixar dados em formato portável
+        download_response = client.get(
+            "/api/v1/privacy/download-my-data",
+            headers=headers,
+            params={"format": "json"}
+        )
+        assert download_response.status_code == 200
+        
+        # 3. Revogar consentimento específico
+        consent_revoke = {
+            "consent_type": "marketing_communications",
+            "revoked": True
+        }
+        
+        revoke_response = client.patch(
+            "/api/v1/privacy/consent",
+            headers=headers,
+            json=consent_revoke
+        )
+        assert revoke_response.status_code == 200
+        
+        # 4. Solicitar exclusão de dados
+        deletion_request = {
+            "reason": "Não desejo mais usar o serviço",
+            "confirm_email": "patient@medai.com",
+            "delete_medical_records": False  # Manter por obrigação legal
+        }
+        
+        deletion_response = client.post(
+            "/api/v1/privacy/request-deletion",
+            headers=headers,
+            json=deletion_request
+        )
+        assert deletion_response.status_code == 202  # Accepted for processing
+    
+    def test_access_control_rbac(self, client, patient_token, doctor_token, admin_token):
+        """Testa controle de acesso baseado em papéis"""
+        # Endpoints que só admin pode acessar
+        admin_only_endpoints = [
+            ("/api/v1/admin/users", "GET"),
+            ("/api/v1/admin/system-config", "GET"),
+            ("/api/v1/admin/audit-logs", "GET")
+        ]
+        
+        for endpoint, method in admin_only_endpoints:
+            # Paciente não deve ter acesso
+            patient_response = client.request(
+                method,
+                endpoint,
+                headers={"Authorization": f"Bearer {patient_token}"}
+            )
+            assert patient_response.status_code == 403
+            
+            # Admin deve ter acesso
+            admin_response = client.request(
+                method,
+                endpoint,
+                headers={"Authorization": f"Bearer {admin_token}"}
+            )
+            assert admin_response.status_code in [200, 201]
+        
+        # Endpoints médico-específicos
+        doctor_endpoints = [
+            ("/api/v1/diagnostics", "POST"),
+            ("/api/v1/prescriptions", "POST")
+        ]
+        
+        for endpoint, method in doctor_endpoints:
+            # Paciente não deve poder criar
+            if method == "POST":
+                patient_response = client.request(
+                    method,
+                    endpoint,
+                    headers={"Authorization": f"Bearer {patient_token}"},
+                    json={}
+                )
+                assert patient_response.status_code == 403
+    
+    def test_audit_trail(self, client, admin_token):
+        """Testa trilha de auditoria"""
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        
+        # Realizar ações que devem ser auditadas
+        actions = [
+            ("POST", "/api/v1/users", {"email": "audit@test.com", "password": "Test@123"}),
+            ("GET", "/api/v1/patients/1", {}),
+            ("POST", "/api/v1/exams", {"patient_id": 1, "exam_type": "ecg"})
+        ]
+        
+        for method, endpoint, data in actions:
+            client.request(method, endpoint, headers=headers, json=data if data else None)
+        
+        # Verificar logs de auditoria
+        audit_logs = client.get(
+            "/api/v1/admin/audit-logs",
+            headers=headers,
+            params={
+                "user_id": 1,
+                "limit": 10
+            }
+        ).json()
+        
+        assert len(audit_logs["logs"]) >= 3
+        
+        # Verificar informações do log
+        for log in audit_logs["logs"]:
+            assert "timestamp" in log
+            assert "user_id" in log
+            assert "action" in log
+            assert "resource" in log
+            assert "ip_address" in log
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "--cov=app", "--cov-report=term-missing"])

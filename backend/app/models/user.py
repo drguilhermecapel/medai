@@ -1,62 +1,126 @@
-# app/models/user.py - CORREÇÃO COMPLETA
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum
+"""
+Modelo de usuário do sistema MedAI
+"""
+from sqlalchemy import Boolean, Column, Enum, String, DateTime, JSON
 from sqlalchemy.orm import relationship
-from app.models.base import Base
+from datetime import datetime
+
+from app.models.base import BaseModel
 from app.core.constants import UserRole
 
-class User(Base):
+
+class User(BaseModel):
+    """Modelo de usuário do sistema"""
+    
     __tablename__ = "users"
-    __table_args__ = {'extend_existing': True}
     
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(50), unique=True, nullable=False, index=True)
-    email = Column(String(255), unique=True, nullable=False, index=True)
+    # Informações básicas
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    username = Column(String(100), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
-    
-    # Informações profissionais
     full_name = Column(String(255), nullable=False)
-    role = Column(Enum(UserRole), nullable=False, default=UserRole.PHYSICIAN)
-    license_number = Column(String(50), nullable=True)
-    specialization = Column(String(100), nullable=True)
+    
+    # Tipo de usuário
+    role = Column(Enum(UserRole), default=UserRole.PATIENT, nullable=False)
     
     # Status
-    is_active = Column(Boolean, default=True)
-    is_verified = Column(Boolean, default=False)
-    is_superuser = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    is_verified = Column(Boolean, default=False, nullable=False)
+    is_superuser = Column(Boolean, default=False, nullable=False)
     
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # Tokens e verificação
+    email_verification_token = Column(String(255), nullable=True)
+    password_reset_token = Column(String(255), nullable=True)
+    password_reset_expires = Column(DateTime, nullable=True)
+    
+    # Última atividade
     last_login = Column(DateTime, nullable=True)
+    last_activity = Column(DateTime, nullable=True)
+    
+    # Preferências
+    notification_preferences = Column(JSON, nullable=True)
+    language = Column(String(10), default="pt-BR", nullable=False)
+    timezone = Column(String(50), default="America/Sao_Paulo", nullable=False)
     
     # Relacionamentos
-    created_patients = relationship("Patient", back_populates="creator", lazy="select")
-    created_analyses = relationship(
-        "ECGAnalysis", 
-        foreign_keys="ECGAnalysis.created_by", 
-        back_populates="creator",
-        lazy="select"
-    )
-    validated_analyses = relationship(
-        "ECGAnalysis", 
-        foreign_keys="ECGAnalysis.validated_by", 
-        back_populates="validator",
-        lazy="select"
-    )
-    uploaded_records = relationship("ECGRecord", back_populates="uploader", lazy="select")
-    notifications = relationship(
-        "Notification", 
-        back_populates="user", 
-        cascade="all, delete-orphan",
-        lazy="select"
-    )
-    validations = relationship(
-        "Validation", 
-        back_populates="validator", 
-        cascade="all, delete-orphan",
-        lazy="select"
-    )
+    patient_profile = relationship("Patient", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    doctor_profile = relationship("DoctorProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+    
+    # Médico
+    requested_exams = relationship("Exam", foreign_keys="Exam.doctor_id", back_populates="doctor")
+    diagnostics = relationship("Diagnostic", back_populates="doctor")
+    prescriptions = relationship("Prescription", back_populates="doctor")
     
     def __repr__(self):
-        return f"<User(id={self.id}, username={self.username}, role={self.role})>"
+        return f"<User(id={self.id}, email='{self.email}', role={self.role.value})>"
+    
+    @property
+    def is_doctor(self) -> bool:
+        """Verifica se o usuário é médico"""
+        return self.role == UserRole.DOCTOR
+    
+    @property
+    def is_patient(self) -> bool:
+        """Verifica se o usuário é paciente"""
+        return self.role == UserRole.PATIENT
+    
+    @property
+    def is_admin(self) -> bool:
+        """Verifica se o usuário é administrador"""
+        return self.role == UserRole.ADMIN or self.is_superuser
+    
+    def has_permission(self, permission: str) -> bool:
+        """
+        Verifica se o usuário tem uma permissão específica
+        
+        Args:
+            permission: Nome da permissão
+            
+        Returns:
+            True se tem a permissão
+        """
+        # Admin tem todas as permissões
+        if self.is_admin:
+            return True
+        
+        # Mapeamento de permissões por papel
+        role_permissions = {
+            UserRole.DOCTOR: [
+                "view_patients",
+                "create_diagnosis",
+                "prescribe_medication",
+                "order_exams",
+                "view_exam_results",
+                "update_medical_records"
+            ],
+            UserRole.NURSE: [
+                "view_patients",
+                "update_patient_vitals",
+                "view_exam_results",
+                "schedule_appointments"
+            ],
+            UserRole.TECHNICIAN: [
+                "upload_exam_results",
+                "update_exam_status",
+                "view_exam_queue"
+            ],
+            UserRole.PATIENT: [
+                "view_own_records",
+                "schedule_appointments",
+                "view_own_exams",
+                "update_own_profile"
+            ]
+        }
+        
+        user_permissions = role_permissions.get(self.role, [])
+        return permission in user_permissions
+    
+    def update_last_login(self):
+        """Atualiza timestamp do último login"""
+        self.last_login = datetime.utcnow()
+        self.last_activity = datetime.utcnow()
+    
+    def update_activity(self):
+        """Atualiza timestamp da última atividade"""
+        self.last_activity = datetime.utcnow()

@@ -1,191 +1,154 @@
 """
-Modelos relacionados a diagnósticos
+Modelo de diagnóstico médico do sistema MedAI
 """
+from sqlalchemy import Column, String, ForeignKey, Integer, JSON, Enum, DateTime, Text, Boolean, Float
+from sqlalchemy.orm import relationship
 from datetime import datetime
-from typing import Optional, List, Dict, Any
-from uuid import uuid4
 
-from sqlalchemy import String, DateTime, Float, Integer, Boolean, Text, JSON, ForeignKey, Index
-from sqlalchemy.orm import relationship as db_relationship, Mapped, mapped_column
+from app.models.base import BaseModel
+from app.core.constants import DiagnosticStatus, Priority
 
-from app.database import Base
-from app.core.constants import (
-    DiagnosisCategory, ClinicalUrgency, ValidationStatus,
-    ECGDiagnosisType, RiskLevel
-)
 
-class Diagnosis(Base):
-    """Modelo principal de diagnóstico"""
-    __tablename__ = "diagnoses"
+class Diagnostic(BaseModel):
+    """Modelo de diagnóstico médico"""
     
-    # Primary key
-    id: Mapped[str] = mapped_column(
-        String(36), 
-        primary_key=True, 
-        default=lambda: str(uuid4())
-    )
+    __tablename__ = "diagnostics"
     
-    # Foreign keys
-    patient_id: Mapped[str] = mapped_column(
-        String(36),
-        ForeignKey("patients.id", ondelete="CASCADE"),
-        nullable=False
-    )
+    # Exame relacionado
+    exam_id = Column(Integer, ForeignKey("exams.id"), unique=True, nullable=False)
+    exam = relationship("Exam", back_populates="diagnostic")
     
-    analysis_id: Mapped[Optional[str]] = mapped_column(
-        String(36),
-        ForeignKey("ecg_analyses.id", ondelete="SET NULL")
-    )
+    # Médico responsável
+    doctor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    doctor = relationship("User", back_populates="diagnostics")
     
-    doctor_id: Mapped[Optional[str]] = mapped_column(
-        String(36),
-        ForeignKey("users.id", ondelete="SET NULL")
-    )
+    # Status e prioridade
+    status = Column(Enum(DiagnosticStatus), default=DiagnosticStatus.PENDING, nullable=False)
+    priority = Column(Enum(Priority), default=Priority.MEDIUM, nullable=False)
     
-    # Informações do diagnóstico
-    diagnosis_code: Mapped[str] = mapped_column(
-        String(50),
-        unique=True,
-        nullable=False,
-        default=lambda: f"DIAG-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{str(uuid4())[:8]}"
-    )
+    # Diagnóstico
+    diagnosis = Column(Text, nullable=True)
+    diagnosis_code = Column(String(10), nullable=True)  # CID-10
+    findings = Column(JSON, nullable=True, default=list)
+    recommendations = Column(JSON, nullable=True, default=list)
     
-    diagnosis_type: Mapped[str] = mapped_column(
-        String(50),
-        nullable=False
-    )
+    # IA/ML
+    ai_prediction = Column(String(255), nullable=True)
+    ai_confidence = Column(Float, nullable=True)
+    ai_findings = Column(JSON, nullable=True)
+    ai_processed_at = Column(DateTime, nullable=True)
     
-    # Categoria e urgência
-    category: Mapped[str] = mapped_column(
-        String(30),
-        default=DiagnosisCategory.BENIGN,
-        nullable=False
-    )
+    # Alertas e observações
+    alerts = Column(JSON, nullable=True, default=list)
+    notes = Column(Text, nullable=True)
     
-    urgency: Mapped[str] = mapped_column(
-        String(20),
-        default=ClinicalUrgency.ROUTINE,
-        nullable=False
-    )
-    
-    risk_level: Mapped[str] = mapped_column(
-        String(20),
-        default=RiskLevel.LOW,
-        nullable=False
-    )
-    
-    # Detalhes do diagnóstico
-    primary_diagnosis: Mapped[str] = mapped_column(String(500), nullable=False)
-    secondary_diagnoses: Mapped[Optional[List[str]]] = mapped_column(JSON)
-    differential_diagnoses: Mapped[Optional[List[str]]] = mapped_column(JSON)
-    
-    # CID-10
-    icd10_codes: Mapped[Optional[List[str]]] = mapped_column(JSON)
-    
-    # Descrição e observações
-    description: Mapped[Optional[str]] = mapped_column(Text)
-    clinical_findings: Mapped[Optional[str]] = mapped_column(Text)
-    recommendations: Mapped[Optional[str]] = mapped_column(Text)
-    
-    # Scores e métricas
-    confidence_score: Mapped[Optional[float]] = mapped_column(Float)
-    severity_score: Mapped[Optional[float]] = mapped_column(Float)
-    risk_score: Mapped[Optional[float]] = mapped_column(Float)
-    
-    # Dados estruturados
-    findings: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON)
-    metrics: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON)
-    parameters: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON)
-    
-    # Status de validação
-    validation_status: Mapped[str] = mapped_column(
-        String(20),
-        default=ValidationStatus.PENDING,
-        nullable=False
-    )
-    
-    validated_by: Mapped[Optional[str]] = mapped_column(
-        String(36),
-        ForeignKey("users.id")
-    )
-    
-    validated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    validation_notes: Mapped[Optional[str]] = mapped_column(Text)
-    
-    # Flags importantes
-    requires_followup: Mapped[bool] = mapped_column(Boolean, default=False)
-    is_emergency: Mapped[bool] = mapped_column(Boolean, default=False)
-    is_ai_generated: Mapped[bool] = mapped_column(Boolean, default=False)
-    is_final: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Flags
+    is_critical = Column(Boolean, default=False, nullable=False)
+    requires_followup = Column(Boolean, default=False, nullable=False)
+    followup_date = Column(DateTime, nullable=True)
     
     # Timestamps
-    diagnosis_date: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=datetime.utcnow,
-        nullable=False
-    )
-    
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=datetime.utcnow,
-        nullable=False
-    )
-    
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
-        nullable=False
-    )
-    
-    # Relacionamentos
-    patient = db_relationship("Patient", back_populates="diagnoses")
-    analysis = db_relationship("ECGAnalysis", back_populates="diagnoses")
-    
-    # Índices
-    __table_args__ = (
-        Index("idx_diagnoses_patient_id", "patient_id"),
-        Index("idx_diagnoses_analysis_id", "analysis_id"),
-        Index("idx_diagnoses_doctor_id", "doctor_id"),
-        Index("idx_diagnoses_diagnosis_code", "diagnosis_code"),
-        Index("idx_diagnoses_category", "category"),
-        Index("idx_diagnoses_urgency", "urgency"),
-        Index("idx_diagnoses_validation_status", "validation_status"),
-        Index("idx_diagnoses_diagnosis_date", "diagnosis_date"),
-        Index("idx_diagnoses_created_at", "created_at"))
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
     
     def __repr__(self):
-        return f"<Diagnosis {self.diagnosis_code} - {self.primary_diagnosis[:50]}...>"
+        return f"<Diagnostic(id={self.id}, exam_id={self.exam_id}, status={self.status.value})>"
     
     @property
-    def is_critical(self) -> bool:
-        """Verifica se o diagnóstico é crítico"""
-        return (
-            self.category in [DiagnosisCategory.CRITICAL, DiagnosisCategory.LIFE_THREATENING] or
-            self.urgency == ClinicalUrgency.EMERGENCY or
-            self.is_emergency
-        )
+    def is_completed(self) -> bool:
+        """Verifica se o diagnóstico está completo"""
+        return self.status in [DiagnosticStatus.COMPLETED, DiagnosticStatus.REVIEWED]
     
     @property
-    def needs_immediate_attention(self) -> bool:
-        """Verifica se precisa de atenção imediata"""
-        return (
-            self.is_critical or
-            self.urgency in [ClinicalUrgency.URGENT, ClinicalUrgency.EMERGENCY] or
-            self.risk_level in [RiskLevel.HIGH, RiskLevel.VERY_HIGH, RiskLevel.CRITICAL]
-        )
+    def processing_time(self) -> float:
+        """Calcula tempo de processamento em minutos"""
+        if not self.completed_at or not self.started_at:
+            return 0.0
+        
+        delta = self.completed_at - self.started_at
+        return delta.total_seconds() / 60
     
-    def to_summary(self) -> Dict[str, Any]:
-        """Retorna um resumo do diagnóstico"""
-        return {
-            "diagnosis_code": self.diagnosis_code,
-            "primary_diagnosis": self.primary_diagnosis,
-            "category": self.category,
-            "urgency": self.urgency,
-            "risk_level": self.risk_level,
-            "is_critical": self.is_critical,
-            "needs_immediate_attention": self.needs_immediate_attention,
-            "confidence_score": self.confidence_score,
-            "validation_status": self.validation_status,
-            "requires_followup": self.requires_followup
-        }
+    def start_processing(self):
+        """Marca início do processamento"""
+        self.status = DiagnosticStatus.PROCESSING
+        self.started_at = datetime.utcnow()
+    
+    def complete_processing(self):
+        """Marca fim do processamento"""
+        self.status = DiagnosticStatus.COMPLETED
+        self.completed_at = datetime.utcnow()
+    
+    def mark_as_reviewed(self, doctor_id: int):
+        """Marca como revisado por médico"""
+        self.status = DiagnosticStatus.REVIEWED
+        self.reviewed_at = datetime.utcnow()
+        self.doctor_id = doctor_id
+    
+    def add_finding(self, finding: dict):
+        """
+        Adiciona um achado ao diagnóstico
+        
+        Args:
+            finding: Dict com description, severity, location
+        """
+        if not self.findings:
+            self.findings = []
+        
+        self.findings.append({
+            "description": finding.get("description"),
+            "severity": finding.get("severity", "low"),
+            "location": finding.get("location"),
+            "timestamp": datetime.utcnow().isoformat()
+        })
+    
+    def add_recommendation(self, recommendation: str, priority: str = "medium"):
+        """Adiciona uma recomendação"""
+        if not self.recommendations:
+            self.recommendations = []
+        
+        self.recommendations.append({
+            "text": recommendation,
+            "priority": priority,
+            "timestamp": datetime.utcnow().isoformat()
+        })
+    
+    def add_alert(self, alert: dict):
+        """
+        Adiciona um alerta
+        
+        Args:
+            alert: Dict com type, message, severity
+        """
+        if not self.alerts:
+            self.alerts = []
+        
+        self.alerts.append({
+            "type": alert.get("type"),
+            "message": alert.get("message"),
+            "severity": alert.get("severity", "medium"),
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
+        # Se alerta crítico, marca diagnóstico como crítico
+        if alert.get("severity") == "critical":
+            self.is_critical = True
+            self.priority = Priority.CRITICAL
+    
+    def set_ai_results(self, prediction: str, confidence: float, findings: list = None):
+        """Define resultados da análise por IA"""
+        self.ai_prediction = prediction
+        self.ai_confidence = confidence
+        self.ai_findings = findings or []
+        self.ai_processed_at = datetime.utcnow()
+    
+    def schedule_followup(self, followup_date: datetime, reason: str = None):
+        """Agenda acompanhamento"""
+        self.requires_followup = True
+        self.followup_date = followup_date
+        
+        if reason:
+            self.add_recommendation(
+                f"Acompanhamento agendado para {followup_date.strftime('%d/%m/%Y')}: {reason}",
+                priority="high"
+            )
