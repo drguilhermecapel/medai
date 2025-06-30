@@ -10,8 +10,6 @@ from .user import User
 from .patient import Patient
 
 # Modelos que dependem dos anteriores
-from .ecg_record import ECGRecord
-from .ecg_analysis import ECGAnalysis
 from .notification import Notification
 from .validation import Validation
 from .prescription import Prescription

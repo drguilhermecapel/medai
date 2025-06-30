@@ -23,8 +23,7 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+            headers={"WWW-Authenticate": "Bearer"})
     
     access_token = create_access_token(
         data={"sub": user.email},
@@ -127,38 +126,7 @@ async def search_patients(
         return await service.search_patients(q)
     return await service.list_patients(skip=skip, limit=limit)
 
-# app/api/v1/endpoints/ecg_analysis.py
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
-from app.database import get_db
-from app.schemas.ecg_analysis import ECGAnalysis, ECGAnalysisCreate
-from app.services.ecg_service import ECGAnalysisService
 
-router = APIRouter(prefix="/ecg", tags=["ecg_analysis"])
-
-@router.post("/upload", response_model=ECGAnalysis)
-async def upload_ecg(
-    patient_id: int,
-    file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db),
-    current_user_id: int = 1  # TODO: Get from auth
-):
-    """Upload ECG file for analysis"""
-    # Implementar upload e processamento
-    return {"message": "ECG uploaded"}
-
-@router.get("/analysis/{analysis_id}", response_model=ECGAnalysis)
-async def get_ecg_analysis(
-    analysis_id: int,
-    db: AsyncSession = Depends(get_db)
-):
-    """Get ECG analysis by ID"""
-    service = ECGAnalysisService(db)
-    analysis = await service.get_analysis(analysis_id)
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
-    return analysis
 
 # app/api/v1/endpoints/validations.py
 from fastapi import APIRouter, Depends, HTTPException

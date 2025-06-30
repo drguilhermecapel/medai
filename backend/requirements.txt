@@ -1,5 +1,5 @@
 # Core dependencies
-numpy>=1.21.0
+# # numpy>=1.21.0  # Comentado - revisar se usado apenas para ECG  # Comentado - revisar se usado apenas para ECG
 pandas>=1.3.0
 
 # Testing

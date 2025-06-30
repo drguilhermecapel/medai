@@ -9,8 +9,7 @@ from app.utils.security import (
     hash_password,
     verify_password,
     get_current_user,
-    get_current_active_user,
-)
+    get_current_active_user)
 
 __all__ = [
     "create_access_token",
@@ -19,5 +18,4 @@ __all__ = [
     "hash_password",
     "verify_password",
     "get_current_user",
-    "get_current_active_user",
-]
+    "get_current_active_user"]

@@ -10,7 +10,6 @@ from datetime import datetime
 from pathlib import Path
 import argparse
 
-
 class CoverageMonitor:
     """Monitor de cobertura de testes para MedAI."""
     
@@ -356,7 +355,6 @@ class CoverageMonitor:
         
         print("\n" + "=" * 60)
 
-
 def main():
     """Função principal."""
     parser = argparse.ArgumentParser(description="Monitor de Cobertura de Testes MedAI")
@@ -382,7 +380,6 @@ def main():
     monitor.save_report(report)
     
     sys.exit(0 if report["summary"]["overall_success"] else 1)
-
 
 if __name__ == "__main__":
     main()

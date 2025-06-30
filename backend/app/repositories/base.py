@@ -166,7 +166,6 @@ from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from app.models.ecg_analysis import ECGAnalysis
 from app.repositories.base import BaseRepository
 
 class ECGRepository(BaseRepository[ECGAnalysis]):

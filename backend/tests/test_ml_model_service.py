@@ -8,7 +8,6 @@ import numpy as np
 
 from app.services.ml_model_service import MLModelService
 
-
 class TestMLModelService:
     """Test ML Model Service."""
 
@@ -42,8 +41,7 @@ class TestMLModelService:
     @pytest.mark.asyncio
     async def test_predict_arrhythmia(self, ml_service):
         """Test arrhythmia prediction."""
-        ecg_features = np.random.randn(100)
-        
+
         # Mock model prediction
         with patch.object(ml_service, 'models', {"arrhythmia_detector": MagicMock()}):
             ml_service.models["arrhythmia_detector"].predict = MagicMock(
@@ -137,7 +135,7 @@ class TestMLModelService:
     @pytest.mark.asyncio
     async def test_extract_ecg_features(self, ml_service):
         """Test ECG feature extraction."""
-        ecg_signal = np.random.randn(1000)
+        
         sampling_rate = 500
         
         if hasattr(ml_service, 'extract_ecg_features'):

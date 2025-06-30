@@ -16,7 +16,6 @@ from app.utils.memory_monitor import MemoryMonitor
 
 logger = logging.getLogger(__name__)
 
-
 class MLModelService:
     """ML Model Service for ECG analysis using ONNX Runtime."""
 
@@ -34,7 +33,6 @@ class MLModelService:
                 logger.warning(f"Models directory not found: {models_dir}")
                 return
 
-            ecg_model_path = models_dir / "ecg_classifier.onnx"
             if ecg_model_path.exists():
                 self._load_model("ecg_classifier", str(ecg_model_path))
 
@@ -93,10 +91,9 @@ class MLModelService:
 
     async def analyze_ecg(
         self,
-        ecg_data: "np.ndarray[Any, np.dtype[np.float32]]",
+        
         sample_rate: int,
-        leads_names: list[str],
-    ) -> dict[str, Any]:
+        leads_names: list[str]) -> dict[str, Any]:
         """Analyze ECG data using ML models."""
         try:
             start_time = time.time()
@@ -157,18 +154,16 @@ class MLModelService:
 
     async def _preprocess_for_inference(
         self,
-        ecg_data: "np.ndarray[Any, np.dtype[np.float32]]",
+        
         sample_rate: int,
-        leads_names: list[str],
-    ) -> "np.ndarray[Any, np.dtype[np.float32]]":
+        leads_names: list[str]) -> "np.ndarray[Any, np.dtype[np.float32]]":
         """Preprocess ECG data for model inference."""
         try:
             if ecg_data.shape[1] < 12:
                 padded_data = np.zeros((ecg_data.shape[0], 12), dtype=np.float32)
                 padded_data[:, :ecg_data.shape[1]] = ecg_data
-                ecg_data = padded_data
+                
             elif ecg_data.shape[1] > 12:
-                ecg_data = ecg_data[:, :12].astype(np.float32)
 
             target_sample_rate = 500
             if sample_rate != target_sample_rate:
@@ -176,21 +171,15 @@ class MLModelService:
                 num_samples = int(ecg_data.shape[0] * target_sample_rate / sample_rate)
                 resampled = signal.resample(ecg_data, num_samples, axis=0)
                 if isinstance(resampled, tuple):
-                    ecg_data = resampled[0].astype(np.float32)
+                    
                 else:
-                    ecg_data = resampled.astype(np.float32)
-
-            ecg_data = (ecg_data - np.mean(ecg_data, axis=0)) / (np.std(ecg_data, axis=0) + 1e-8)
 
             target_length = 5000
             if ecg_data.shape[0] > target_length:
-                ecg_data = ecg_data[:target_length, :]
+                
             elif ecg_data.shape[0] < target_length:
                 padded_data = np.zeros((target_length, 12), dtype=np.float32)
                 padded_data[:ecg_data.shape[0], :] = ecg_data
-                ecg_data = padded_data
-
-            ecg_data = np.expand_dims(ecg_data.T, axis=0).astype(np.float32)
 
             return ecg_data
 
@@ -222,8 +211,7 @@ class MLModelService:
                 "premature_atrial_contraction",
                 "premature_ventricular_contraction",
                 "stemi",
-                "nstemi",
-            ]
+                "nstemi"]
 
             predictions_dict = {}
             for i, condition in enumerate(condition_names):
@@ -257,8 +245,7 @@ class MLModelService:
                 "Supraventricular Tachycardia",
                 "Ventricular Tachycardia",
                 "Ventricular Fibrillation",
-                "Asystole",
-            ]
+                "Asystole"]
 
             rhythm_idx = np.argmax(rhythm_probs)
             rhythm = rhythm_types[rhythm_idx] if rhythm_idx < len(rhythm_types) else "Unknown"
@@ -332,8 +319,7 @@ class MLModelService:
                 "key_intervals": ["QRS", "ST_segment"],
                 "confidence_factors": [
                     f"Strong {top_prediction[0]} pattern detected",
-                    f"Confidence: {top_prediction[1]:.2f}",
-                ],
+                    f"Confidence: {top_prediction[1]:.2f}"],
             }
 
             return interpretability

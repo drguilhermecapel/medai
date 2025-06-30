@@ -24,8 +24,7 @@ class Patient(Base, TimestampMixin):
     medical_record_number = Column(String(50), unique=True)
     
     # Relationships
-    ecg_records = relationship("ECGRecord", back_populates="patient", cascade="all, delete-orphan")
-    ecg_analyses = relationship("ECGAnalysis", back_populates="patient", cascade="all, delete-orphan")
+
     medical_records = relationship("MedicalRecord", back_populates="patient", cascade="all, delete-orphan")
     
     def __repr__(self):

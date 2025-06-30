@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: medai-backend
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python simple_backend.py
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: PYTHON_VERSION
+        value: 3.11
+      - key: ALLOWED_ORIGINS
+        value: https://medai-test-app-d11v3t38.devinapps.com
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: false

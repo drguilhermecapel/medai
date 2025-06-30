@@ -10,8 +10,7 @@ import json
 
 from app.services.ai_diagnostic_service import AIDiagnosticService
 from app.core.constants import DiagnosisCategory, ClinicalUrgency, ConfidenceLevel
-from tests.smart_mocks import SmartECGMock, SmartPatientMock
-
+from tests.smart_mocks 
 
 class TestAIDiagnosticServiceCritical:
     """Critical tests for AI Diagnostic Service - 100% coverage required."""
@@ -86,7 +85,7 @@ class TestAIDiagnosticServiceCritical:
         """Test comprehensive diagnosis generation."""
         # Generate diagnosis
         diagnosis = await ai_diagnostic_service.generate_diagnosis(
-            ecg_analysis=ecg_analysis_result,
+            
             patient_data=patient_context,
             include_differentials=True,
             include_recommendations=True
@@ -119,7 +118,7 @@ class TestAIDiagnosticServiceCritical:
     async def test_multimodal_data_integration(self, ai_diagnostic_service):
         """Test integration of multiple data sources."""
         # Multiple data sources
-        ecg_data = {
+        
             "diagnosis": "Possible MI",
             "st_elevation": True,
             "affected_leads": ["II", "III", "aVF"]
@@ -154,7 +153,7 @@ class TestAIDiagnosticServiceCritical:
         
         # Verify integration
         assert integrated_diagnosis["diagnosis"] == "Acute Inferior STEMI"
-        assert integrated_diagnosis["data_sources_used"] == ["ecg", "labs", "imaging", "vitals"]
+        assert integrated_diagnosis["data_sources_used"] == ["labs", "imaging", "vitals"]
         assert integrated_diagnosis["confidence_boost"] > 0  # Multiple sources increase confidence
         assert integrated_diagnosis["clinical_correlation"]["troponin_elevated"] is True
         assert integrated_diagnosis["clinical_correlation"]["wall_motion_matches_ecg"] is True
@@ -201,8 +200,7 @@ class TestAIDiagnosticServiceCritical:
             "family_history_cad": True,
             "ldl_cholesterol": 180
         })
-        
-        ecg_findings = {
+
             "diagnosis": "Atrial Fibrillation",
             "heart_rate": 120,
             "pvcs_per_hour": 50
@@ -210,9 +208,7 @@ class TestAIDiagnosticServiceCritical:
         
         # Calculate risk scores
         risk_assessment = await ai_diagnostic_service.calculate_risk_scores(
-            patient_data=patient_context,
-            ecg_findings=ecg_findings
-        )
+            patient_data=patient_context)
         
         # Verify risk calculations
         assert "cardiovascular_risk" in risk_assessment
@@ -272,7 +268,7 @@ class TestAIDiagnosticServiceCritical:
         """Test natural language report generation."""
         # Generate clinical report
         report = await ai_diagnostic_service.generate_clinical_report(
-            ecg_analysis=ecg_analysis_result,
+            
             patient_data=patient_context,
             report_type="comprehensive",
             audience="physician"
@@ -313,7 +309,7 @@ class TestAIDiagnosticServiceCritical:
         
         # Generate pediatric diagnosis
         diagnosis = await ai_diagnostic_service.generate_pediatric_diagnosis(
-            ecg_data=pediatric_ecg,
+            
             patient_data=pediatric_patient
         )
         
