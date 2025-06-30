@@ -10,13 +10,11 @@ from unittest.mock import AsyncMock, Mock, patch
 import numpy as np
 from datetime import datetime, timedelta
 
-from app.services.ecg_service import ECGAnalysisService
 from app.services.ml_model_service import MLModelService
 from app.services.ai_diagnostic_service import AIDiagnosticService
 from app.services.patient_service import PatientService
 from app.services.notification_service import NotificationService
 from app.core.constants import AnalysisStatus, ClinicalUrgency
-
 
 class TestECGWorkflowIntegration:
     """Test complete ECG analysis workflow integration."""
@@ -33,14 +31,13 @@ class TestECGWorkflowIntegration:
             "confidence": 0.92,
             "primary_diagnosis": "Atrial Fibrillation"
         }
-        
-        ecg_service = ECGAnalysisService(mock_db_session, ml_service, validation_service)
+
         patient_service = PatientService(mock_db_session)
         diagnostic_service = AIDiagnosticService(mock_db_session)
         notification_service = NotificationService(mock_db_session)
         
         return {
-            "ecg": ecg_service,
+            : ecg_service,
             "patient": patient_service,
             "diagnostic": diagnostic_service,
             "notification": notification_service,
@@ -52,8 +49,7 @@ class TestECGWorkflowIntegration:
     @pytest.mark.asyncio
     async def test_complete_ecg_analysis_workflow(self, integrated_services):
         """Test complete ECG analysis workflow from upload to diagnosis."""
-        from tests.smart_mocks import SmartECGMock, SmartPatientMock
-        
+        from tests.smart_mocks         
         # 1. Create patient
         patient_data = SmartPatientMock.generate_patient_data(
             age_range=(65, 75),
@@ -65,14 +61,12 @@ class TestECGWorkflowIntegration:
         patient = await patient_service.create(patient_data)
         
         # 2. Upload ECG
-        ecg_data = SmartECGMock.generate_arrhythmia_ecg("atrial_fibrillation")
-        
+
         with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as tmp_file:
             np.save(tmp_file.name, ecg_data)
-            ecg_path = tmp_file.name
-        
+
         # 3. Create ECG analysis
-        ecg_service = integrated_services["ecg"]
+        
         ecg_service.repository = AsyncMock()
         ecg_service.repository.create = AsyncMock(return_value=Mock(
             id=123,
@@ -120,7 +114,7 @@ class TestECGWorkflowIntegration:
         })
         
         diagnosis = await diagnostic_service.generate_diagnosis(
-            ecg_features=ecg_service.processor.extract_features.return_value,
+            
             ml_predictions=ml_result,
             patient_data=patient_data
         )
@@ -151,8 +145,7 @@ class TestECGWorkflowIntegration:
     @pytest.mark.asyncio
     async def test_emergency_stemi_workflow(self, integrated_services):
         """Test emergency STEMI patient workflow with cath lab activation."""
-        from tests.smart_mocks import SmartECGMock
-        
+        from tests.smart_mocks         
         # Generate STEMI ECG
         stemi_ecg = SmartECGMock.generate_arrhythmia_ecg("stemi")
         
@@ -164,7 +157,7 @@ class TestECGWorkflowIntegration:
         }
         
         # Configure ECG service
-        ecg_service = integrated_services["ecg"]
+        
         ecg_service.emergency_processor = AsyncMock()
         ecg_service.emergency_processor.process_stemi = AsyncMock(return_value={
             "stemi_confirmed": True,
@@ -183,15 +176,13 @@ class TestECGWorkflowIntegration:
         
         # Process emergency ECG
         emergency_result = await ecg_service.process_emergency_ecg(
-            ecg_data=stemi_ecg,
+            
             patient_id=999
         )
         
         # Activate cath lab
         cath_lab_activation = await notification_service.activate_cath_lab(
-            patient_id=999,
-            ecg_findings=emergency_result
-        )
+            patient_id=999)
         
         # Verify emergency response
         assert emergency_result["stemi_confirmed"] is True
@@ -203,8 +194,7 @@ class TestECGWorkflowIntegration:
     @pytest.mark.asyncio
     async def test_batch_screening_workflow(self, integrated_services):
         """Test batch ECG screening for population health."""
-        from tests.smart_mocks import SmartECGMock, SmartPatientMock
-        
+        from tests.smart_mocks         
         # Generate batch of patients and ECGs
         batch_size = 50
         patients = []
@@ -231,7 +221,7 @@ class TestECGWorkflowIntegration:
             ecgs.append(ecg)
         
         # Configure services for batch processing
-        ecg_service = integrated_services["ecg"]
+        
         ecg_service.batch_processor = AsyncMock()
         ecg_service.batch_processor.process_batch = AsyncMock(return_value=[
             {
@@ -245,7 +235,7 @@ class TestECGWorkflowIntegration:
         
         # Process batch
         batch_results = await ecg_service.batch_processor.process_batch(
-            patient_ecg_pairs=list(zip(patients, ecgs))
+            patient_
         )
         
         # Analyze results
@@ -281,14 +271,13 @@ class TestECGWorkflowIntegration:
     @pytest.mark.asyncio
     async def test_telemedicine_ecg_workflow(self, integrated_services):
         """Test remote ECG monitoring and telemedicine workflow."""
-        from tests.smart_mocks import SmartECGMock
-        
+        from tests.smart_mocks         
         # Simulate remote ECG device
         remote_device_id = "REMOTE_ECG_001"
         patient_id = 12345
         
         # Configure services for telemedicine
-        ecg_service = integrated_services["ecg"]
+        
         ecg_service.telemedicine_handler = AsyncMock()
         
         # Simulate continuous monitoring
@@ -298,10 +287,10 @@ class TestECGWorkflowIntegration:
         for hour in range(monitoring_duration):
             # Simulate hourly ECG transmission
             if hour == 15:  # Simulate arrhythmia at hour 15
-                ecg_data = SmartECGMock.generate_arrhythmia_ecg("atrial_fibrillation")
+                
                 expected_alert = True
             else:
-                ecg_data = SmartECGMock.generate_normal_ecg()
+                
                 expected_alert = False
             
             # Process remote ECG
@@ -319,9 +308,7 @@ class TestECGWorkflowIntegration:
             
             result = await ecg_service.telemedicine_handler.process_remote_ecg(
                 device_id=remote_device_id,
-                patient_id=patient_id,
-                ecg_data=ecg_data
-            )
+                patient_id=patient_id)
             
             if result["analysis_result"]["alert_generated"]:
                 alerts_generated.append(result)
@@ -355,8 +342,7 @@ class TestECGWorkflowIntegration:
     @pytest.mark.asyncio
     async def test_multi_modal_integration(self, integrated_services):
         """Test integration of ECG with other clinical data."""
-        from tests.smart_mocks import SmartECGMock, SmartPatientMock
-        
+        from tests.smart_mocks         
         # Generate comprehensive patient data
         patient_data = SmartPatientMock.generate_patient_data(
             age_range=(70, 80),
@@ -370,8 +356,7 @@ class TestECGWorkflowIntegration:
         )
         
         # Generate abnormal ECG
-        ecg_data = SmartECGMock.generate_arrhythmia_ecg("atrial_fibrillation")
-        
+
         # Configure diagnostic service for multi-modal analysis
         diagnostic_service = integrated_services["diagnostic"]
         diagnostic_service.analyze_multi_modal = AsyncMock(return_value={
@@ -398,7 +383,7 @@ class TestECGWorkflowIntegration:
         
         # Perform multi-modal analysis
         integrated_result = await diagnostic_service.analyze_multi_modal(
-            ecg_data=ecg_data,
+            
             lab_results=lab_results,
             patient_data=patient_data
         )
@@ -413,8 +398,7 @@ class TestECGWorkflowIntegration:
     @pytest.mark.asyncio
     async def test_pediatric_ecg_workflow(self, integrated_services):
         """Test specialized pediatric ECG analysis workflow."""
-        from tests.smart_mocks import SmartECGMock, SmartPatientMock
-        
+        from tests.smart_mocks         
         # Generate pediatric patient
         pediatric_patient = SmartPatientMock.generate_patient_data(
             age_range=(1, 10)
@@ -422,7 +406,7 @@ class TestECGWorkflowIntegration:
         pediatric_patient["age_months"] = pediatric_patient["age"] * 12
         
         # Configure ECG service for pediatric analysis
-        ecg_service = integrated_services["ecg"]
+        
         ecg_service.pediatric_analyzer = AsyncMock()
         ecg_service.pediatric_analyzer.analyze_pediatric_ecg = AsyncMock(return_value={
             "age_adjusted_normal": True,
@@ -446,7 +430,7 @@ class TestECGWorkflowIntegration:
         
         # Process pediatric ECG
         pediatric_result = await ecg_service.pediatric_analyzer.analyze_pediatric_ecg(
-            ecg_data=pediatric_ecg,
+            
             age_months=pediatric_patient["age_months"]
         )
         
@@ -460,33 +444,26 @@ class TestECGWorkflowIntegration:
     @pytest.mark.asyncio
     async def test_high_volume_concurrent_processing(self, integrated_services):
         """Test system performance under high concurrent load."""
-        from tests.smart_mocks import SmartECGMock
-        import time
-        
+                
         # Configure for concurrent processing
         concurrent_requests = 100
-        ecg_service = integrated_services["ecg"]
-        
+
         # Track performance metrics
         start_time = time.time()
         processing_times = []
         
         async def process_single_ecg(ecg_id):
             """Process a single ECG and measure time."""
-            ecg_start = time.time()
-            
-            ecg_data = SmartECGMock.generate_normal_ecg(duration_seconds=10)
-            
+
             # Mock the processing to be fast
-            ecg_service.process_ecg_async = AsyncMock(return_value={
+            ecg_service.process_
                 "id": ecg_id,
                 "status": AnalysisStatus.COMPLETED,
                 "processing_time": 0.5
             })
             
             result = await ecg_service.process_ecg_async(ecg_data)
-            
-            ecg_end = time.time()
+
             return ecg_end - ecg_start
         
         # Process ECGs concurrently
@@ -533,7 +510,7 @@ class TestECGWorkflowIntegration:
                 with patch('app.services.ai_diagnostic_service.AIDiagnosticService') as mock_diagnostic:
                     
                     # Setup pipeline
-                    mock_ecg_instance = mock_ecg.return_value
+                    mock_
                     mock_ml_instance = mock_ml.return_value
                     mock_diagnostic_instance = mock_diagnostic.return_value
                     
@@ -556,7 +533,7 @@ class TestECGWorkflowIntegration:
                     }
                     
                     # Execute pipeline
-                    ecg_result = await mock_ecg_instance.process_ecg_file("/path/to/ecg.xml")
+                    
                     ml_result = await mock_ml_instance.classify_ecg(ecg_result["processed_data"])
                     report = await mock_diagnostic_instance.generate_report(ml_result)
                     
@@ -574,9 +551,8 @@ class TestECGWorkflowIntegration:
         
         async def process_patient(patient_id):
             """Simulate processing a single patient."""
-            from tests.smart_mocks import SmartECGMock
+            from tests.smart_mocks             
             
-            ecg_data = SmartECGMock.generate_normal_ecg()
             # Mock processing
             await asyncio.sleep(0.1)  # Simulate processing time
             

@@ -12,7 +12,6 @@ from datetime import datetime, timedelta
 
 from app.core.constants import AnalysisStatus, ClinicalUrgency
 
-
 class TestE2ECriticalPatientJourney:
     """Test complete end-to-end critical patient journey."""
 
@@ -47,8 +46,7 @@ class TestE2ECriticalPatientJourney:
     @pytest.mark.asyncio
     async def test_stemi_patient_complete_journey(self, e2e_environment):
         """Test complete STEMI patient journey from arrival to treatment."""
-        from tests.smart_mocks import SmartECGMock, SmartPatientMock
-        
+        from tests.smart_mocks         
         # === Phase 1: Patient Arrival ===
         arrival_time = datetime.now()
         
@@ -77,13 +75,12 @@ class TestE2ECriticalPatientJourney:
         }
         
         # === Phase 2: ECG Acquisition ===
-        ecg_acquisition_time = arrival_time + timedelta(minutes=5)
-        
+
         # Generate STEMI ECG
         stemi_ecg = SmartECGMock.generate_arrhythmia_ecg("stemi")
         
         # ECG metadata
-        ecg_metadata = {
+        
             "acquisition_time": ecg_acquisition_time,
             "device_id": "ECG_DEVICE_001",
             "technician_id": "TECH_123",
@@ -240,7 +237,7 @@ class TestE2ECriticalPatientJourney:
             "key_timestamps": {
                 "door": arrival_time,
                 "triage": triage_result["triage_time"],
-                "ecg": ecg_acquisition_time,
+                : ecg_acquisition_time,
                 "stemi_detection": stemi_analysis["analysis_time"],
                 "cath_lab_activation": emergency_activation_time,
                 "balloon": procedure_start_time
@@ -261,8 +258,7 @@ class TestE2ECriticalPatientJourney:
     @pytest.mark.asyncio
     async def test_pediatric_emergency_workflow(self, e2e_environment):
         """Test pediatric emergency ECG workflow."""
-        from tests.smart_mocks import SmartECGMock, SmartPatientMock
-        
+        from tests.smart_mocks         
         # Generate pediatric patient with concerning symptoms
         pediatric_patient = {
             "id": 12345,
@@ -312,8 +308,7 @@ class TestE2ECriticalPatientJourney:
     @pytest.mark.asyncio
     async def test_mass_casualty_ecg_triage(self, e2e_environment):
         """Test ECG triage system during mass casualty event."""
-        from tests.smart_mocks import SmartECGMock, SmartPatientMock
-        
+        from tests.smart_mocks         
         # Simulate mass casualty incident
         casualty_count = 20
         incident_time = datetime.now()
@@ -456,8 +451,7 @@ class TestE2ECriticalPatientJourney:
     @pytest.mark.asyncio
     async def test_ai_explainability_workflow(self, e2e_environment):
         """Test AI explainability for clinical decision support."""
-        from tests.smart_mocks import SmartECGMock
-        
+        from tests.smart_mocks         
         # Generate complex ECG
         complex_ecg = SmartECGMock.generate_arrhythmia_ecg("atrial_fibrillation")
         

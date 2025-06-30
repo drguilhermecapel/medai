@@ -11,7 +11,6 @@ from pathlib import Path
 import argparse
 import shutil
 
-
 class CoverageMonitor:
     """Monitor de cobertura de testes para MedAI."""
     
@@ -870,7 +869,6 @@ def test_dummy():
         
         return report
 
-
 def main():
     """Função principal."""
     parser = argparse.ArgumentParser(description="Monitor de Cobertura de Testes MedAI")
@@ -956,7 +954,6 @@ def main():
             import traceback
             traceback.print_exc()
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

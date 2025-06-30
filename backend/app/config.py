@@ -18,7 +18,6 @@ except ImportError:
     from pydantic import PostgresDsn, RedisDsn, AnyHttpUrl
     PYDANTIC_V2 = False
 
-
 class Settings(BaseSettings):
     """Configurações principais da aplicação"""
     
@@ -109,9 +108,8 @@ class Settings(BaseSettings):
     RATE_LIMIT_PER_HOUR: int = Field(default=1000, alias="RATE_LIMIT_PER_HOUR")
     
     # Configurações médicas
-    ECG_SAMPLE_RATE: int = Field(default=500, alias="ECG_SAMPLE_RATE")
-    ECG_LEADS: int = Field(default=12, alias="ECG_LEADS")
-    MIN_ECG_QUALITY_SCORE: float = Field(default=0.7, alias="MIN_ECG_QUALITY_SCORE")
+
+    MIN_
     
     # Notificações
     ENABLE_PUSH_NOTIFICATIONS: bool = Field(default=False, alias="ENABLE_PUSH_NOTIFICATIONS")
@@ -211,7 +209,6 @@ class Settings(BaseSettings):
         """Verifica se está em modo de teste"""
         return self.TESTING or self.ENVIRONMENT == "testing"
 
-
 # Configurações específicas por ambiente
 class DevelopmentSettings(Settings):
     """Configurações para desenvolvimento"""
@@ -220,14 +217,12 @@ class DevelopmentSettings(Settings):
     DATABASE_ECHO: bool = True
     LOG_LEVEL: str = "DEBUG"
 
-
 class ProductionSettings(Settings):
     """Configurações para produção"""
     DEBUG: bool = False
     DOCS_URL: Optional[str] = None
     REDOC_URL: Optional[str] = None
     LOG_LEVEL: str = "WARNING"
-
 
 class TestingSettings(Settings):
     """Configurações para testes"""
@@ -240,7 +235,6 @@ class TestingSettings(Settings):
     SMTP_PASSWORD: str = "test"
     SMTP_FROM_EMAIL: str = "test@test.com"
     OPENAI_API_KEY: str = "test-key"
-
 
 @lru_cache()
 def get_settings() -> Settings:
@@ -255,10 +249,8 @@ def get_settings() -> Settings:
     # Caso contrário, usa as configurações padrão
     return Settings()
 
-
 # Instância global das configurações
 settings = get_settings()
-
 
 # Função para obter as configurações corretas baseadas no ambiente
 def get_settings_by_environment(environment: str = None) -> Settings:
@@ -271,7 +263,6 @@ def get_settings_by_environment(environment: str = None) -> Settings:
         return TestingSettings()
     else:
         return DevelopmentSettings()
-
 
 # Configurações de logging
 LOGGING_CONFIG = {

@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-
 class ProtocolType(str, Enum):
     """Types of clinical protocols."""
     SEPSIS = "sepsis"
@@ -24,14 +23,12 @@ class ProtocolType(str, Enum):
     HEART_FAILURE = "heart_failure"
     PNEUMONIA = "pneumonia"
 
-
 class RiskLevel(str, Enum):
     """Risk assessment levels."""
     LOW = "low"
     MODERATE = "moderate"
     HIGH = "high"
     CRITICAL = "critical"
-
 
 class ClinicalProtocolsService:
     """Service for clinical protocol detection and assessment."""
@@ -217,7 +214,6 @@ class ClinicalProtocolsService:
             heart_score += 1
             criteria_met["some_risk_factors"] = True
 
-        ecg_findings = clinical_data.get("ecg_findings", {})
         if ecg_findings.get("st_elevation"):
             heart_score += 2
             criteria_met["st_elevation"] = True

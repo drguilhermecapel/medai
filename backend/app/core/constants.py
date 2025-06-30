@@ -15,7 +15,7 @@ class UserRole(str, Enum):
     VIEWER = "viewer"
 
 class AnalysisStatus(str, Enum):
-    """Status de análise de ECG"""
+    """Status de análise"""
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"
@@ -52,7 +52,7 @@ class NotificationPriority(str, Enum):
 
 class NotificationType(str, Enum):
     """Tipos de notificação"""
-    ECG_ANALYSIS_READY = "ecg_analysis_ready"
+    
     VALIDATION_REQUIRED = "validation_required"
     VALIDATION_COMPLETED = "validation_completed"
     CRITICAL_FINDING = "critical_finding"
@@ -62,7 +62,7 @@ class NotificationType(str, Enum):
 
 class ModelType(str, Enum):
     """Tipos de modelos de ML"""
-    ECG_CLASSIFIER = "ecg_classifier"
+    
     RHYTHM_DETECTOR = "rhythm_detector"
     MORPHOLOGY_ANALYZER = "morphology_analyzer"
     RISK_PREDICTOR = "risk_predictor"
@@ -82,12 +82,11 @@ UserRoles = UserRole  # Alguns testes usam UserRoles
 # Configurações do sistema
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 ALLOWED_FILE_EXTENSIONS = {'.txt', '.edf', '.xml', '.pdf', '.csv'}
-MIN_ECG_DURATION = 10  # segundos
-MAX_ECG_DURATION = 86400  # 24 horas
+MIN_
+MAX_
 
 # Configurações de ML
 MODEL_CONFIDENCE_THRESHOLD = 0.85
-ENSEMBLE_MODELS = ["ecg_classifier", "rhythm_detector", "morphology_analyzer"]
 
 # Configurações de API
 API_V1_STR = "/api/v1"
@@ -106,17 +105,4 @@ class ModelStatus(str, Enum):
     ERROR = "error"
     UPDATING = "updating"
 
-class ECGLeads(str, Enum):
-    """Derivações do ECG"""
-    I = "I"
-    II = "II"
-    III = "III"
-    aVR = "aVR"
-    aVL = "aVL"
-    aVF = "aVF"
-    V1 = "V1"
-    V2 = "V2"
-    V3 = "V3"
-    V4 = "V4"
-    V5 = "V5"
-    V6 = "V6"
+

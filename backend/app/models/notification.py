@@ -10,10 +10,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.constants import (
     NotificationPriority,
-    NotificationType,
-)
+    NotificationType)
 from app.models.base import Base
-
 
 class Notification(Base):
     """Notification model."""
@@ -56,7 +54,6 @@ class Notification(Base):
     def __repr__(self) -> str:
         return f"<Notification(id={self.id}, type='{self.notification_type}', priority='{self.priority}')>"
 
-
 class NotificationTemplate(Base):
     """Notification template model."""
 
@@ -87,7 +84,6 @@ class NotificationTemplate(Base):
 
     def __repr__(self) -> str:
         return f"<NotificationTemplate(id={self.id}, name='{self.name}', type='{self.notification_type}')>"
-
 
 class NotificationPreference(Base):
     """User notification preference model."""
