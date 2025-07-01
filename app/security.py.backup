@@ -45,7 +45,7 @@ def decode_access_token(token: str) -> dict:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
     except JWTError:
-        raise HTTPException(status_code=401, detail="Token invÃƒÆ’Ã‚Â¡lido")
+        raise HTTPException(status_code=401, detail="Token invÃƒÂ¡lido")
 
 async def get_current_user(token: str, db) -> Any:
     """Get current user from token."""
@@ -53,22 +53,22 @@ async def get_current_user(token: str, db) -> Any:
     payload = decode_access_token(token)
     user = db.query(User).filter(User.email == payload.get("sub")).first()
     if not user:
-        raise HTTPException(status_code=401, detail="UsuÃƒÆ’Ã‚Â¡rio nÃƒÆ’Ã‚Â£o encontrado")
+        raise HTTPException(status_code=401, detail="UsuÃƒÂ¡rio nÃƒÂ£o encontrado")
     if not user.is_active:
-        raise HTTPException(status_code=401, detail="UsuÃƒÆ’Ã‚Â¡rio inativo")
+        raise HTTPException(status_code=401, detail="UsuÃƒÂ¡rio inativo")
     return user
 
 def check_permissions(user: Any, required_permissions: list) -> bool:
     """Check user permissions."""
     if user.role == "admin":
         return True
-    # Implementar lÃƒÆ’Ã‚Â³gica de permissÃƒÆ’Ã‚Âµes
+    # Implementar lÃƒÂ³gica de permissÃƒÂµes
     return True
 
 def validate_token_claims(claims: dict) -> None:
     """Validate token claims."""
     if "sub" not in claims:
-        raise HTTPException(status_code=401, detail="Token invÃƒÆ’Ã‚Â¡lido")
+        raise HTTPException(status_code=401, detail="Token invÃƒÂ¡lido")
 
 class AuthenticationError(Exception):
     pass

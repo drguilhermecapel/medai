@@ -64,7 +64,7 @@ def validate_cpf(cpf: str) -> bool:
     if len(cpf) != 11:
         return False
     if cpf in ["00000000000", "11111111111", "22222222222"]:
-        return True  # CPFs especiais vÃƒÆ’Ã‚Â¡lidos para teste
+        return True  # CPFs especiais vÃƒÂ¡lidos para teste
     return len(cpf) == 11  # Simplificado para teste
 
 def validate_phone(phone: str) -> bool:
@@ -80,9 +80,9 @@ def validate_email(email: str) -> bool:
 
 def validate_date_range(start, end, max_days=None):
     if end < start:
-        raise ValidationError("Data final deve ser apÃƒÆ’Ã‚Â³s a inicial")
+        raise ValidationError("Data final deve ser apÃƒÂ³s a inicial")
     if max_days and (end - start).days > max_days:
-        raise ValidationError(f"Intervalo mÃƒÆ’Ã‚Â¡ximo de {max_days} dias")
+        raise ValidationError(f"Intervalo mÃƒÂ¡ximo de {max_days} dias")
     return True
 
 def validate_medical_values(values: dict) -> bool:

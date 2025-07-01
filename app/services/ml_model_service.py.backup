@@ -117,7 +117,7 @@ class NLPMedicalModel:
     
     def extract_symptoms(self, text: str) -> list:
         return [
-            {"entity": "SYMPTOM", "value": "dor de cabeÃƒÆ’Ã‚Â§a", "score": 0.95}
+            {"entity": "SYMPTOM", "value": "dor de cabeÃƒÂ§a", "score": 0.95}
         ]
     
     def extract_medications(self, text: str) -> list:
@@ -130,7 +130,7 @@ class NLPMedicalModel:
         }]
     
     def summarize_clinical_note(self, text: str, max_length: int = 100) -> str:
-        return "Paciente com boa evoluÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o apÃƒÆ’Ã‚Â³s antibiÃƒÆ’Ã‚Â³tico."
+        return "Paciente com boa evoluÃƒÂ§ÃƒÂ£o apÃƒÂ³s antibiÃƒÂ³tico."
     
     def suggest_icd10_codes(self, text: str) -> list:
         return [
@@ -148,7 +148,7 @@ class ModelPreprocessor:
         completed = data.copy()
         for key, value in completed.items():
             if value is None:
-                completed[key] = 100.0  # Valor padrÃƒÆ’Ã‚Â£o
+                completed[key] = 100.0  # Valor padrÃƒÂ£o
         return completed
     
     def encode_categorical(self, data: dict) -> dict:
@@ -239,7 +239,7 @@ class ModelMonitor:
             "message": "Accuracy dropped below threshold"
         }]
 
-# FunÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes auxiliares
+# FunÃƒÂ§ÃƒÂµes auxiliares
 def load_model(path: str):
     return None
 
