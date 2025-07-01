@@ -1,4 +1,20 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
+"""
+Correção rápida para test_config.py
+"""
+
+from pathlib import Path
+
+# Fazer backup do original
+original_file = Path("tests/unit/test_config.py")
+backup_file = Path("tests/unit/test_config.py.backup")
+
+if original_file.exists() and not backup_file.exists():
+    original_file.rename(backup_file)
+    print(f"💾 Backup criado: {backup_file}")
+
+# Criar novo test_config.py que funciona
+new_test_config = '''# -*- coding: utf-8 -*-
 """
 Testes para configuração do sistema MedAI
 """
@@ -139,3 +155,27 @@ class TestSettingsAdvanced:
         
         # Deve retornar a mesma instância (cached)
         assert settings1 is settings2
+'''
+
+# Salvar novo arquivo
+with open("tests/unit/test_config.py", 'w', encoding='utf-8') as f:
+    f.write(new_test_config)
+
+print("✅ test_config.py corrigido!")
+
+# Testar se funciona
+import subprocess
+result = subprocess.run(
+    ["python", "-m", "pytest", "tests/unit/test_config.py", "-v"],
+    capture_output=True,
+    text=True
+)
+
+print(f"\n🧪 Resultado do teste: código {result.returncode}")
+if result.returncode == 0:
+    print("✅ SUCESSO! test_config.py está funcionando!")
+else:
+    print("❌ Ainda há problemas:")
+    print(result.stdout[-500:])
+
+print("\n🎯 Execute: python -m pytest tests/unit/test_config.py -v")
