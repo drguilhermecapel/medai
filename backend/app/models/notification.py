@@ -33,6 +33,7 @@ class Notification(BaseModel):
     """Modelo de notificação"""
     
     __tablename__ = "notifications"
+    __table_args__ = {"extend_existing": True}
     
     # Usuário destinatário
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)

@@ -10,6 +10,7 @@ class UserRole(str, Enum):
     DOCTOR = "doctor"
     NURSE = "nurse"
     PATIENT = "patient"
+    VIEWER = "viewer"
     TECHNICIAN = "technician"
 
 

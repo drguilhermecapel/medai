@@ -16,6 +16,7 @@ from app.core.constants import (
 class Medication(Base):
     """Modelo principal de medicamento/prescrição"""
     __tablename__ = "medications"
+    __table_args__ = {"extend_existing": True}
     
     # Primary key
     id: Mapped[str] = mapped_column(

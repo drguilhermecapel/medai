@@ -37,7 +37,7 @@ class TestECGWorkflowIntegration:
         notification_service = NotificationService(mock_db_session)
         
         return {
-            : ecg_service,
+            "ecg": ecg_service,
             "patient": patient_service,
             "diagnostic": diagnostic_service,
             "notification": notification_service,
@@ -49,7 +49,7 @@ class TestECGWorkflowIntegration:
     @pytest.mark.asyncio
     async def test_complete_ecg_analysis_workflow(self, integrated_services):
         """Test complete ECG analysis workflow from upload to diagnosis."""
-        from tests.smart_mocks         
+        from tests.smart_mocks import SmartPatientMock, SmartECGMock         
         # 1. Create patient
         patient_data = SmartPatientMock.generate_patient_data(
             age_range=(65, 75),
@@ -145,7 +145,7 @@ class TestECGWorkflowIntegration:
     @pytest.mark.asyncio
     async def test_emergency_stemi_workflow(self, integrated_services):
         """Test emergency STEMI patient workflow with cath lab activation."""
-        from tests.smart_mocks         
+        from tests.smart_mocks import SmartPatientMock, SmartECGMock         
         # Generate STEMI ECG
         stemi_ecg = SmartECGMock.generate_arrhythmia_ecg("stemi")
         
@@ -194,7 +194,7 @@ class TestECGWorkflowIntegration:
     @pytest.mark.asyncio
     async def test_batch_screening_workflow(self, integrated_services):
         """Test batch ECG screening for population health."""
-        from tests.smart_mocks         
+        from tests.smart_mocks import SmartPatientMock, SmartECGMock
         # Generate batch of patients and ECGs
         batch_size = 50
         patients = []
@@ -271,7 +271,7 @@ class TestECGWorkflowIntegration:
     @pytest.mark.asyncio
     async def test_telemedicine_ecg_workflow(self, integrated_services):
         """Test remote ECG monitoring and telemedicine workflow."""
-        from tests.smart_mocks         
+        from tests.smart_mocks import SmartPatientMock, SmartECGMock
         # Simulate remote ECG device
         remote_device_id = "REMOTE_ECG_001"
         patient_id = 12345
@@ -342,7 +342,7 @@ class TestECGWorkflowIntegration:
     @pytest.mark.asyncio
     async def test_multi_modal_integration(self, integrated_services):
         """Test integration of ECG with other clinical data."""
-        from tests.smart_mocks         
+        from tests.smart_mocks import SmartPatientMock, SmartECGMock
         # Generate comprehensive patient data
         patient_data = SmartPatientMock.generate_patient_data(
             age_range=(70, 80),
@@ -398,7 +398,7 @@ class TestECGWorkflowIntegration:
     @pytest.mark.asyncio
     async def test_pediatric_ecg_workflow(self, integrated_services):
         """Test specialized pediatric ECG analysis workflow."""
-        from tests.smart_mocks         
+        from tests.smart_mocks import SmartPatientMock, SmartECGMock
         # Generate pediatric patient
         pediatric_patient = SmartPatientMock.generate_patient_data(
             age_range=(1, 10)
@@ -456,11 +456,10 @@ class TestECGWorkflowIntegration:
             """Process a single ECG and measure time."""
 
             # Mock the processing to be fast
-            ecg_service.process_
-                "id": ecg_id,
-                "status": AnalysisStatus.COMPLETED,
-                "processing_time": 0.5
-            })
+            ecg_start = time.time()
+            # Simulate processing
+            await asyncio.sleep(0.01)  # Small delay to simulate processing
+            ecg_end = time.time()
             
             result = await ecg_service.process_ecg_async(ecg_data)
 
@@ -551,8 +550,7 @@ class TestECGWorkflowIntegration:
         
         async def process_patient(patient_id):
             """Simulate processing a single patient."""
-            from tests.smart_mocks             
-            
+            from tests.smart_mocks import SmartPatientMock, SmartECGMock
             # Mock processing
             await asyncio.sleep(0.1)  # Simulate processing time
             

@@ -89,7 +89,7 @@ class TestMLModelServiceCritical:
         """Test ECG classification for normal rhythm."""
         # Mock model inference
         ml_service.models = {
-            ModelType.
+            # Mock models dictionary - empty for this test
         }
         
         # Mock prediction - Normal Sinus Rhythm
@@ -110,7 +110,7 @@ class TestMLModelServiceCritical:
         """Test ECG classification for atrial fibrillation."""
         # Mock model inference
         ml_service.models = {
-            ModelType.
+            # Mock models dictionary - empty for this test
         }
         
         # Mock prediction - Atrial Fibrillation
@@ -279,7 +279,7 @@ class TestMLModelServiceCritical:
         
         # Mock batch processing
         ml_service.models = {
-            ModelType.
+            # Mock models dictionary - empty for this test
         }
         
         # Mock batch output
@@ -358,7 +358,7 @@ class TestMLModelServiceCritical:
             await ml_service.classify_ecg(np.random.rand(100))
         
         # Test inference error
-        ml_service.models = {ModelType.
+        ml_service.models = {ModelType.ECG_CLASSIFIER: Mock()}
         ml_service.models[ModelType.ECG_CLASSIFIER].run.side_effect = RuntimeError("ONNX error")
         
         with pytest.raises(MLModelException, match="Inference failed"):
@@ -373,7 +373,7 @@ class TestMLModelServiceCritical:
         ml_service.cache = {}
         
         # Mock model
-        ml_service.models = {ModelType.
+        ml_service.models = {ModelType.ECG_CLASSIFIER: Mock()}
         ml_service.models[ModelType.ECG_CLASSIFIER].run.return_value = [
             np.array([[0.9, 0.1]])
         ]

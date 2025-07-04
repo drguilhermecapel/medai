@@ -11,6 +11,7 @@ class DoctorProfile(BaseModel):
     """Modelo de perfil médico"""
     
     __tablename__ = "doctor_profiles"
+    __table_args__ = {"extend_existing": True}
     
     # Relacionamento com usuário
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)

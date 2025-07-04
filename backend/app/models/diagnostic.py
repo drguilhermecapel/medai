@@ -13,6 +13,7 @@ class Diagnostic(BaseModel):
     """Modelo de diagnóstico médico"""
     
     __tablename__ = "diagnostics"
+    __table_args__ = {"extend_existing": True}
     
     # Exame relacionado
     exam_id = Column(Integer, ForeignKey("exams.id"), unique=True, nullable=False)

@@ -12,6 +12,7 @@ class Prescription(BaseModel):
     """Modelo de prescrição médica"""
     
     __tablename__ = "prescriptions"
+    __table_args__ = {"extend_existing": True}
     
     # Paciente
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)

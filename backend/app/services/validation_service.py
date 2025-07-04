@@ -718,3 +718,10 @@ class ValidationService:
         validation_result['valid'] = len(validation_result['errors']) == 0
         
         return validation_result
+
+class ValidationError(Exception):
+    """Custom validation error"""
+    def __init__(self, message: str, code: str = None):
+        self.message = message
+        self.code = code
+        super().__init__(self.message)

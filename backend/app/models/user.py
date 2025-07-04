@@ -13,6 +13,7 @@ class User(BaseModel):
     """Modelo de usuário do sistema"""
     
     __tablename__ = "users"
+    __table_args__ = {"extend_existing": True}
     
     # Informações básicas
     email = Column(String(255), unique=True, index=True, nullable=False)
