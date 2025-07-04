@@ -118,3 +118,74 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 PASSWORD_RESET_TOKEN_EXPIRE_HOURS = 24
 EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS = 48
+class DiagnosisCategory(str, Enum):
+    """Diagnosis categories"""
+    NORMAL = "normal"
+    ABNORMAL = "abnormal"
+    CRITICAL = "critical"
+    ARRHYTHMIA = "arrhythmia"
+    ISCHEMIA = "ischemia"
+    INFARCTION = "infarction"
+
+
+class NotificationPriority(str, Enum):
+    """Notification priority levels"""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    URGENT = "urgent"
+    CRITICAL = "critical"
+
+
+class NotificationType(str, Enum):
+    """Notification types"""
+    ALERT = "alert"
+    WARNING = "warning"
+    INFO = "info"
+    REMINDER = "reminder"
+    EMERGENCY = "emergency"
+    SYSTEM = "system"
+
+
+class UserRoles(str, Enum):
+    """User roles (alias for UserRole)"""
+    ADMIN = "admin"
+    DOCTOR = "doctor"
+    NURSE = "nurse"
+    VIEWER = "viewer"
+    PATIENT = "patient"
+
+
+class AnalysisStatus(str, Enum):
+    """Analysis status"""
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class ClinicalUrgency(str, Enum):
+    """Clinical urgency levels"""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+    EMERGENCY = "emergency"
+
+
+class ValidationStatus(str, Enum):
+    """Validation status"""
+    VALID = "valid"
+    INVALID = "invalid"
+    PENDING = "pending"
+    WARNING = "warning"
+
+
+class ModelType(str, Enum):
+    """ML Model types"""
+    ECG_CLASSIFIER = "ecg_classifier"
+    RISK_PREDICTOR = "risk_predictor"
+    ANOMALY_DETECTOR = "anomaly_detector"
+    DIAGNOSTIC_AI = "diagnostic_ai"
+

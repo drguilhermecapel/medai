@@ -1,13 +1,9 @@
+print('🔧 CRIANDO CLASSE APPOINTMENT...')
 
+appointment_class = '''
 from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
-
-Base = declarative_base()
-
-class BaseModel(Base):
-    """Base model class"""
-    __abstract__ = True
+from app.models.base import BaseModel
 
 class Appointment(BaseModel):
     """Appointment model"""
@@ -45,3 +41,14 @@ class Prescription(BaseModel):
     
     # Relationships
     appointment = relationship('Appointment')
+'''
+
+# Criar diretório models se não existir
+import os
+os.makedirs('backend/app/models', exist_ok=True)
+
+with open('backend/app/models/appointment.py', 'w', encoding='utf-8') as f:
+    f.write(appointment_class)
+
+print('✅ Classe Appointment criada!')
+

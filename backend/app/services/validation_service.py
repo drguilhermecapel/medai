@@ -7,7 +7,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, date
 import logging
 
-from app.core.constants import (
+from backend.app.core.constants import (
     Gender,
     ExamType,
     MIN_HEART_RATE,
@@ -725,3 +725,35 @@ class ValidationError(Exception):
         self.message = message
         self.code = code
         super().__init__(self.message)
+
+
+class ValidationResult:
+    """Validation result class"""
+    
+    def __init__(self, is_valid: bool, message: str = None, code: str = None, data: dict = None):
+        self.is_valid = is_valid
+        self.message = message or ("Validation passed" if is_valid else "Validation failed")
+        self.code = code
+        self.data = data or {}
+        self.errors = []
+        self.warnings = []
+    
+    def add_error(self, error: str, field: str = None):
+        """Add validation error"""
+        self.errors.append({"message": error, "field": field})
+        self.is_valid = False
+    
+    def add_warning(self, warning: str, field: str = None):
+        """Add validation warning"""
+        self.warnings.append({"message": warning, "field": field})
+    
+    def to_dict(self) -> dict:
+        """Convert to dictionary"""
+        return {
+            "is_valid": self.is_valid,
+            "message": self.message,
+            "code": self.code,
+            "data": self.data,
+            "errors": self.errors,
+            "warnings": self.warnings
+        }
