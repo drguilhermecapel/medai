@@ -261,3 +261,43 @@ secrets/
 *.key
 *.pem
 *.crt
+
+# Poetry
+poetry.lock
+
+# Environment files
+.env*
+!.env.example
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test coverage artifacts
+htmlcov/
+.coverage
+coverage.xml
+coverage.json
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ruff
+.ruff_cache/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+temp/

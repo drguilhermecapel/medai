@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 16 Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: medai_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-medai}
+      POSTGRES_USER: ${POSTGRES_USER:-medai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-medai_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-medai} -d ${POSTGRES_DB:-medai}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # MEDAI API Service
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: medai_api
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-medai}:${POSTGRES_PASSWORD:-medai_password}@postgres:5432/${POSTGRES_DB:-medai}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - DEBUG=${DEBUG:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    volumes:
+      - ./src:/app/src  # For development
+    networks:
+      - medai_network
+
+networks:
+  medai_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
