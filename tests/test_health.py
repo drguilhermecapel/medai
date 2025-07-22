@@ -3,7 +3,7 @@ Health check endpoint tests.
 """
 import pytest
 from fastapi.testclient import TestClient
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
 from medai.api.main import app
 
