@@ -41,7 +41,6 @@ def test_root_endpoint():
 @pytest.mark.asyncio
 async def test_health_check_async():
     """Test health check endpoint asynchronously."""
-    from httpx import ASGITransport
     
     async with AsyncClient(
         transport=ASGITransport(app=app), 
