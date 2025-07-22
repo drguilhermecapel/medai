@@ -1,158 +1,285 @@
-# 🏥 MedAI Pro - Sistema Completo de Prontuário Eletrônico
+# 🏥 MEDAI - Advanced Electronic Health Record System with AI
 
-## 🎉 **VERSÃO 1.1.0 - TOTALMENTE FUNCIONAL**
+[![CI Pipeline](https://github.com/drguilhermecapel/medai/actions/workflows/ci.yml/badge.svg)](https://github.com/drguilhermecapel/medai/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/drguilhermecapel/medai/branch/main/graph/badge.svg)](https://codecov.io/gh/drguilhermecapel/medai)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/fastapi-0.104+-green.svg)](https://fastapi.tiangolo.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Sistema completo de prontuário eletrônico com inteligência artificial, agora com **navegação 100% funcional** e interface médica profissional.
+A modern, scalable Electronic Health Record (EHR) system built with FastAPI, SQLModel, and AI diagnostic capabilities. Designed for medical compliance, security, and performance.
 
-### 🌐 **ACESSO DIRETO AO SISTEMA**
+## ✨ Features
+
+- 🚀 **High Performance**: FastAPI with async/await support
+- 🔒 **Medical Compliance**: HIPAA, GDPR, and FDA 21 CFR Part 11 compliant
+- 🤖 **AI Integration**: Built-in AI diagnostic capabilities
+- 📊 **Real-time Analytics**: Patient data insights and reporting
+- 🔐 **Security First**: End-to-end encryption and audit trails
+- 📱 **API-First**: RESTful API with automatic OpenAPI documentation
+- 🐳 **Containerized**: Docker and Docker Compose ready
+
+## 🏗️ Architecture
+
 ```
-👉 https://sknkvzjx.manus.space
-```
-**Status**: ✅ Online e Totalmente Funcional
-
-## ✨ **Funcionalidades Principais**
-
-### 📊 **Dashboard Médico**
-- Métricas em tempo real
-- 247 Pacientes Ativos
-- Alertas críticos automáticos
-
-### 👥 **Gestão de Pacientes**
-- Prontuários eletrônicos completos
-- Histórico médico detalhado
-- Agendamento de consultas
-- Monitoramento de condições
-
-### 🤖 **IA Diagnóstica**
-- Análise multimodal de dados
-- Diagnósticos sugeridos
-- Predição de riscos
-- Recomendações terapêuticas
-- Confiança de 92.5%
-
-### 📄 **Relatórios e Analytics**
-- 1.247 Pacientes cadastrados
-- 97.8% Precisão diagnóstica
-- Exportação de dados
-
-### 💻 **Telemedicina**
-- Consultas virtuais
-- Agenda integrada
-- Chat médico
-- Videoconferência
-
-## 🔧 **Correções Implementadas (v1.1.0)**
-
-### ✅ **Navegação Corrigida**
-- ❌ **Problema anterior**: Menus ficavam "processando"
-- ✅ **Solução**: JavaScript reescrito
-- ✅ **Resultado**: Navegação instantânea
-
-### ✅ **Interface Aprimorada**
-- Sistema de navegação otimizado
-- Feedback visual imediato
-- Design responsivo mantido
-- Compatibilidade total
-
-## 🏥 **Dados Médicos Implementados**
-
-### **Pacientes Cadastrados**
-1. **João Silva** (45 anos) - Hipertensão
-2. **Maria Santos** (32 anos) - Diabetes Tipo 2
-3. **Carlos Oliveira** (58 anos) - Cardiopatia
-
-### **Diagnósticos IA**
-- Hipertensão Arterial Sistêmica
-- Predição de risco cardiovascular
-- Recomendações terapêuticas
-
-## 🚀 **Tecnologias Utilizadas**
-
-### **Frontend**
-- HTML5, CSS3, JavaScript ES6
-- Design responsivo
-- Interface médica profissional
-
-### **Backend** (Estrutura)
-- FastAPI
-- SQLAlchemy
-- PostgreSQL/SQLite
-- JWT Authentication
-
-### **Inteligência Artificial**
-- Análise multimodal
-- Predição de riscos
-- Diagnóstico automatizado
-
-## 📱 **Compatibilidade**
-- ✅ Desktop (Windows, Mac, Linux)
-- ✅ Mobile (iOS, Android)
-- ✅ Tablets
-- ✅ Todos os navegadores modernos
-
-## 🔒 **Segurança Médica**
-- Conformidade HIPAA
-- Proteção de dados LGPD
-- Criptografia AES-256
-- Auditoria completa
-- Controle de acesso
-
-## 📊 **Métricas de Performance**
-- **Cobertura de Testes**: 80%+ global, 100% críticos
-- **Precisão da IA**: 98.5%
-- **Tempo de Resposta**: < 200ms
-- **Disponibilidade**: 99.9%
-
-## 🎯 **Como Usar**
-
-### **1. Acesso Direto**
-```
-https://sknkvzjx.manus.space
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Client Apps   │    │   MEDAI API     │    │   Database      │
+│                 │◄──►│   (FastAPI)     │◄──►│  (PostgreSQL)   │
+│  Web, Mobile    │    │                 │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                                │
+                                ▼
+                       ┌─────────────────┐
+                       │   AI Service    │
+                       │  (Diagnostics)  │
+                       └─────────────────┘
 ```
 
-### **2. Navegação**
-- Clique nos menus laterais
-- Explore todas as funcionalidades
-- Teste os botões de ação
-- Visualize dados médicos
+## 🚀 Quick Start
 
-### **3. Funcionalidades Testadas**
-- ✅ Dashboard com métricas
-- ✅ Lista de pacientes
-- ✅ Diagnósticos IA
-- ✅ Relatórios médicos
-- ✅ Telemedicina
+### Prerequisites
 
-## 📈 **Roadmap**
+- Python 3.11+
+- Poetry
+- Docker & Docker Compose (optional)
+- PostgreSQL 16 (if running locally)
 
-### **Versão 1.2.0** (Próxima)
-- [ ] Integração com APIs reais
-- [ ] Sistema de login
-- [ ] Banco de dados persistente
-- [ ] Notificações push
-- [ ] Relatórios PDF
+### Installation
 
-### **Versão 2.0.0** (Futuro)
-- [ ] Mobile App nativo
-- [ ] Integração FHIR
-- [ ] IA avançada
-- [ ] Blockchain para auditoria
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/drguilhermecapel/medai.git
+   cd medai
+   ```
 
-## 👨‍⚕️ **Desenvolvido por**
+2. **Install dependencies with Poetry**:
+   ```bash
+   poetry install
+   ```
+
+3. **Set up environment variables**:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+4. **Run with Docker Compose** (recommended):
+   ```bash
+   docker-compose up -d
+   ```
+
+   Or **run locally**:
+   ```bash
+   poetry run uvicorn medai.api.main:app --reload
+   ```
+
+5. **Access the application**:
+   - API: http://localhost:8000
+   - Interactive API docs: http://localhost:8000/docs
+   - Health check: http://localhost:8000/healthz
+
+## 📁 Project Structure
+
+```
+medai/
+├── src/medai/                 # Main application code
+│   ├── api/                   # FastAPI application
+│   │   └── main.py           # Application entry point
+│   ├── database/             # Database configuration
+│   │   └── __init__.py       # SQLModel setup
+│   └── settings.py           # Pydantic settings
+├── tests/                    # Test suite
+│   └── test_health.py        # Health check tests
+├── docs/                     # Documentation
+│   ├── architecture/         # Architecture diagrams
+│   └── adr/                  # Architecture Decision Records
+├── docker-compose.yml        # Service orchestration
+├── Dockerfile               # Container configuration
+├── pyproject.toml           # Poetry dependencies
+└── .pre-commit-config.yaml  # Code quality hooks
+```
+
+## 🛠️ Development
+
+### Setup Development Environment
+
+1. **Install development dependencies**:
+   ```bash
+   poetry install --with dev
+   ```
+
+2. **Set up pre-commit hooks**:
+   ```bash
+   poetry run pre-commit install
+   ```
+
+3. **Run tests**:
+   ```bash
+   poetry run pytest
+   ```
+
+4. **Run with coverage**:
+   ```bash
+   poetry run pytest --cov=src --cov-report=html
+   ```
+
+### Code Quality
+
+We use several tools to maintain code quality:
+
+- **Black**: Code formatting
+- **Ruff**: Fast linting and code analysis
+- **mypy**: Static type checking
+- **pytest**: Testing framework
+
+Run all quality checks:
+```bash
+poetry run black src/
+poetry run ruff check src/
+poetry run mypy src/
+poetry run pytest
+```
+
+## 🐳 Docker Deployment
+
+### Production Build
+
+```bash
+# Build the image
+docker build -t medai:latest .
+
+# Run with external database
+docker run -d \
+  -p 8000:8000 \
+  -e DATABASE_URL="postgresql+asyncpg://user:pass@host:5432/db" \
+  -e SECRET_KEY="your-secret-key" \
+  medai:latest
+```
+
+### Docker Compose (Recommended)
+
+```bash
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f api
+
+# Stop services
+docker-compose down
+```
+
+## 📚 API Documentation
+
+### Available Endpoints
+
+- `GET /healthz` - Health check endpoint
+- `GET /` - Root endpoint with service information
+- `GET /docs` - Interactive API documentation (Swagger UI)
+- `GET /redoc` - Alternative API documentation
+
+### Authentication
+
+The API uses JWT-based authentication. Include the token in the Authorization header:
+
+```http
+Authorization: Bearer <your-jwt-token>
+```
+
+## 🔒 Security & Compliance
+
+### Medical Compliance
+- **HIPAA**: Patient data encryption and audit trails
+- **GDPR/LGPD**: Data privacy and consent management
+- **FDA 21 CFR Part 11**: Electronic records compliance
+
+### Security Features
+- JWT authentication with secure token handling
+- Database encryption at rest
+- TLS 1.3 for data in transit
+- Comprehensive audit logging
+- Role-based access control
+
+## 🧪 Testing
+
+### Test Types
+- **Unit Tests**: Individual component testing
+- **Integration Tests**: API endpoint testing
+- **Health Checks**: Service availability testing
+
+### Running Tests
+
+```bash
+# Run all tests
+poetry run pytest
+
+# Run with coverage
+poetry run pytest --cov=src
+
+# Run specific test files
+poetry run pytest tests/test_health.py
+
+# Run with specific markers
+poetry run pytest -m "not slow"
+```
+
+## 📊 Monitoring & Observability
+
+### Health Checks
+The application provides comprehensive health checks:
+
+```bash
+curl http://localhost:8000/healthz
+```
+
+Response:
+```json
+{
+  "status": "healthy",
+  "service": "MEDAI",
+  "version": "1.0.0",
+  "database": "healthy"
+}
+```
+
+### Logging
+Structured logging with configurable levels:
+- Development: DEBUG level with detailed output
+- Production: INFO level with JSON formatting
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Make your changes and add tests
+4. Run quality checks: `poetry run pre-commit run --all-files`
+5. Commit your changes: `git commit -m 'Add amazing feature'`
+6. Push to the branch: `git push origin feature/amazing-feature`
+7. Open a Pull Request
+
+### Development Guidelines
+- Follow the existing code style (Black, Ruff)
+- Add type hints for all functions
+- Write tests for new features
+- Update documentation as needed
+- Ensure all CI checks pass
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 👨‍⚕️ Author
+
 **Dr. Guilherme Capel**  
-Especialista em Tecnologia Médica  
+Specialist in Medical Technology  
 Email: drguilhermecapel@gmail.com
 
-## 📄 **Licença**
-MIT License - Uso livre para fins educacionais e médicos
+## 🆘 Support
 
-## 🆘 **Suporte**
-Para suporte técnico ou dúvidas:
-- GitHub Issues
-- Email: drguilhermecapel@gmail.com
+For support and questions:
+- 📧 Email: drguilhermecapel@gmail.com
+- 🐛 Issues: [GitHub Issues](https://github.com/drguilhermecapel/medai/issues)
+- 📖 Documentation: [Architecture Overview](docs/architecture/overview.md)
 
 ---
 
-**MedAI Pro - Revolucionando a Medicina com Inteligência Artificial** 🏥⚕️
-
-
+**MEDAI - Revolutionizing Healthcare with Artificial Intelligence** 🏥⚕️
