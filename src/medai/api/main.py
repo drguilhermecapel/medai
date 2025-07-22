@@ -71,7 +71,7 @@ async def health_check(session: AsyncSession = Depends(get_session)) -> dict[str
     """
     try:
         # Test database connection
-        await session.execute("SELECT 1")
+        await session.execute(text("SELECT 1"))
         db_status = "healthy"
     except Exception:
         db_status = "unhealthy"
