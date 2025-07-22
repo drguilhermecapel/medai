@@ -1,14 +1,14 @@
 """
 FastAPI application main entry point for MEDAI.
 """
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
-from fastapi import FastAPI, Depends
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from medai.database import get_session, init_database, close_database
+from medai.database import close_database, get_session, init_database
 from medai.settings import settings
 
 
@@ -16,7 +16,7 @@ from medai.settings import settings
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     Application lifespan management.
-    
+
     Args:
         app: FastAPI application instance
     """
@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 def create_app() -> FastAPI:
     """
     Create and configure FastAPI application.
-    
+
     Returns:
         FastAPI: Configured application instance
     """
@@ -41,7 +41,7 @@ def create_app() -> FastAPI:
         debug=settings.DEBUG,
         lifespan=lifespan,
     )
-    
+
     # Configure CORS
     app.add_middleware(
         CORSMiddleware,
@@ -50,7 +50,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     return app
 
 
@@ -59,15 +59,13 @@ app = create_app()
 
 
 @app.get("/healthz", tags=["Health"])
-async def health_check(
-    session: AsyncSession = Depends(get_session)
-) -> dict[str, str]:
+async def health_check(session: AsyncSession = Depends(get_session)) -> dict[str, str]:
     """
     Health check endpoint.
-    
+
     Args:
         session: Database session dependency
-        
+
     Returns:
         dict: Health status
     """
@@ -77,7 +75,7 @@ async def health_check(
         db_status = "healthy"
     except Exception:
         db_status = "unhealthy"
-    
+
     return {
         "status": "healthy" if db_status == "healthy" else "unhealthy",
         "service": settings.APP_NAME,
@@ -90,7 +88,7 @@ async def health_check(
 async def root() -> dict[str, str]:
     """
     Root endpoint.
-    
+
     Returns:
         dict: Welcome message and basic info
     """
@@ -104,7 +102,7 @@ async def root() -> dict[str, str]:
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "medai.api.main:app",
         host=settings.HOST,

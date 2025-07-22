@@ -98,12 +98,13 @@ jobs:
         context: .
         push: false
         tags: medai:test
+        load: true
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
     - name: Test Docker container
       run: |
-        docker run -d --name medai-test -p 8000:8000 -e SECRET_KEY=test-secret medai:test
+        docker run -d --name medai-test -p 8000:8000 -e SECRET_KEY=test-secret-key-for-docker-build-12345 medai:test
         sleep 10
         curl -f http://localhost:8000/healthz || (docker logs medai-test && exit 1)
         docker stop medai-test

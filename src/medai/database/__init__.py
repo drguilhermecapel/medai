@@ -1,8 +1,8 @@
 """
 Database configuration and session management using SQLModel.
 """
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
@@ -41,7 +41,7 @@ async def create_tables() -> None:
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Dependency to get database session.
-    
+
     Yields:
         AsyncSession: Database session
     """
@@ -59,7 +59,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 async def get_session_context() -> AsyncGenerator[AsyncSession, None]:
     """
     Context manager to get database session.
-    
+
     Yields:
         AsyncSession: Database session
     """
