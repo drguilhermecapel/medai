@@ -305,3 +305,7 @@ dmypy.json
 *.temp
 .tmp/
 temp/
+
+# Legacy backup files
+tests_legacy_backup/
+*.backup

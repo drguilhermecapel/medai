@@ -71,7 +71,7 @@ jobs:
     - name: Run tests with coverage
       env:
         DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/test_db
-        SECRET_KEY: test-secret-key-for-ci
+        SECRET_KEY: test-secret-key-for-ci-that-is-32-chars-long
         ENVIRONMENT: test
         DEBUG: false
       run: |

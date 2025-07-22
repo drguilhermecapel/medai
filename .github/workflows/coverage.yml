@@ -69,7 +69,7 @@ jobs:
           -v
       env:
         DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/test_db
-        SECRET_KEY: test-secret-key-for-ci-coverage-long-enough
+        SECRET_KEY: test-secret-key-for-ci-coverage-32-chars-long
         ENVIRONMENT: test
         DEBUG: false
     
