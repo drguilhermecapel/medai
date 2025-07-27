@@ -6,7 +6,7 @@ import jwt
 import bcrypt
 import secrets
 from datetime import datetime, timedelta
-from typing import Any, Union, Optional, Dict, List
+from typing import Any, Union, Optional, Dict, List, TYPE_CHECKING
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from passlib.context import CryptContext
@@ -16,7 +16,9 @@ from functools import wraps
 
 from app.core.config import settings
 from app.core.constants import UserRole, ROLE_PERMISSIONS, VALIDATION_RULES
-from app.models.user import User
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 # === CONFIGURAÇÃO DE CRIPTOGRAFIA ===
@@ -522,7 +524,7 @@ security_utils = SecurityUtils()
 
 # === FUNÇÕES DE CONVENIÊNCIA ===
 
-def create_user_token(user: User) -> Dict[str, str]:
+def create_user_token(user: "User") -> Dict[str, str]:
     """
     Cria tokens para usuário
     
@@ -550,7 +552,7 @@ def create_user_token(user: User) -> Dict[str, str]:
     }
 
 
-def verify_password_and_get_user(email: str, password: str, user_repository) -> Optional[User]:
+def verify_password_and_get_user(email: str, password: str, user_repository) -> Optional["User"]:
     """
     Verifica senha e retorna usuário se válido
     

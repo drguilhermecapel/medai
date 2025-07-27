@@ -118,11 +118,17 @@ class Settings(BaseSettings):
     # === PROPRIEDADES CALCULADAS ===
     @property
     def DATABASE_URL(self) -> str:
-        """Monta URL completa do banco de dados PostgreSQL"""
-        return (
-            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
-            f"@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-        )
+        """Monta URL completa do banco de dados (SQLite para dev/test, PostgreSQL para produção)"""
+        # Use SQLite para desenvolvimento e testes, PostgreSQL para produção
+        if self.is_production:
+            return (
+                f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+                f"@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            )
+        else:
+            # Usar SQLite para desenvolvimento e testes
+            db_name = "test_medai.db" if self.is_testing else "medai.db"
+            return f"sqlite:///./{db_name}"
     
     @property
     def REDIS_URL(self) -> str:

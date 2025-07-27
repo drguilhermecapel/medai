@@ -14,12 +14,14 @@ import logging
 import time
 from datetime import datetime, timedelta
 
-from app.core.config import settings, database_config
-from app.core.constants import CACHE_TTL_MEDIUM
+from app.core.config import settings
 
 
 # === CONFIGURAÇÃO DO LOGGER ===
 logger = logging.getLogger(__name__)
+
+# === CONSTANTES ===
+CACHE_TTL_MEDIUM = 300  # 5 minutes cache timeout
 
 
 # === BASE DECLARATIVA ===
@@ -35,35 +37,48 @@ def create_database_engine() -> Engine:
     Returns:
         Engine configurado do SQLAlchemy
     """
-    engine_options = database_config.engine_options
+    engine_options = {}
     
-    # Configurações específicas por ambiente
-    if settings.is_production:
-        engine_options.update({
-            "poolclass": QueuePool,
-            "pool_size": 20,
-            "max_overflow": 30,
-            "pool_pre_ping": True,
-            "pool_recycle": 3600,
-            "echo": False
-        })
-    elif settings.is_development:
+    # Detectar se é SQLite ou PostgreSQL pela URL
+    database_url = settings.DATABASE_URL
+    is_sqlite = database_url.startswith("sqlite")
+    
+    # Configurações específicas por ambiente e tipo de banco
+    if is_sqlite:
+        # SQLite - configurações simplificadas
         engine_options.update({
             "poolclass": StaticPool,
-            "pool_size": 5,
-            "max_overflow": 10,
-            "echo": True
+            "connect_args": {"check_same_thread": False},
+            "echo": settings.is_development
         })
-    else:  # testing
-        engine_options.update({
-            "poolclass": StaticPool,
-            "pool_size": 1,
-            "max_overflow": 0,
-            "echo": False
-        })
+    else:
+        # PostgreSQL - configurações completas
+        if settings.is_production:
+            engine_options.update({
+                "poolclass": QueuePool,
+                "pool_size": 20,
+                "max_overflow": 30,
+                "pool_pre_ping": True,
+                "pool_recycle": 3600,
+                "echo": False
+            })
+        elif settings.is_development:
+            engine_options.update({
+                "poolclass": QueuePool,
+                "pool_size": 5,
+                "max_overflow": 10,
+                "echo": True
+            })
+        else:  # testing
+            engine_options.update({
+                "poolclass": QueuePool,
+                "pool_size": 1,
+                "max_overflow": 0,
+                "echo": False
+            })
     
     engine = create_engine(
-        settings.DATABASE_URL,
+        database_url,
         **engine_options
     )
     
