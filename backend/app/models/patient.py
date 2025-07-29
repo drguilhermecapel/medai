@@ -5,13 +5,14 @@ Define informações específicas de pacientes médicos
 import uuid
 from datetime import datetime, date
 from typing import List, Optional, Dict, Any
-from sqlalchemy import Column, String, Text, DateTime, Boolean, ForeignKey, Index, Numeric, Date
+from sqlalchemy import Column, String, Text, DateTime, Boolean, ForeignKey, Index, Numeric, Date, Integer
 from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
 from sqlalchemy.orm import relationship, Session
 from sqlalchemy.ext.hybrid_property import hybrid_property
 
 from app.models.base import AuditableModel, StatusMixin, MetadataMixin
 from app.core.constants import Gender, Priority
+from app.security import phi_encryption
 
 
 class Patient(AuditableModel, StatusMixin, MetadataMixin):
@@ -42,12 +43,20 @@ class Patient(AuditableModel, StatusMixin, MetadataMixin):
         doc="Número do prontuário médico"
     )
     
+    # CPF with encryption support
     cpf = Column(
-        String(14),
-        unique=True,
+        String(200),  # Increased size for encrypted data
+        unique=False,  # Remove unique constraint for encrypted field
+        nullable=True,
+        doc="CPF do paciente (encrypted)"
+    )
+    
+    # Hash for searching encrypted CPF
+    cpf_hash = Column(
+        String(64),
         nullable=True,
         index=True,
-        doc="CPF do paciente"
+        doc="Hash searchable do CPF"
     )
     
     rg = Column(
@@ -90,6 +99,22 @@ class Patient(AuditableModel, StatusMixin, MetadataMixin):
         String(20),
         nullable=True,
         doc="Estado civil"
+    )
+    
+    # Hash for searching by name (since user.first_name/last_name might be encrypted)
+    name_hash = Column(
+        String(64),
+        nullable=True,
+        index=True,
+        doc="Hash searchable do nome completo"
+    )
+    
+    # Data encryption version for future key rotation
+    data_encryption_version = Column(
+        Integer,
+        default=1,
+        nullable=False,
+        doc="Versão da criptografia dos dados"
     )
     
     # === INFORMAÇÕES DE CONTATO ===
@@ -323,7 +348,8 @@ class Patient(AuditableModel, StatusMixin, MetadataMixin):
     # === ÍNDICES ===
     __table_args__ = (
         Index('ix_patients_medical_record', 'medical_record_number'),
-        Index('ix_patients_cpf', 'cpf'),
+        Index('ix_patients_cpf_hash', 'cpf_hash'),  # Updated to use hash
+        Index('ix_patients_name_hash', 'name_hash'),  # New hash index
         Index('ix_patients_user_id', 'user_id'),
         Index('ix_patients_primary_physician', 'primary_physician_id'),
         Index('ix_patients_birth_date', 'birth_date'),
@@ -438,6 +464,56 @@ class Patient(AuditableModel, StatusMixin, MetadataMixin):
         
         return factors
     
+    # === MÉTODOS DE CRIPTOGRAFIA PHI ===
+    
+    def set_cpf(self, cpf: str) -> None:
+        """Set CPF with encryption and searchable hash"""
+        if cpf:
+            # Encrypt the CPF
+            self.cpf = phi_encryption.encrypt_phi(cpf)
+            # Create searchable hash
+            self.cpf_hash = phi_encryption.create_searchable_hash(cpf)
+        else:
+            self.cpf = None
+            self.cpf_hash = None
+    
+    def get_cpf(self) -> str:
+        """Get decrypted CPF"""
+        if self.cpf:
+            return phi_encryption.decrypt_phi(self.cpf)
+        return ""
+    
+    def update_name_hash(self, full_name: str) -> None:
+        """Update searchable hash for patient name"""
+        if full_name:
+            self.name_hash = phi_encryption.create_searchable_hash(full_name)
+        else:
+            self.name_hash = None
+    
+    @classmethod
+    def find_by_cpf(cls, db: Session, cpf: str) -> Optional['Patient']:
+        """Find patient by CPF using hash search"""
+        if not cpf:
+            return None
+        
+        cpf_hash = phi_encryption.create_searchable_hash(cpf)
+        return db.query(cls).filter(
+            cls.cpf_hash == cpf_hash,
+            cls.is_deleted.is_(False)
+        ).first()
+    
+    @classmethod
+    def find_by_name_hash(cls, db: Session, full_name: str) -> List['Patient']:
+        """Find patients by name using hash search"""
+        if not full_name:
+            return []
+        
+        name_hash = phi_encryption.create_searchable_hash(full_name)
+        return db.query(cls).filter(
+            cls.name_hash == name_hash,
+            cls.is_deleted.is_(False)
+        ).all()
+
     # === MÉTODOS DE GESTÃO DE DADOS ===
     
     def add_allergy(self, allergy: str) -> None:
@@ -551,11 +627,8 @@ class Patient(AuditableModel, StatusMixin, MetadataMixin):
     
     @classmethod
     def get_by_cpf(cls, db: Session, cpf: str) -> Optional['Patient']:
-        """Busca paciente por CPF"""
-        return db.query(cls).filter(
-            cls.cpf == cpf,
-            cls.is_deleted.is_(False)
-        ).first()
+        """Busca paciente por CPF (deprecated - use find_by_cpf)"""
+        return cls.find_by_cpf(db, cpf)
     
     @classmethod
     def get_by_user_id(cls, db: Session, user_id: uuid.UUID) -> Optional['Patient']:
