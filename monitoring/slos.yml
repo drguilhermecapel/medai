@@ -1,0 +1,96 @@
+# Service Level Objectives for MedAI
+# Defines SLOs for monitoring system reliability and performance
+
+service_level_objectives:
+  api_availability:
+    objective: 99.9%
+    measurement_window: "30d"
+    error_budget: 0.1%
+    description: "API should be available 99.9% of the time over a 30-day window"
+    
+  api_latency:
+    p95_threshold: "200ms"
+    p99_threshold: "500ms" 
+    measurement_window: "7d"
+    description: "95% of requests should complete within 200ms, 99% within 500ms"
+    
+  phi_encryption_success:
+    objective: 99.99%
+    measurement_window: "7d"
+    description: "PHI encryption operations should succeed 99.99% of the time"
+    
+  session_validation_success:
+    objective: 99.95%
+    measurement_window: "24h"
+    description: "Session validation should succeed 99.95% of the time"
+    
+  fhir_compliance:
+    objective: 100%
+    measurement_window: "7d"
+    description: "All FHIR resources should be compliant with R4 specification"
+
+# Alert rules based on SLO burn rates
+alerts:
+  - name: "API Availability SLO Burn Rate High"
+    condition: "error_budget_consumption > 10x"
+    severity: "critical"
+    description: "Error budget is being consumed at 10x the normal rate"
+    runbook_url: "https://docs.medai.com/runbooks/api-availability"
+    
+  - name: "API Latency P95 Exceeded"
+    condition: "api_latency_p95 > 200ms for 5m"
+    severity: "warning"
+    description: "95th percentile latency exceeds 200ms for 5 minutes"
+    runbook_url: "https://docs.medai.com/runbooks/api-latency"
+    
+  - name: "PHI Encryption Failure Rate High"
+    condition: "phi_encryption_failure_rate > 0.01% for 1m"
+    severity: "critical"
+    description: "PHI encryption failure rate exceeds threshold"
+    runbook_url: "https://docs.medai.com/runbooks/phi-encryption"
+    
+  - name: "Session Validation Failure Spike"
+    condition: "session_validation_failure_rate > 0.05% for 2m"
+    severity: "warning"
+    description: "Session validation failures are spiking"
+    runbook_url: "https://docs.medai.com/runbooks/session-validation"
+
+# Dashboards configuration
+dashboards:
+  - name: "MedAI SLO Overview"
+    panels:
+      - api_availability_trend
+      - api_latency_percentiles
+      - phi_encryption_success_rate
+      - session_metrics
+      - fhir_compliance_status
+      
+  - name: "Security Metrics"
+    panels:
+      - failed_authentication_attempts
+      - suspicious_activity_alerts
+      - phi_access_patterns
+      - session_security_events
+
+# Error budget policies
+error_budget_policies:
+  api_availability:
+    burn_rate_alerts:
+      - alert_after: "1h"
+        burn_rate: "14.4"  # 2 weeks of budget in 1 hour
+        severity: "critical"
+      - alert_after: "6h"
+        burn_rate: "6"     # 2 weeks of budget in 6 hours
+        severity: "high"
+      - alert_after: "24h"
+        burn_rate: "3"     # 2 weeks of budget in 1 day
+        severity: "medium"
+        
+  api_latency:
+    burn_rate_alerts:
+      - alert_after: "30m"
+        burn_rate: "10"
+        severity: "high"
+      - alert_after: "2h"
+        burn_rate: "5"
+        severity: "medium"

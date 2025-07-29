@@ -241,6 +241,10 @@ def configure_middlewares(app: FastAPI) -> None:
             allowed_hosts=["*.medai.com", "medai.com"]
         )
     
+    # Privacy middleware (should be added early in the chain)
+    from backend.app.middleware.privacy_middleware import PrivacyMiddleware
+    app.add_middleware(PrivacyMiddleware)
+    
     # Middlewares customizados
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestLoggingMiddleware)
