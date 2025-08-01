@@ -10,7 +10,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import Session
 
-from app.core.database import Base
+from app.database import Base
 
 
 class TimestampMixin:
