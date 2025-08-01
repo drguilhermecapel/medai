@@ -8,7 +8,7 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy import Column, String, Text, DateTime, Boolean, ForeignKey, Index, Numeric, Integer
 from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
 from sqlalchemy.orm import relationship, Session
-from sqlalchemy.ext.hybrid_property import hybrid_property
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from app.models.base import AuditableModel, StatusMixin, MetadataMixin
 from app.core.constants import PrescriptionStatus, Priority

@@ -17,8 +17,9 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 import asyncio
 
-# Adiciona o diretório raiz ao path para importações
+# Adiciona o diretório raiz e backend ao path para importações
 sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
 from app.main import app
 from app.database import Base, get_db

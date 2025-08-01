@@ -8,7 +8,7 @@ from typing import List, Optional
 from sqlalchemy import Column, String, Boolean, DateTime, Text, Index
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship, Session
-from sqlalchemy.ext.hybrid_property import hybrid_property
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from app.models.base import AuditableModel, StatusMixin, MetadataMixin
 from app.core.constants import UserRole, Gender
