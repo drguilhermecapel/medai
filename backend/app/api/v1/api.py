@@ -1,5 +1,5 @@
 """
-Router principal da API v1 do MedAI
+Router principal da API v1 do MedAI - Multi-specialty EHR system
 Centraliza todas as rotas da versão 1 da API
 """
 from fastapi import APIRouter
@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     auth, users, patients, exams, diagnostics, 
     prescriptions, appointments, notifications, health
 )
+from app.api.v1.endpoints.specialties import dermatology_router
 from app.core.config import settings
 
 # Router principal da API v1
@@ -74,4 +75,11 @@ api_router.include_router(
     health.router, 
     prefix="/health", 
     tags=["Health & Monitoring"]
+)
+
+# === SPECIALTY ROTAS ===
+api_router.include_router(
+    dermatology_router,
+    prefix="/specialties",
+    tags=["Specialties - Dermatology"]
 )
