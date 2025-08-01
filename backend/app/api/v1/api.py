@@ -8,8 +8,8 @@ from app.api.v1.endpoints import (
     auth, users, patients, exams, diagnostics, 
     prescriptions, appointments, notifications, health
 )
-from app.api.v1.endpoints.specialties import dermatology_router
 from app.core.config import settings
+from app.core.feature_flags import feature_flags
 
 # Router principal da API v1
 api_router = APIRouter()
@@ -77,9 +77,41 @@ api_router.include_router(
     tags=["Health & Monitoring"]
 )
 
-# === SPECIALTY ROTAS ===
-api_router.include_router(
-    dermatology_router,
-    prefix="/specialties",
-    tags=["Specialties - Dermatology"]
-)
+# === SPECIALTY ROTAS (Feature Flag Controlled) ===
+# Only include specialty routers if they are enabled via feature flags
+
+if feature_flags.DERMATOLOGY_ENABLED:
+    from app.api.v1.endpoints.specialties import dermatology_router
+    api_router.include_router(
+        dermatology_router,
+        prefix="/specialties",
+        tags=["Specialties - Dermatology"]
+    )
+
+# Add other specialty routers as they are implemented
+# if feature_flags.PEDIATRICS_ENABLED:
+#     from app.api.v1.endpoints.specialties import pediatrics_router
+#     api_router.include_router(
+#         pediatrics_router,
+#         prefix="/specialties",
+#         tags=["Specialties - Pediatrics"]
+#     )
+
+# if feature_flags.FAMILY_MEDICINE_ENABLED:
+#     from app.api.v1.endpoints.specialties import family_medicine_router
+#     api_router.include_router(
+#         family_medicine_router,
+#         prefix="/specialties",
+#         tags=["Specialties - Family Medicine"]
+#     )
+
+
+# === FEATURE FLAGS ENDPOINT ===
+@api_router.get("/feature-flags", tags=["Configuration"])
+async def get_feature_flags():
+    """
+    Get current feature flags configuration
+    
+    Returns information about enabled specialties and features
+    """
+    return feature_flags.to_dict()

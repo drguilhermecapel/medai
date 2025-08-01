@@ -15,6 +15,7 @@ from app.schemas.specialties.dermatology import (
     DermatologyExaminationCreate, DermatologyExaminationUpdate, DermatologyExaminationResponse,
     ABCDEAssessmentCreate, ABCDEAssessmentResponse
 )
+from app.core.feature_flags import require_specialty, require_feature, feature_flags
 
 router = APIRouter(prefix="/dermatology", tags=["dermatology"])
 
@@ -22,6 +23,7 @@ router = APIRouter(prefix="/dermatology", tags=["dermatology"])
 # === LESION ENDPOINTS ===
 
 @router.post("/lesions", response_model=DermatologyLesionResponse, status_code=status.HTTP_201_CREATED)
+@require_specialty("dermatology")
 async def create_lesion(
     lesion_data: DermatologyLesionCreate,
     db: Session = Depends(get_db)
@@ -283,6 +285,8 @@ async def get_examination(
 # === ABCDE ASSESSMENT ENDPOINTS ===
 
 @router.post("/lesions/{lesion_id}/abcde", response_model=ABCDEAssessmentResponse)
+@require_specialty("dermatology")
+@require_feature(feature_flags.DERMATOLOGY_ABCDE_ENABLED)
 async def perform_abcde_assessment(
     lesion_id: str,
     abcde_data: ABCDEAssessmentCreate,
