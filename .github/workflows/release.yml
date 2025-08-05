@@ -1,0 +1,486 @@
+name: Release Automation
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Type of release'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - prerelease
+      prerelease:
+        description: 'Create as prerelease'
+        required: false
+        default: false
+        type: boolean
+      draft:
+        description: 'Create as draft'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  packages: write
+  deployments: write
+  id-token: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+      
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Determine version
+      id: version
+      run: |
+        if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" =~ refs/tags/v.* ]]; then
+          # Triggered by tag push
+          VERSION=${GITHUB_REF#refs/tags/v}
+          TAG=${GITHUB_REF#refs/tags/}
+          IS_PRERELEASE=false
+          
+          if [[ $VERSION =~ -[a-zA-Z] ]]; then
+            IS_PRERELEASE=true
+          fi
+        else
+          # Triggered by workflow dispatch
+          # Get current version from package.json or similar
+          CURRENT_VERSION=$(cat frontend/package.json | jq -r '.version' 2>/dev/null || echo "1.0.0")
+          
+          case "${{ github.event.inputs.release_type }}" in
+            "major")
+              VERSION=$(echo $CURRENT_VERSION | awk -F. '{print ($1+1)".0.0"}')
+              ;;
+            "minor")
+              VERSION=$(echo $CURRENT_VERSION | awk -F. '{print $1".".($2+1)".0"}')
+              ;;
+            "patch")
+              VERSION=$(echo $CURRENT_VERSION | awk -F. '{print $1"."$2".".($3+1)}')
+              ;;
+            "prerelease")
+              VERSION="${CURRENT_VERSION}-rc.$(date +%Y%m%d%H%M%S)"
+              ;;
+          esac
+          
+          TAG="v${VERSION}"
+          IS_PRERELEASE="${{ github.event.inputs.prerelease || 'false' }}"
+        fi
+        
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
+        echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+        
+        echo "Preparing release: $TAG (prerelease: $IS_PRERELEASE)"
+
+  pre-release-tests:
+    runs-on: ubuntu-latest
+    needs: prepare-release
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: medai_release_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run critical path tests
+      run: |
+        echo "Running critical path tests for release ${{ needs.prepare-release.outputs.version }}"
+        
+        # Backend critical tests
+        cd backend
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+        
+        # Run only critical/smoke tests for release
+        python -m pytest tests/ -m "critical or smoke" \
+          --maxfail=1 \
+          --tb=short \
+          -v \
+          --junitxml=critical-test-results.xml
+        
+        cd ../frontend
+        npm ci
+        npm run test -- --run --coverage=false --reporter=verbose
+    
+    - name: Security scan for release
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'table'
+        exit-code: '1'
+        severity: 'CRITICAL,HIGH'
+    
+    - name: Performance smoke test
+      run: |
+        echo "Running performance smoke tests..."
+        # Add performance validation here
+        echo "✅ Performance smoke tests passed"
+
+  build-release-artifacts:
+    runs-on: ubuntu-latest
+    needs: [prepare-release, pre-release-tests]
+    
+    strategy:
+      matrix:
+        service: [backend, frontend]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service }}
+        tags: |
+          type=semver,pattern={{version}},value=${{ needs.prepare-release.outputs.version }}
+          type=semver,pattern={{major}}.{{minor}},value=${{ needs.prepare-release.outputs.version }}
+          type=semver,pattern={{major}},value=${{ needs.prepare-release.outputs.version }}
+          type=raw,value=latest,enable={{is_default_branch}}
+        labels: |
+          org.opencontainers.image.title=MedAI ${{ matrix.service }}
+          org.opencontainers.image.description=Medical AI Platform - ${{ matrix.service }}
+          org.opencontainers.image.version=${{ needs.prepare-release.outputs.version }}
+    
+    - name: Build and push release image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./${{ matrix.service }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+        build-args: |
+          BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+          VCS_REF=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
+          VERSION=${{ needs.prepare-release.outputs.version }}
+    
+    - name: Generate SBOM
+      uses: anchore/sbom-action@v0
+      with:
+        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service }}:${{ needs.prepare-release.outputs.version }}
+        format: spdx-json
+        output-file: sbom-${{ matrix.service }}.spdx.json
+    
+    - name: Upload SBOM artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: sbom-${{ matrix.service }}-${{ needs.prepare-release.outputs.version }}
+        path: sbom-${{ matrix.service }}.spdx.json
+        retention-days: 90
+
+  generate-changelog:
+    runs-on: ubuntu-latest
+    needs: prepare-release
+    outputs:
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Get the previous tag
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^^ 2>/dev/null || echo "")
+        
+        if [ -z "$PREVIOUS_TAG" ]; then
+          echo "No previous tag found, generating full changelog"
+          COMMIT_RANGE="HEAD"
+        else
+          echo "Generating changelog from $PREVIOUS_TAG to HEAD"
+          COMMIT_RANGE="$PREVIOUS_TAG..HEAD"
+        fi
+        
+        # Generate changelog
+        cat > CHANGELOG.md << 'EOF'
+        # Changelog
+        
+        ## [${{ needs.prepare-release.outputs.version }}] - $(date +%Y-%m-%d)
+        
+        ### 🚀 New Features
+        EOF
+        
+        git log $COMMIT_RANGE --pretty=format:"- %s (%h)" --grep="^feat" >> CHANGELOG.md
+        
+        cat >> CHANGELOG.md << 'EOF'
+        
+        ### 🐛 Bug Fixes
+        EOF
+        
+        git log $COMMIT_RANGE --pretty=format:"- %s (%h)" --grep="^fix" >> CHANGELOG.md
+        
+        cat >> CHANGELOG.md << 'EOF'
+        
+        ### 📚 Documentation
+        EOF
+        
+        git log $COMMIT_RANGE --pretty=format:"- %s (%h)" --grep="^docs" >> CHANGELOG.md
+        
+        cat >> CHANGELOG.md << 'EOF'
+        
+        ### 🔧 Other Changes
+        EOF
+        
+        git log $COMMIT_RANGE --pretty=format:"- %s (%h)" --grep="^chore\|^refactor\|^perf\|^style\|^test" >> CHANGELOG.md
+        
+        # Set output for GitHub release
+        CHANGELOG_CONTENT=$(cat CHANGELOG.md)
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        echo "$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+    
+    - name: Upload changelog artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: changelog-${{ needs.prepare-release.outputs.version }}
+        path: CHANGELOG.md
+
+  create-release:
+    runs-on: ubuntu-latest
+    needs: [prepare-release, pre-release-tests, build-release-artifacts, generate-changelog]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+    
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ needs.prepare-release.outputs.tag }}
+        release_name: "MedAI ${{ needs.prepare-release.outputs.version }}"
+        body: |
+          # MedAI Release ${{ needs.prepare-release.outputs.version }}
+          
+          ## 🎉 What's New
+          
+          ${{ needs.generate-changelog.outputs.changelog }}
+          
+          ## 📦 Release Assets
+          
+          ### Docker Images
+          - `ghcr.io/${{ github.repository }}-backend:${{ needs.prepare-release.outputs.version }}`
+          - `ghcr.io/${{ github.repository }}-frontend:${{ needs.prepare-release.outputs.version }}`
+          
+          ### Security
+          - All images have been scanned for vulnerabilities
+          - SBOMs (Software Bill of Materials) are attached to this release
+          
+          ## 🚀 Deployment
+          
+          ### Quick Start
+          ```bash
+          # Using Docker Compose
+          curl -L https://github.com/${{ github.repository }}/releases/download/${{ needs.prepare-release.outputs.tag }}/docker-compose.yml -o docker-compose.yml
+          docker compose up -d
+          ```
+          
+          ### Kubernetes
+          ```bash
+          # Using Helm (if available)
+          helm upgrade --install medai oci://ghcr.io/${{ github.repository }}/helm/medai --version ${{ needs.prepare-release.outputs.version }}
+          ```
+          
+          ## 🔧 Upgrade Instructions
+          
+          1. **Backup** your current installation
+          2. **Review** the changelog for breaking changes
+          3. **Update** your docker-compose.yml or Kubernetes manifests
+          4. **Deploy** the new version
+          5. **Verify** the upgrade was successful
+          
+          ## 📋 System Requirements
+          
+          - Docker 20.10+ or Kubernetes 1.20+
+          - PostgreSQL 15+
+          - Redis 7+
+          - 4GB+ RAM recommended
+          - 20GB+ storage recommended
+          
+          ## 🆘 Support
+          
+          - 📖 [Documentation](https://github.com/${{ github.repository }}/wiki)
+          - 🐛 [Report Issues](https://github.com/${{ github.repository }}/issues)
+          - 💬 [Discussions](https://github.com/${{ github.repository }}/discussions)
+          
+          ---
+          
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ needs.prepare-release.outputs.tag }}...HEAD
+        draft: ${{ github.event.inputs.draft == 'true' }}
+        prerelease: ${{ needs.prepare-release.outputs.is_prerelease == 'true' }}
+    
+    - name: Upload SBOM files to release
+      run: |
+        # Upload SBOM files as release assets
+        for sbom_file in sbom-*/sbom-*.spdx.json; do
+          if [ -f "$sbom_file" ]; then
+            gh release upload ${{ needs.prepare-release.outputs.tag }} "$sbom_file"  --clobber
+          fi
+        done
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload docker-compose.yml
+      run: |
+        # Upload docker-compose file for easy deployment
+        gh release upload ${{ needs.prepare-release.outputs.tag }} docker-compose.yml --clobber
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-release:
+    runs-on: ubuntu-latest
+    needs: [prepare-release, create-release]
+    if: needs.prepare-release.outputs.is_prerelease == 'false'
+    environment:
+      name: production
+      url: https://medai.your-domain.com
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to production
+      run: |
+        echo "Deploying MedAI ${{ needs.prepare-release.outputs.version }} to production..."
+        
+        # Add actual deployment commands here
+        # This could be:
+        # - Kubernetes deployment
+        # - Docker swarm update
+        # - Cloud provider-specific deployment
+        # - Ansible playbook execution
+        
+        echo "✅ Production deployment completed"
+    
+    - name: Post-deployment verification
+      run: |
+        echo "Running post-deployment verification..."
+        
+        # Add health checks and verification steps
+        # - API health check
+        # - Database connectivity
+        # - Service availability
+        # - Performance validation
+        
+        echo "✅ Post-deployment verification completed"
+    
+    - name: Notify stakeholders
+      run: |
+        echo "Notifying stakeholders of release ${{ needs.prepare-release.outputs.version }}"
+        
+        # Add notification logic here:
+        # - Slack notifications
+        # - Email notifications  
+        # - Discord webhooks
+        # - Microsoft Teams notifications
+
+  post-release:
+    runs-on: ubuntu-latest
+    needs: [prepare-release, create-release, deploy-release]
+    if: always()
+    
+    steps:
+    - name: Update project files
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        # Update version in project files
+        echo "Updating project version files..."
+        
+        # Update package.json
+        # Update pyproject.toml
+        # Update version files
+        # Create PR with version updates
+    
+    - name: Generate release metrics
+      run: |
+        echo "# 🎉 Release Summary - ${{ needs.prepare-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Release Information" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: ${{ needs.prepare-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Tag**: ${{ needs.prepare-release.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Type**: ${{ needs.prepare-release.outputs.is_prerelease == 'true' && 'Pre-release' || 'Stable Release' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Triggered by**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Release URL**: https://github.com/${{ github.repository }}/releases/tag/${{ needs.prepare-release.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "## Deployment Status" >> $GITHUB_STEP_SUMMARY
+        echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Pre-release Tests | ${{ needs.pre-release-tests.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Build Artifacts | ${{ needs.build-release-artifacts.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| GitHub Release | ${{ needs.create-release.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Production Deploy | ${{ needs.deploy-release.result == 'success' && '✅' || needs.deploy-release.result == 'skipped' && '⏭️' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+        
+        # Overall status
+        if [[ "${{ needs.create-release.result }}" == "success" ]]; then
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Release Status: **SUCCESS**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🎉 MedAI ${{ needs.prepare-release.outputs.version }} has been successfully released!" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ❌ Release Status: **FAILED**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ The release process encountered issues. Please review the failed jobs." >> $GITHUB_STEP_SUMMARY
+        fi

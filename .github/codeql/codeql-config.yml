@@ -1,0 +1,43 @@
+name: "MedAI Security Analysis Config"
+
+disable-default-queries: false
+
+query-filters:
+  - exclude:
+      id: py/unused-import
+  - exclude:
+      id: js/unused-local-variable
+
+queries:
+  - name: security-extended
+    uses: security-extended
+  - name: security-and-quality
+    uses: security-and-quality
+
+paths:
+  - backend/app
+  - frontend/src
+
+paths-ignore:
+  - backend/tests
+  - frontend/src/**/*.test.ts
+  - frontend/src/**/*.test.tsx
+  - "**/*.md"
+  - "**/migrations"
+  - "**/node_modules"
+  - "**/__pycache__"
+  - "**/htmlcov"
+  - "**/coverage"
+
+packs:
+  python:
+    - codeql/python-queries:AlertSuppression.ql
+    - codeql/python-queries:Security/CWE-089
+    - codeql/python-queries:Security/CWE-078
+    - codeql/python-queries:Security/CWE-079
+    - codeql/python-queries:Security/CWE-094
+  javascript:
+    - codeql/javascript-queries:Security/CWE-079
+    - codeql/javascript-queries:Security/CWE-089
+    - codeql/javascript-queries:Security/CWE-078
+    - codeql/javascript-queries:Security/CWE-094

@@ -1,0 +1,492 @@
+name: Comprehensive Security Scanning
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run security scans daily at 3 AM UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        description: 'Type of security scan to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - 'all'
+          - 'sast-only'
+          - 'container-only'
+          - 'secrets-only'
+          - 'dependencies-only'
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+  packages: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  secrets-detection:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'secrets-only' || github.event.inputs.scan_type == ''
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for comprehensive secret scanning
+    
+    - name: TruffleHog OSS Secret Scanning
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD
+        extra_args: --debug --only-verified
+    
+    - name: GitLeaks Secret Scanning
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE}}
+    
+    - name: Generate secrets report
+      if: always()
+      run: |
+        echo "# 🔒 Secrets Detection Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Scan Results" >> $GITHUB_STEP_SUMMARY
+        echo "- **TruffleHog**: Completed" >> $GITHUB_STEP_SUMMARY
+        echo "- **GitLeaks**: Completed" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: ${{ job.status == 'success' && 'No secrets detected ✅' || 'Potential secrets found ⚠️' }}" >> $GITHUB_STEP_SUMMARY
+
+  sast-analysis:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'sast-only' || github.event.inputs.scan_type == ''
+    
+    strategy:
+      matrix:
+        language: [ 'python', 'javascript' ]
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
+        config-file: ./.github/codeql/codeql-config.yml
+        queries: security-extended,security-and-quality
+    
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+    
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:${{matrix.language}}"
+    
+    - name: Run Semgrep SAST
+      uses: semgrep/semgrep-action@v1
+      with:
+        config: >-
+          p/security-audit
+          p/secrets
+          p/owasp-top-ten
+          p/python
+          p/javascript
+          p/typescript
+          p/react
+        generateSarif: "1"
+    
+    - name: Upload Semgrep results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: semgrep.sarif
+    
+    - name: Python-specific security checks
+      if: matrix.language == 'python'
+      run: |
+        cd backend
+        
+        # Install security tools
+        pip install bandit safety pip-audit
+        
+        # Run Bandit for Python security issues
+        bandit -r app/ -f json -o bandit-results.json || true
+        bandit -r app/ -f txt | tee bandit-report.txt || true
+        
+        # Run Safety for known vulnerabilities
+        safety check --json --output safety-results.json || true
+        safety check | tee safety-report.txt || true
+        
+        # Run pip-audit for dependency vulnerabilities
+        pip-audit --format=json --output=pip-audit-results.json || true
+        pip-audit | tee pip-audit-report.txt || true
+    
+    - name: JavaScript-specific security checks
+      if: matrix.language == 'javascript'
+      run: |
+        cd frontend
+        
+        # Install security tools
+        npm install -g npm-audit-resolver audit-ci eslint-plugin-security
+        
+        # Run npm audit
+        npm audit --json > npm-audit-results.json || true
+        npm audit | tee npm-audit-report.txt || true
+        
+        # Run audit-ci for stricter checks
+        audit-ci --config .audit-ci.json || true
+        
+        # ESLint security plugin
+        npx eslint . --ext .ts,.tsx --config .eslintrc-security.js --format json -o eslint-security-results.json || true
+    
+    - name: Upload SAST artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: sast-results-${{ matrix.language }}-${{ github.run_number }}
+        path: |
+          backend/bandit-*.json
+          backend/bandit-*.txt
+          backend/safety-*.json
+          backend/safety-*.txt
+          backend/pip-audit-*.json
+          backend/pip-audit-*.txt
+          frontend/npm-audit-*.json
+          frontend/npm-audit-*.txt
+          frontend/eslint-security-*.json
+          semgrep.sarif
+        retention-days: 90
+
+  dependency-scanning:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'dependencies-only' || github.event.inputs.scan_type == ''
+    
+    strategy:
+      matrix:
+        ecosystem: [backend, frontend]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python (for backend)
+      if: matrix.ecosystem == 'backend'
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: Set up Node.js (for frontend) 
+      if: matrix.ecosystem == 'frontend'
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install dependencies and scan (Backend)
+      if: matrix.ecosystem == 'backend'
+      working-directory: ./backend
+      run: |
+        pip install -r requirements.txt
+        pip install safety pip-audit cyclonedx-bom
+        
+        # Generate SBOM
+        cyclonedx-py -o sbom-backend.json
+        
+        # Comprehensive dependency scan
+        safety check --json --output safety-scan.json || true
+        pip-audit --format=json --output=pip-audit-scan.json || true
+        
+        # Create dependency report
+        pip list --format=json > installed-packages.json
+    
+    - name: Install dependencies and scan (Frontend)
+      if: matrix.ecosystem == 'frontend'
+      working-directory: ./frontend
+      run: |
+        npm ci
+        npm install -g @cyclonedx/cyclonedx-npm audit-ci retire
+        
+        # Generate SBOM
+        cyclonedx-npm --output-file sbom-frontend.json
+        
+        # Comprehensive dependency scan
+        npm audit --json > npm-audit-scan.json || true
+        retire --js --outputformat json --outputpath retire-scan.json || true
+        
+        # Create dependency report
+        npm list --json > installed-packages.json
+    
+    - name: Run Trivy dependency scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: ${{ matrix.ecosystem == 'backend' && './backend' || './frontend' }}
+        format: 'sarif'
+        output: 'trivy-dependency-results.sarif'
+        severity: 'CRITICAL,HIGH,MEDIUM'
+    
+    - name: Upload Trivy dependency results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-dependency-results.sarif'
+    
+    - name: Generate dependency report
+      run: |
+        echo "# 📦 Dependency Security Report - ${{ matrix.ecosystem }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ matrix.ecosystem }}" == "backend" ]; then
+          if [ -f backend/safety-scan.json ]; then
+            CRITICAL=$(jq -r '.vulnerabilities | length' backend/safety-scan.json 2>/dev/null || echo "0")
+            echo "- **Python Safety**: $CRITICAL vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -f backend/pip-audit-scan.json ]; then
+            PIP_ISSUES=$(jq -r '.vulnerabilities | length' backend/pip-audit-scan.json 2>/dev/null || echo "0")
+            echo "- **Pip Audit**: $PIP_ISSUES vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          if [ -f frontend/npm-audit-scan.json ]; then
+            NPM_HIGH=$(jq -r '.metadata.vulnerabilities.high // 0' frontend/npm-audit-scan.json 2>/dev/null || echo "0")
+            NPM_CRITICAL=$(jq -r '.metadata.vulnerabilities.critical // 0' frontend/npm-audit-scan.json 2>/dev/null || echo "0")
+            echo "- **NPM Audit**: $NPM_CRITICAL critical, $NPM_HIGH high vulnerabilities" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+    
+    - name: Upload dependency artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: dependency-scan-${{ matrix.ecosystem }}-${{ github.run_number }}
+        path: |
+          backend/sbom-*.json
+          backend/safety-*.json
+          backend/pip-audit-*.json
+          backend/installed-packages.json
+          frontend/sbom-*.json
+          frontend/npm-audit-*.json
+          frontend/retire-*.json
+          frontend/installed-packages.json
+          trivy-dependency-results.sarif
+        retention-days: 90
+
+  container-security:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'container-only' || github.event.inputs.scan_type == ''
+    
+    strategy:
+      matrix:
+        service: [backend, frontend]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build Docker image for scanning
+      uses: docker/build-push-action@v5
+      with:
+        context: ./${{ matrix.service }}
+        load: true
+        tags: medai-${{ matrix.service }}:security-scan
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Run Trivy container scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'medai-${{ matrix.service }}:security-scan'
+        format: 'sarif'
+        output: 'trivy-container-${{ matrix.service }}.sarif'
+        severity: 'CRITICAL,HIGH,MEDIUM'
+    
+    - name: Upload Trivy container results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-container-${{ matrix.service }}.sarif'
+    
+    - name: Run Dockle container linter
+      run: |
+        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+          goodwithtech/dockle:latest \
+          --format json \
+          --output dockle-${{ matrix.service }}.json \
+          medai-${{ matrix.service }}:security-scan || true
+        
+        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+          goodwithtech/dockle:latest \
+          medai-${{ matrix.service }}:security-scan | tee dockle-${{ matrix.service }}.txt || true
+    
+    - name: Run Grype vulnerability scanner
+      run: |
+        # Install Grype
+        curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+        
+        # Scan image
+        grype medai-${{ matrix.service }}:security-scan -o json > grype-${{ matrix.service }}.json || true
+        grype medai-${{ matrix.service }}:security-scan | tee grype-${{ matrix.service }}.txt || true
+    
+    - name: Generate container security report
+      run: |
+        echo "# 🐳 Container Security Report - ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Process Trivy results
+        if [ -f trivy-container-${{ matrix.service }}.sarif ]; then
+          TRIVY_ISSUES=$(jq -r '.runs[0].results | length' trivy-container-${{ matrix.service }}.sarif 2>/dev/null || echo "0")
+          echo "- **Trivy Scan**: $TRIVY_ISSUES issues found" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        # Process Dockle results
+        if [ -f dockle-${{ matrix.service }}.json ]; then
+          DOCKLE_FATAL=$(jq -r '.details[] | select(.level=="FATAL") | length' dockle-${{ matrix.service }}.json 2>/dev/null | wc -l || echo "0")
+          DOCKLE_WARN=$(jq -r '.details[] | select(.level=="WARN") | length' dockle-${{ matrix.service }}.json 2>/dev/null | wc -l || echo "0")
+          echo "- **Dockle Lint**: $DOCKLE_FATAL fatal, $DOCKLE_WARN warnings" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        # Process Grype results
+        if [ -f grype-${{ matrix.service }}.json ]; then
+          GRYPE_CRITICAL=$(jq -r '.matches[] | select(.vulnerability.severity=="Critical") | length' grype-${{ matrix.service }}.json 2>/dev/null | wc -l || echo "0")
+          GRYPE_HIGH=$(jq -r '.matches[] | select(.vulnerability.severity=="High") | length' grype-${{ matrix.service }}.json 2>/dev/null | wc -l || echo "0")
+          echo "- **Grype Scan**: $GRYPE_CRITICAL critical, $GRYPE_HIGH high vulnerabilities" >> $GITHUB_STEP_SUMMARY
+        fi
+    
+    - name: Upload container security artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: container-security-${{ matrix.service }}-${{ github.run_number }}
+        path: |
+          trivy-container-*.sarif
+          dockle-*.json
+          dockle-*.txt
+          grype-*.json
+          grype-*.txt
+        retention-days: 90
+
+  infrastructure-scan:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == ''
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Checkov IaC security scan
+      uses: bridgecrewio/checkov-action@master
+      with:
+        directory: .
+        framework: dockerfile,docker_compose,github_actions,secrets
+        output_format: sarif
+        output_file_path: checkov-results.sarif
+        soft_fail: true
+    
+    - name: Upload Checkov results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: checkov-results.sarif
+    
+    - name: Scan GitHub Actions workflows
+      run: |
+        # Install actionlint
+        bash <(curl https://raw.githubusercontent.com/rhymond/actionlint/main/scripts/download-actionlint.bash)
+        
+        # Scan workflows
+        ./actionlint -format json > actionlint-results.json || true
+        ./actionlint | tee actionlint-report.txt || true
+    
+    - name: Upload infrastructure scan artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: infrastructure-scan-${{ github.run_number }}
+        path: |
+          checkov-results.sarif
+          actionlint-*.json
+          actionlint-*.txt
+        retention-days: 90
+
+  security-summary:
+    runs-on: ubuntu-latest
+    needs: [secrets-detection, sast-analysis, dependency-scanning, container-security, infrastructure-scan]
+    if: always()
+    
+    steps:
+    - name: Generate comprehensive security report
+      run: |
+        echo "# 🛡️ Comprehensive Security Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
+        echo "| Scan Type | Status | Result |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Secrets Detection | ${{ needs.secrets-detection.result == 'success' && '✅' || needs.secrets-detection.result == 'skipped' && '⏭️' || '❌' }} | ${{ needs.secrets-detection.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| SAST Analysis | ${{ needs.sast-analysis.result == 'success' && '✅' || needs.sast-analysis.result == 'skipped' && '⏭️' || '❌' }} | ${{ needs.sast-analysis.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Dependency Scanning | ${{ needs.dependency-scanning.result == 'success' && '✅' || needs.dependency-scanning.result == 'skipped' && '⏭️' || '❌' }} | ${{ needs.dependency-scanning.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Container Security | ${{ needs.container-security.result == 'success' && '✅' || needs.container-security.result == 'skipped' && '⏭️' || '❌' }} | ${{ needs.container-security.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Infrastructure Scan | ${{ needs.infrastructure-scan.result == 'success' && '✅' || needs.infrastructure-scan.result == 'skipped' && '⏭️' || '❌' }} | ${{ needs.infrastructure-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+        
+        # Determine overall security status
+        overall_status="success"
+        critical_failure=false
+        
+        if [[ "${{ needs.secrets-detection.result }}" == "failure" ]]; then
+          critical_failure=true
+        fi
+        
+        if [[ "${{ needs.sast-analysis.result }}" == "failure" || \
+              "${{ needs.dependency-scanning.result }}" == "failure" || \
+              "${{ needs.container-security.result }}" == "failure" || \
+              "${{ needs.infrastructure-scan.result }}" == "failure" ]]; then
+          overall_status="warning"
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [[ "$critical_failure" == "true" ]]; then
+          echo "## 🚨 Security Status: **CRITICAL ISSUES FOUND**" >> $GITHUB_STEP_SUMMARY
+          echo "### ⚠️ Action Required" >> $GITHUB_STEP_SUMMARY
+          echo "- Secrets detected in repository" >> $GITHUB_STEP_SUMMARY
+          echo "- Immediate remediation required" >> $GITHUB_STEP_SUMMARY
+          echo "- Block deployment until resolved" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        elif [[ "$overall_status" == "warning" ]]; then
+          echo "## ⚠️ Security Status: **ISSUES DETECTED**" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Recommended Actions" >> $GITHUB_STEP_SUMMARY
+          echo "- Review security scan results" >> $GITHUB_STEP_SUMMARY
+          echo "- Address high-priority vulnerabilities" >> $GITHUB_STEP_SUMMARY
+          echo "- Consider security improvements" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "## ✅ Security Status: **ALL CLEAR**" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎉 Security Posture" >> $GITHUB_STEP_SUMMARY
+          echo "- All security scans passed" >> $GITHUB_STEP_SUMMARY
+          echo "- No critical vulnerabilities detected" >> $GITHUB_STEP_SUMMARY
+          echo "- Security best practices followed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Summary Statistics" >> $GITHUB_STEP_SUMMARY
+        echo "- **Scan Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+        echo "- **Repository**: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Triggered by**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔄 Next Steps" >> $GITHUB_STEP_SUMMARY
+        echo "- Review detailed results in Security tab" >> $GITHUB_STEP_SUMMARY
+        echo "- Download artifacts for detailed analysis" >> $GITHUB_STEP_SUMMARY
+        echo "- Schedule next security scan: $(date -d '+1 day' '+%Y-%m-%d 03:00 UTC')" >> $GITHUB_STEP_SUMMARY

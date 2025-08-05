@@ -1,0 +1,483 @@
+name: Performance Monitoring & Benchmarks
+
+on:
+  schedule:
+    # Run performance tests daily at 6 AM UTC
+    - cron: '0 6 * * *'
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/app/**'
+      - 'frontend/src/**'
+      - '.github/workflows/performance.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'backend/app/**'
+      - 'frontend/src/**'
+  workflow_dispatch:
+    inputs:
+      test_duration:
+        description: 'Test duration in minutes'
+        required: false
+        default: '5'
+        type: choice
+        options:
+          - '1'
+          - '5'
+          - '10'
+          - '30'
+      load_pattern:
+        description: 'Load test pattern'
+        required: false
+        default: 'standard'
+        type: choice
+        options:
+          - 'standard'
+          - 'spike'
+          - 'stress'
+          - 'endurance'
+
+permissions:
+  contents: read
+  packages: read
+  actions: write
+
+jobs:
+  backend-performance:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: medai_perf_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: Install dependencies
+      working-directory: ./backend
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install locust pytest-benchmark memory-profiler line-profiler
+    
+    - name: Set up test database
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/medai_perf_test
+      run: |
+        cd backend
+        python -c "
+        import asyncio
+        import asyncpg
+        async def setup_db():
+            conn = await asyncpg.connect('postgresql://postgres:postgres@localhost:5432/postgres')
+            await conn.execute('CREATE DATABASE medai_perf_test')
+            await conn.close()
+        try:
+            asyncio.run(setup_db())
+        except:
+            pass  # Database might already exist
+        "
+    
+    - name: Run API benchmark tests
+      working-directory: ./backend
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/medai_perf_test
+        REDIS_URL: redis://localhost:6379/0
+        SECRET_KEY: test-secret-key-performance
+        ENVIRONMENT: test
+      run: |
+        python -m pytest tests/performance/ \
+          --benchmark-only \
+          --benchmark-json=benchmark-results.json \
+          --benchmark-compare-fail=min:10% \
+          --benchmark-sort=mean \
+          -v
+    
+    - name: Memory profiling
+      working-directory: ./backend
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/medai_perf_test
+        REDIS_URL: redis://localhost:6379/0
+        SECRET_KEY: test-secret-key-performance
+        ENVIRONMENT: test
+      run: |
+        # Create memory profiling script
+        cat > memory_profile_test.py << 'EOF'
+        import os
+        import asyncio
+        from memory_profiler import profile
+        from app.main import create_app
+        from app.core.config import get_settings
+
+        @profile
+        async def test_app_memory():
+            settings = get_settings()
+            app = create_app()
+            # Simulate typical usage patterns
+            for i in range(100):
+                # Simulate API calls and database operations
+                pass
+
+        if __name__ == "__main__":
+            asyncio.run(test_app_memory())
+        EOF
+        
+        python memory_profile_test.py > memory-profile.txt
+    
+    - name: Load testing with Locust
+      working-directory: ./backend
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/medai_perf_test
+        REDIS_URL: redis://localhost:6379/0
+        SECRET_KEY: test-secret-key-performance
+        ENVIRONMENT: test
+      run: |
+        # Create Locust test file
+        cat > locustfile.py << 'EOF'
+        from locust import HttpUser, task, between
+        import json
+
+        class MedAIUser(HttpUser):
+            wait_time = between(1, 3)
+            
+            def on_start(self):
+                """Initialize user session"""
+                self.client.verify = False
+                
+            @task(3)
+            def health_check(self):
+                """Test health endpoint"""
+                self.client.get("/health")
+            
+            @task(2)
+            def get_patients(self):
+                """Test patient listing"""
+                self.client.get("/api/v1/patients/")
+            
+            @task(1)
+            def create_patient(self):
+                """Test patient creation"""
+                patient_data = {
+                    "name": "Test Patient",
+                    "age": 30,
+                    "gender": "M"
+                }
+                self.client.post("/api/v1/patients/", json=patient_data)
+        EOF
+        
+        # Start the FastAPI app in background
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        APP_PID=$!
+        
+        # Wait for app to start
+        sleep 10
+        
+        # Run load test
+        TEST_DURATION="${{ github.event.inputs.test_duration || '5' }}"
+        LOAD_PATTERN="${{ github.event.inputs.load_pattern || 'standard' }}"
+        
+        case $LOAD_PATTERN in
+          "spike")
+            USERS=100
+            SPAWN_RATE=50
+            ;;
+          "stress")
+            USERS=200
+            SPAWN_RATE=20
+            ;;
+          "endurance")
+            USERS=50
+            SPAWN_RATE=5
+            TEST_DURATION=30
+            ;;
+          *)
+            USERS=50
+            SPAWN_RATE=10
+            ;;
+        esac
+        
+        locust -f locustfile.py \
+          --host http://localhost:8000 \
+          --users $USERS \
+          --spawn-rate $SPAWN_RATE \
+          --run-time ${TEST_DURATION}m \
+          --html locust-report.html \
+          --csv locust-results \
+          --headless
+        
+        # Stop the app
+        kill $APP_PID || true
+    
+    - name: Generate performance report
+      run: |
+        echo "# 📊 Backend Performance Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Test Configuration" >> $GITHUB_STEP_SUMMARY
+        echo "- **Duration**: ${{ github.event.inputs.test_duration || '5' }} minutes" >> $GITHUB_STEP_SUMMARY
+        echo "- **Pattern**: ${{ github.event.inputs.load_pattern || 'standard' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f backend/benchmark-results.json ]; then
+          echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
+          python -c "
+        import json
+        with open('backend/benchmark-results.json') as f:
+            data = json.load(f)
+            benchmarks = data.get('benchmarks', [])
+            print('| Test | Min (ms) | Max (ms) | Mean (ms) | Ops/sec |')
+            print('|------|----------|----------|-----------|---------|')
+            for benchmark in benchmarks[:10]:  # Show top 10
+                name = benchmark['name'][:30] + '...' if len(benchmark['name']) > 30 else benchmark['name']
+                min_time = f\"{benchmark['stats']['min']*1000:.2f}\"
+                max_time = f\"{benchmark['stats']['max']*1000:.2f}\"
+                mean_time = f\"{benchmark['stats']['mean']*1000:.2f}\"
+                ops_per_sec = f\"{1/benchmark['stats']['mean']:.2f}\"
+                print(f'| {name} | {min_time} | {max_time} | {mean_time} | {ops_per_sec} |')
+          " >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ -f backend/locust-results_stats.csv ]; then
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Load Test Results" >> $GITHUB_STEP_SUMMARY
+          python -c "
+        import csv
+        with open('backend/locust-results_stats.csv') as f:
+            reader = csv.DictReader(f)
+            print('| Endpoint | Requests | Failures | Avg (ms) | Max (ms) | RPS |')
+            print('|----------|----------|----------|----------|----------|-----|')
+            for row in reader:
+                if row['Name'] != 'Aggregated':
+                    name = row['Name'][:30] + '...' if len(row['Name']) > 30 else row['Name']
+                    requests = row['Request Count']
+                    failures = row['Failure Count']
+                    avg = row['Average Response Time']
+                    max_time = row['Max Response Time']
+                    rps = f\"{float(row['Requests/s']):.2f}\" if row['Requests/s'] else '0'
+                    print(f'| {name} | {requests} | {failures} | {avg} | {max_time} | {rps} |')
+          " >> $GITHUB_STEP_SUMMARY
+        fi
+    
+    - name: Upload performance artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: backend-performance-${{ github.run_number }}
+        path: |
+          backend/benchmark-results.json
+          backend/memory-profile.txt
+          backend/locust-report.html
+          backend/locust-results*.csv
+        retention-days: 30
+
+  frontend-performance:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: |
+        npm ci
+        npm install -g lighthouse lighthouse-ci @lhci/cli
+    
+    - name: Build production bundle
+      working-directory: ./frontend
+      run: |
+        npm run build
+        
+        # Analyze bundle size
+        npx vite-bundle-analyzer dist --mode=json > bundle-analysis.json
+    
+    - name: Bundle size analysis
+      working-directory: ./frontend
+      run: |
+        echo "# 📦 Frontend Bundle Analysis" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Get bundle sizes
+        if [ -d "dist" ]; then
+          echo "## Bundle Sizes" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Size |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+          
+          find dist -name "*.js" -o -name "*.css" | while read file; do
+            size=$(du -h "$file" | cut -f1)
+            filename=$(basename "$file")
+            echo "| $filename | $size |" >> $GITHUB_STEP_SUMMARY
+          done
+          
+          total_size=$(du -sh dist | cut -f1)
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Total Bundle Size**: $total_size" >> $GITHUB_STEP_SUMMARY
+        fi
+    
+    - name: Start development server for testing
+      working-directory: ./frontend
+      run: |
+        npm run preview &
+        SERVER_PID=$!
+        echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+        
+        # Wait for server to start
+        timeout 60 bash -c 'until curl -f http://localhost:4173 > /dev/null 2>&1; do sleep 2; done'
+    
+    - name: Run Lighthouse performance audit
+      run: |
+        mkdir -p lighthouse-results
+        
+        # Run Lighthouse audit
+        lighthouse http://localhost:4173 \
+          --output=json \
+          --output=html \
+          --output-path=lighthouse-results/lighthouse-report \
+          --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" \
+          --preset=desktop
+    
+    - name: Process Lighthouse results
+      run: |
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Lighthouse Performance Audit" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f lighthouse-results/lighthouse-report.json ]; then
+          python -c "
+        import json
+        with open('lighthouse-results/lighthouse-report.json') as f:
+            data = json.load(f)
+            categories = data['lhr']['categories']
+            audits = data['lhr']['audits']
+            
+            print('| Metric | Score | Value |')
+            print('|--------|-------|-------|')
+            
+            # Performance metrics
+            perf_score = int(categories['performance']['score'] * 100) if categories['performance']['score'] else 0
+            print(f'| Performance | {perf_score}/100 | - |')
+            
+            # Core Web Vitals
+            fcp = audits['first-contentful-paint']['displayValue'] if 'first-contentful-paint' in audits else 'N/A'
+            lcp = audits['largest-contentful-paint']['displayValue'] if 'largest-contentful-paint' in audits else 'N/A'
+            cls = audits['cumulative-layout-shift']['displayValue'] if 'cumulative-layout-shift' in audits else 'N/A'
+            
+            print(f'| First Contentful Paint | - | {fcp} |')
+            print(f'| Largest Contentful Paint | - | {lcp} |')
+            print(f'| Cumulative Layout Shift | - | {cls} |')
+            
+            # Other metrics
+            tti = audits['interactive']['displayValue'] if 'interactive' in audits else 'N/A'
+            tbt = audits['total-blocking-time']['displayValue'] if 'total-blocking-time' in audits else 'N/A'
+            
+            print(f'| Time to Interactive | - | {tti} |')
+            print(f'| Total Blocking Time | - | {tbt} |')
+          " >> $GITHUB_STEP_SUMMARY
+        fi
+    
+    - name: Performance threshold check
+      run: |
+        if [ -f lighthouse-results/lighthouse-report.json ]; then
+          PERF_SCORE=$(python -c "
+        import json
+        with open('lighthouse-results/lighthouse-report.json') as f:
+            data = json.load(f)
+            score = data['lhr']['categories']['performance']['score']
+            print(int(score * 100) if score else 0)
+          ")
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ $PERF_SCORE -ge 90 ]; then
+            echo "✅ **Performance Score**: $PERF_SCORE/100 - Excellent!" >> $GITHUB_STEP_SUMMARY
+          elif [ $PERF_SCORE -ge 75 ]; then
+            echo "⚠️ **Performance Score**: $PERF_SCORE/100 - Good but could improve" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Performance Score**: $PERF_SCORE/100 - Needs improvement" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+        fi
+    
+    - name: Cleanup
+      if: always()
+      run: |
+        if [ ! -z "$SERVER_PID" ]; then
+          kill $SERVER_PID || true
+        fi
+    
+    - name: Upload frontend performance artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: frontend-performance-${{ github.run_number }}
+        path: |
+          lighthouse-results/
+          frontend/bundle-analysis.json
+        retention-days: 30
+
+  performance-comparison:
+    runs-on: ubuntu-latest
+    needs: [backend-performance, frontend-performance]
+    if: always()
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download previous performance data
+      continue-on-error: true
+      run: |
+        # Download previous performance results for comparison
+        # This would integrate with your performance tracking system
+        echo "Downloading previous performance baselines..."
+    
+    - name: Compare performance metrics
+      run: |
+        echo "# 📈 Performance Trend Analysis" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Performance Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Backend Performance**: ${{ needs.backend-performance.result == 'success' && '✅ Passed' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Frontend Performance**: ${{ needs.frontend-performance.result == 'success' && '✅ Passed' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ needs.backend-performance.result }}" == "failure" || "${{ needs.frontend-performance.result }}" == "failure" ]]; then
+          echo "- ⚠️ Performance degradation detected" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔍 Review performance artifacts for details" >> $GITHUB_STEP_SUMMARY
+          echo "- 🛠️ Consider performance optimizations" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- ✅ All performance tests passed" >> $GITHUB_STEP_SUMMARY
+          echo "- 📊 Performance within acceptable thresholds" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "- 📈 Trend analysis available in artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "- 🔄 Next scheduled run: $(date -d '+1 day' '+%Y-%m-%d 06:00 UTC')" >> $GITHUB_STEP_SUMMARY
