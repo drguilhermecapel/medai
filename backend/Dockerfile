@@ -25,7 +25,7 @@ RUN pip install poetry==1.8.2
 
 # Configure Poetry
 ENV POETRY_NO_INTERACTION=1 \
-    POETRY_VENV_IN_PROJECT=0 \
+    POETRY_VENV_IN_PROJECT=1 \
     POETRY_CACHE_DIR=/tmp/poetry_cache
 
 # Set work directory
@@ -34,9 +34,8 @@ WORKDIR /app
 # Copy Poetry files
 COPY pyproject.toml poetry.lock* ./
 
-# Install dependencies globally
-RUN poetry config virtualenvs.create false && \
-    poetry install && \
+# Install dependencies using Poetry
+RUN poetry install --only main && \
     rm -rf $POETRY_CACHE_DIR
 
 # Copy application code
@@ -55,4 +54,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
 EXPOSE 8000
 
 # Run application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
