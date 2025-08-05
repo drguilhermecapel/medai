@@ -1,0 +1,494 @@
+name: Enhanced CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+  packages: write
+  id-token: write
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+  POETRY_VERSION: "1.7.1"
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.changes.outputs.backend }}
+      frontend: ${{ steps.changes.outputs.frontend }}
+      docker: ${{ steps.changes.outputs.docker }}
+      docs: ${{ steps.changes.outputs.docs }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'requirements*.txt'
+              - 'pyproject.toml'
+              - 'poetry.lock'
+            frontend:
+              - 'frontend/**'
+              - 'package*.json'
+            docker:
+              - 'docker-compose*.yml'
+              - '**/Dockerfile'
+              - 'infrastructure/**'
+            docs:
+              - '**/*.md'
+              - 'docs/**'
+
+  backend-quality:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: medai_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for better caching
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: ${{ env.POETRY_VERSION }}
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+        installer-parallel: true
+    
+    - name: Load cached venv
+      id: cached-poetry-dependencies
+      uses: actions/cache@v4
+      with:
+        path: backend/.venv
+        key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
+        restore-keys: |
+          venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-
+    
+    - name: Load cached pre-commit
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-${{ runner.os }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
+        restore-keys: |
+          pre-commit-${{ runner.os }}-
+    
+    - name: Install dependencies
+      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+      working-directory: ./backend
+      run: |
+        poetry install --no-interaction --with dev,test
+    
+    - name: Install project
+      working-directory: ./backend
+      run: poetry install --no-interaction
+    
+    # Security and Quality Checks
+    - name: Run security linting with bandit
+      working-directory: ./backend
+      run: |
+        poetry run bandit -r app/ -f json -o bandit-report.json || true
+        poetry run bandit -r app/ -f txt
+    
+    - name: Run dependency vulnerability check
+      working-directory: ./backend
+      run: |
+        poetry run safety check --json --output safety-report.json || true
+        poetry run safety check
+    
+    - name: Run code quality checks with ruff
+      working-directory: ./backend
+      run: |
+        poetry run ruff check app/ --output-format=github
+        poetry run ruff format app/ --check
+    
+    - name: Run type checking with mypy
+      working-directory: ./backend
+      run: |
+        poetry run mypy app/ --strict --show-error-codes --pretty
+    
+    - name: Run tests with coverage
+      working-directory: ./backend
+      env:
+        DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/medai_test
+        REDIS_URL: redis://localhost:6379/0
+        SECRET_KEY: test-secret-key-for-ci-enhanced
+        ENVIRONMENT: test
+        PYTHONPATH: ${{ github.workspace }}/backend
+      run: |
+        poetry run pytest \
+          --cov=app \
+          --cov-report=xml:coverage.xml \
+          --cov-report=html:htmlcov \
+          --cov-report=term-missing \
+          --cov-fail-under=80 \
+          --junitxml=test-results.xml \
+          --durations=10 \
+          -v
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      if: always()
+      with:
+        file: ./backend/coverage.xml
+        flags: backend
+        name: backend-coverage
+        fail_ci_if_error: false
+    
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: backend-test-results-${{ github.run_number }}
+        path: |
+          backend/htmlcov/
+          backend/coverage.xml
+          backend/test-results.xml
+          backend/bandit-report.json
+          backend/safety-report.json
+        retention-days: 30
+
+  frontend-quality:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci --prefer-offline --no-audit
+    
+    # Quality checks
+    - name: Run ESLint
+      working-directory: ./frontend
+      run: |
+        npm run lint -- --format=@microsoft/eslint-formatter-sarif --output-file=eslint-results.sarif
+    
+    - name: Run Prettier check
+      working-directory: ./frontend
+      run: npm run format:check
+    
+    - name: Run TypeScript check
+      working-directory: ./frontend
+      run: npm run type-check
+    
+    - name: Run tests with coverage
+      working-directory: ./frontend
+      run: npm run test:coverage
+    
+    - name: Upload ESLint results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: frontend/eslint-results.sarif
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      if: always()
+      with:
+        file: ./frontend/coverage/lcov.info
+        flags: frontend
+        name: frontend-coverage
+        fail_ci_if_error: false
+    
+    - name: Upload frontend artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: frontend-test-results-${{ github.run_number }}
+        path: |
+          frontend/coverage/
+          frontend/eslint-results.sarif
+        retention-days: 30
+
+  security-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        severity: 'CRITICAL,HIGH,MEDIUM'
+        ignore-unfixed: false
+        exit-code: '0'
+    
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+    
+    - name: Run CodeQL Analysis
+      uses: github/codeql-action/init@v3
+      with:
+        languages: 'python,javascript'
+        config-file: ./.github/codeql/codeql-config.yml
+    
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+    
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.docker == 'true' || needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build and scan backend image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        push: false
+        tags: medai-backend:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+    
+    - name: Build and scan frontend image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./frontend
+        push: false
+        tags: medai-frontend:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+    
+    - name: Run Dockle container security scanner
+      run: |
+        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+          goodwithtech/dockle:latest --exit-code 1 --exit-level WARN \
+          medai-backend:test
+        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+          goodwithtech/dockle:latest --exit-code 1 --exit-level WARN \
+          medai-frontend:test
+    
+    - name: Check image sizes
+      run: |
+        echo "## Docker Image Analysis" >> $GITHUB_STEP_SUMMARY
+        echo "| Image | Size | Architecture |" >> $GITHUB_STEP_SUMMARY
+        echo "|-------|------|-------------|" >> $GITHUB_STEP_SUMMARY
+        docker images --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}" | grep "medai-" | \
+          awk '{print "| " $1 " | " $2 " | linux/amd64 |"}' >> $GITHUB_STEP_SUMMARY
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: [backend-quality, frontend-quality]
+    if: always() && (needs.backend-quality.result == 'success' || needs.frontend-quality.result == 'success')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Create optimized test environment
+      run: |
+        cat > .env.test << 'EOF'
+        ENVIRONMENT=test
+        DEBUG=false
+        DATABASE_URL=postgresql+asyncpg://medai:medai_test_pass@postgres:5432/medai_test
+        POSTGRES_USER=medai
+        POSTGRES_PASSWORD=medai_test_pass
+        POSTGRES_DB=medai_test
+        SECRET_KEY=test-secret-key-integration-enhanced
+        JWT_SECRET_KEY=test-jwt-secret-integration-enhanced
+        JWT_ALGORITHM=HS256
+        ACCESS_TOKEN_EXPIRE_MINUTES=30
+        REDIS_URL=redis://:medai_test_pass@redis:6379/0
+        CELERY_BROKER_URL=redis://:medai_test_pass@redis:6379/0
+        CELERY_RESULT_BACKEND=redis://:medai_test_pass@redis:6379/0
+        API_PORT=8000
+        WEB_PORT=3000
+        LOG_LEVEL=INFO
+        REACT_APP_API_URL=http://localhost:8000
+        REACT_APP_WS_URL=ws://localhost:8000
+        MEDICAL_COMPLIANCE_MODE=true
+        AUDIT_LOGGING=true
+        DATA_RETENTION_DAYS=2555
+        MAX_UPLOAD_SIZE=50MB
+        UPLOAD_PATH=/app/uploads
+        ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+        EOF
+    
+    - name: Start services
+      run: |
+        cp .env.test .env
+        docker compose up -d --build --wait --wait-timeout 300
+    
+    - name: Run comprehensive health checks
+      run: |
+        timeout 180 bash -c '
+          while ! curl -f http://localhost:8000/health > /dev/null 2>&1; do
+            echo "Waiting for API to be ready..."
+            sleep 5
+          done
+        '
+        timeout 180 bash -c '
+          while ! curl -f http://localhost:3000 > /dev/null 2>&1; do
+            echo "Waiting for Frontend to be ready..."
+            sleep 5
+          done
+        '
+    
+    - name: Run API integration tests
+      run: |
+        docker compose exec -T api python -m pytest tests/integration/ \
+          -v --tb=short --maxfail=5 \
+          --junitxml=/tmp/integration-results.xml
+    
+    - name: Run E2E smoke tests
+      run: |
+        docker compose exec -T api python -m pytest tests/e2e/ \
+          -v --tb=short --maxfail=3 \
+          -m "smoke" \
+          --junitxml=/tmp/e2e-results.xml
+    
+    - name: Generate service status report
+      if: always()
+      run: |
+        echo "## Integration Test Summary" >> $GITHUB_STEP_SUMMARY
+        echo "### Service Health Status" >> $GITHUB_STEP_SUMMARY
+        
+        api_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health || echo "failed")
+        frontend_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 || echo "failed")
+        
+        echo "- 🔧 API Health: $api_status" >> $GITHUB_STEP_SUMMARY
+        echo "- 🌐 Frontend Health: $frontend_status" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "$api_status" == "200" && "$frontend_status" == "200" ]]; then
+          echo "- ✅ Integration Test Environment: Healthy" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- ❌ Integration Test Environment: Issues detected" >> $GITHUB_STEP_SUMMARY
+        fi
+    
+    - name: Collect logs on failure
+      if: failure()
+      run: |
+        mkdir -p logs
+        docker compose logs api > logs/api.log
+        docker compose logs frontend > logs/frontend.log
+        docker compose logs postgres > logs/postgres.log
+        docker compose logs redis > logs/redis.log
+        docker ps -a > logs/containers.log
+    
+    - name: Upload integration test artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: integration-test-results-${{ github.run_number }}
+        path: |
+          logs/
+        retention-days: 30
+    
+    - name: Cleanup
+      if: always()
+      run: docker compose down -v --remove-orphans
+
+  build-status:
+    runs-on: ubuntu-latest
+    needs: [backend-quality, frontend-quality, security-scan, docker-build, integration-tests]
+    if: always()
+    
+    steps:
+    - name: Generate build status report
+      run: |
+        echo "# 🚀 CI Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Job Status Overview" >> $GITHUB_STEP_SUMMARY
+        echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Backend Quality | ${{ needs.backend-quality.result == 'success' && '✅ Passed' || needs.backend-quality.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Frontend Quality | ${{ needs.frontend-quality.result == 'success' && '✅ Passed' || needs.frontend-quality.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Security Scan | ${{ needs.security-scan.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Docker Build | ${{ needs.docker-build.result == 'success' && '✅ Passed' || needs.docker-build.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Integration Tests | ${{ needs.integration-tests.result == 'success' && '✅ Passed' || needs.integration-tests.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        
+        overall_status="success"
+        if [[ "${{ needs.backend-quality.result }}" == "failure" || \
+              "${{ needs.frontend-quality.result }}" == "failure" || \
+              "${{ needs.security-scan.result }}" == "failure" || \
+              "${{ needs.docker-build.result }}" == "failure" || \
+              "${{ needs.integration-tests.result }}" == "failure" ]]; then
+          overall_status="failure"
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [[ "$overall_status" == "success" ]]; then
+          echo "## ✅ Overall Status: **PASSED**" >> $GITHUB_STEP_SUMMARY
+          echo "All critical checks have passed successfully!" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "## ❌ Overall Status: **FAILED**" >> $GITHUB_STEP_SUMMARY
+          echo "Some critical checks have failed. Please review the job details." >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Key Metrics" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branch**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Triggered by**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Run Number**: #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY

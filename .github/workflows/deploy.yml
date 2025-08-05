@@ -1,0 +1,327 @@
+name: Multi-Environment Deployment
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      skip_tests:
+        description: 'Skip tests (emergency deployment only)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  packages: write
+  deployments: write
+  id-token: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  determine-environment:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      deploy: ${{ steps.env.outputs.deploy }}
+    steps:
+      - name: Determine deployment environment
+        id: env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+            echo "deploy=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "deploy=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "environment=staging" >> $GITHUB_OUTPUT
+            echo "deploy=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" =~ refs/tags/v.* ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "environment=development" >> $GITHUB_OUTPUT
+            echo "deploy=false" >> $GITHUB_OUTPUT
+          fi
+
+  pre-deployment-tests:
+    runs-on: ubuntu-latest
+    needs: determine-environment
+    if: needs.determine-environment.outputs.deploy == 'true' && github.event.inputs.skip_tests != 'true'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run smoke tests
+        run: |
+          echo "Running pre-deployment smoke tests..."
+          # Add actual smoke test commands here
+          
+      - name: Security baseline check
+        run: |
+          echo "Running security baseline check..."
+          # Add security validation commands here
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: [determine-environment, pre-deployment-tests]
+    if: always() && needs.determine-environment.outputs.deploy == 'true' && (needs.pre-deployment-tests.result == 'success' || needs.pre-deployment-tests.result == 'skipped')
+    
+    strategy:
+      matrix:
+        service: [backend, frontend]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=${{ needs.determine-environment.outputs.environment }}
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ matrix.service }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VCS_REF=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
+            VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+
+  deploy-development:
+    runs-on: ubuntu-latest
+    needs: [determine-environment, build-and-push]
+    if: needs.determine-environment.outputs.environment == 'development' && needs.determine-environment.outputs.deploy == 'true'
+    environment:
+      name: development
+      url: https://medai-dev.your-domain.com
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to Development
+        run: |
+          echo "Deploying to Development Environment..."
+          echo "Environment: development"
+          echo "Image Tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:develop, ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:develop"
+          
+          # Add actual deployment commands here
+          # For example: kubectl, docker-compose, or cloud-specific deployment tools
+          
+      - name: Run post-deployment tests
+        run: |
+          echo "Running post-deployment health checks..."
+          # Add health check commands here
+          
+      - name: Notify deployment status
+        if: always()
+        run: |
+          echo "Development deployment completed"
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [determine-environment, build-and-push]
+    if: needs.determine-environment.outputs.environment == 'staging' && needs.determine-environment.outputs.deploy == 'true'
+    environment:
+      name: staging
+      url: https://medai-staging.your-domain.com
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to Staging
+        run: |
+          echo "Deploying to Staging Environment..."
+          echo "Environment: staging"
+          echo "Image Tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:develop, ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:develop"
+          
+          # Add actual deployment commands here
+          
+      - name: Run integration tests in staging
+        run: |
+          echo "Running integration tests in staging..."
+          # Add staging-specific tests here
+          
+      - name: Performance baseline check
+        run: |
+          echo "Running performance baseline check..."
+          # Add performance testing commands here
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [determine-environment, build-and-push]
+    if: needs.determine-environment.outputs.environment == 'production' && needs.determine-environment.outputs.deploy == 'true'
+    environment:
+      name: production
+      url: https://medai.your-domain.com
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create deployment record
+        run: |
+          echo "Creating deployment record for production..."
+          echo "Deployment ID: ${{ github.run_number }}"
+          echo "Git SHA: ${{ github.sha }}"
+          echo "Deployed by: ${{ github.actor }}"
+          echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+      
+      - name: Blue-Green Deployment to Production
+        run: |
+          echo "Starting Blue-Green deployment to Production..."
+          echo "Environment: production"
+          echo "Strategy: Blue-Green"
+          echo "Image Tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:main, ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:main"
+          
+          # Add blue-green deployment logic here
+          # 1. Deploy to blue environment
+          # 2. Run health checks
+          # 3. Switch traffic from green to blue
+          # 4. Keep green as backup
+          
+      - name: Post-deployment verification
+        run: |
+          echo "Running post-deployment verification..."
+          # Add comprehensive health checks
+          # Add smoke tests
+          # Add performance validation
+          
+      - name: Create release notes
+        run: |
+          echo "Creating release notes..."
+          echo "## Release ${{ github.run_number }}" >> release-notes.md
+          echo "**Deployed at:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> release-notes.md
+          echo "**Git SHA:** ${{ github.sha }}" >> release-notes.md
+          echo "**Deployed by:** ${{ github.actor }}" >> release-notes.md
+          echo "" >> release-notes.md
+          echo "### Changes" >> release-notes.md
+          git log --oneline --since="1 day ago" >> release-notes.md || echo "No recent changes" >> release-notes.md
+          
+      - name: Notify production deployment
+        if: always()
+        run: |
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "✅ Production deployment successful"
+            # Add success notification (Slack, email, etc.)
+          else
+            echo "❌ Production deployment failed"
+            # Add failure notification and rollback trigger
+          fi
+
+  rollback:
+    runs-on: ubuntu-latest
+    if: failure() && (needs.deploy-production.result == 'failure' || needs.deploy-staging.result == 'failure')
+    needs: [deploy-production, deploy-staging]
+    environment:
+      name: ${{ needs.determine-environment.outputs.environment }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Rollback deployment
+        run: |
+          echo "Initiating rollback for ${{ needs.determine-environment.outputs.environment }}..."
+          # Add rollback logic here
+          # 1. Identify last known good deployment
+          # 2. Switch traffic back to green environment
+          # 3. Verify rollback success
+          # 4. Notify team
+          
+      - name: Post-rollback verification
+        run: |
+          echo "Verifying rollback success..."
+          # Add rollback verification checks
+          
+      - name: Notify rollback completion
+        run: |
+          echo "Rollback completed for ${{ needs.determine-environment.outputs.environment }}"
+          # Add rollback notification
+
+  deployment-summary:
+    runs-on: ubuntu-latest
+    needs: [determine-environment, deploy-development, deploy-staging, deploy-production, rollback]
+    if: always()
+    
+    steps:
+      - name: Generate deployment summary
+        run: |
+          echo "# 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Deployment Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ needs.determine-environment.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch/Tag**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit SHA**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployed by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployment ID**: #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## Job Status" >> $GITHUB_STEP_SUMMARY
+          echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Pre-deployment Tests | ${{ needs.pre-deployment-tests.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build & Push | ${{ needs.build-and-push.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Development Deploy | ${{ needs.deploy-development.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Staging Deploy | ${{ needs.deploy-staging.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Production Deploy | ${{ needs.deploy-production.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Rollback | ${{ needs.rollback.result || 'not triggered' }} |" >> $GITHUB_STEP_SUMMARY
+          
+          # Determine overall status
+          overall_status="success"
+          if [[ "${{ needs.rollback.result }}" == "success" ]]; then
+            overall_status="rollback"
+          elif [[ "${{ needs.deploy-production.result }}" == "failure" || \
+                  "${{ needs.deploy-staging.result }}" == "failure" || \
+                  "${{ needs.deploy-development.result }}" == "failure" ]]; then
+            overall_status="failure"
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "$overall_status" == "success" ]]; then
+            echo "## ✅ Deployment Status: **SUCCESS**" >> $GITHUB_STEP_SUMMARY
+          elif [[ "$overall_status" == "rollback" ]]; then
+            echo "## 🔄 Deployment Status: **ROLLED BACK**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ❌ Deployment Status: **FAILED**" >> $GITHUB_STEP_SUMMARY
+          fi

@@ -1,0 +1,161 @@
+version: 2
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "drguilhermecapel"
+    assignees:
+      - "drguilhermecapel"
+    labels:
+      - "dependencies"
+      - "backend"
+      - "security"
+    commit-message:
+      prefix: "deps(backend)"
+      include: "scope"
+    ignore:
+      # Ignore major version updates for critical packages that need manual review
+      - dependency-name: "fastapi"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "sqlalchemy"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "pydantic"
+        update-types: ["version-update:semver-major"]
+    groups:
+      fastapi:
+        patterns:
+          - "fastapi*"
+          - "uvicorn"
+          - "starlette"
+      database:
+        patterns:
+          - "sqlalchemy*"
+          - "alembic"
+          - "asyncpg"
+          - "psycopg*"
+      testing:
+        patterns:
+          - "pytest*"
+          - "httpx"
+          - "faker"
+      security:
+        patterns:
+          - "cryptography"
+          - "passlib"
+          - "python-jose"
+          - "python-multipart"
+
+  # Node.js dependencies
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "drguilhermecapel"
+    assignees:
+      - "drguilhermecapel"
+    labels:
+      - "dependencies"
+      - "frontend"
+      - "security"
+    commit-message:
+      prefix: "deps(frontend)"
+      include: "scope"
+    ignore:
+      # Ignore major version updates for React ecosystem
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-major"]
+    groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react*"
+          - "react-router*"
+      redux:
+        patterns:
+          - "@reduxjs/*"
+          - "react-redux"
+          - "redux*"
+      ui:
+        patterns:
+          - "@mui/*"
+          - "@emotion/*"
+          - "recharts"
+      build-tools:
+        patterns:
+          - "vite"
+          - "vitest"
+          - "@vitejs/*"
+          - "typescript"
+      linting:
+        patterns:
+          - "eslint*"
+          - "@typescript-eslint/*"
+          - "prettier"
+
+  # Docker dependencies
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "04:00"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "drguilhermecapel"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "infrastructure"
+    commit-message:
+      prefix: "deps(docker)"
+      include: "scope"
+
+  - package-ecosystem: "docker"
+    directory: "/frontend" 
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "04:00"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "drguilhermecapel"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "infrastructure"
+    commit-message:
+      prefix: "deps(docker)"
+      include: "scope"
+
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "04:00"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "drguilhermecapel"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "ci-cd"
+    commit-message:
+      prefix: "deps(actions)"
+      include: "scope"

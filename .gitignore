@@ -261,3 +261,45 @@ secrets/
 *.key
 *.pem
 *.crt
+
+# CI/CD artifacts
+*.sarif
+*-results.json
+*-results.xml
+*-report.txt
+*-report.html
+*-scan.json
+bandit-*.json
+safety-*.json
+pip-audit-*.json
+npm-audit-*.json
+eslint-security-*.json
+trivy-*.sarif
+dockle-*.json
+grype-*.json
+checkov-results.sarif
+actionlint-*.json
+locust-*.csv
+locust-*.html
+benchmark-*.json
+memory-profile.txt
+lighthouse-results/
+bundle-analysis.json
+sbom-*.spdx.json
+review-comments.md
+
+# Test artifacts
+test-results/
+test_medai.db
+test_*.db
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Security scanning
+.secrets.baseline
+.trivyignore*
+
+# Performance testing
+performance-results/
+load-test-results/
