@@ -10,16 +10,6 @@ export default defineConfig({
     coverage: {
       provider: 'c8',
       reporter: ['text', 'json', 'html', 'lcov'],
-      exclude: [
-        'node_modules/',
-        'src/test/',
-        '**/*.d.ts',
-        '**/*.config.*',
-        'dist/',
-        'coverage/',
-        '**/*.test.*',
-        '**/*.spec.*'
-      ],
       thresholds: {
         global: {
           branches: 80,
@@ -50,12 +40,16 @@ export default defineConfig({
       all: true,
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
+        'node_modules/',
+        'src/test/',
         'src/**/*.d.ts',
-        'src/test/**',
         'src/**/*.test.*',
         'src/**/*.spec.*',
+        'src/**/*.config.*',
         'src/main.tsx',
-        'src/vite-env.d.ts'
+        'src/vite-env.d.ts',
+        'dist/',
+        'coverage/'
       ]
     }
   },

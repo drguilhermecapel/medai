@@ -106,15 +106,27 @@ def configure_engine_events(engine: Engine) -> None:
 
 # === INSTÂNCIAS GLOBAIS ===
 
-# Engine global
-engine = create_database_engine()
+# Engine global - será criado apenas quando necessário
+engine = None
+SessionLocal = None
 
-# Session factory
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
+def get_engine():
+    """Obtém o engine, criando-o se necessário"""
+    global engine
+    if engine is None:
+        engine = create_database_engine()
+    return engine
+
+def get_session_local():
+    """Obtém o SessionLocal, criando-o se necessário"""
+    global SessionLocal
+    if SessionLocal is None:
+        SessionLocal = sessionmaker(
+            autocommit=False,
+            autoflush=False,
+            bind=get_engine()
+        )
+    return SessionLocal
 
 
 # === DEPENDÊNCIAS FASTAPI ===
@@ -126,7 +138,7 @@ def get_db() -> Generator[Session, None, None]:
     Yields:
         Sessão do banco de dados
     """
-    db = SessionLocal()
+    db = get_session_local()()
     try:
         yield db
     except Exception as e:

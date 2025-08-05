@@ -3,6 +3,32 @@
 Health check module for MEDAI
 """
 from typing import Dict, Any
+from enum import Enum
+
+
+class HealthStatus(Enum):
+    """Health status enumeration"""
+    HEALTHY = "healthy"
+    UNHEALTHY = "unhealthy"
+    DEGRADED = "degraded"
+    UNKNOWN = "unknown"
+
+
+class HealthCheckResult:
+    """Health check result container"""
+    
+    def __init__(self, status: HealthStatus, message: str = "", details: Dict[str, Any] = None):
+        self.status = status
+        self.message = message
+        self.details = details or {}
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary"""
+        return {
+            "status": self.status.value,
+            "message": self.message,
+            "details": self.details
+        }
 
 def check_database_health() -> Dict[str, Any]:
     """Check database health"""
@@ -48,6 +74,98 @@ def aggregate_health_checks(checks: Dict[str, Dict]) -> Dict[str, Any]:
 class HealthChecker:
     """Health checker class"""
     
+    def __init__(self):
+        pass
+    
+    def get_overall_health(self) -> Dict[str, Any]:
+        """Get overall system health"""
+        checks = {
+            "database": check_database_health(),
+            "redis": check_redis_health(),
+            "ml_models": check_ml_models_health(),
+            "system": check_system_resources()
+        }
+        return aggregate_health_checks(checks)
+
+
+class DatabaseHealthCheck:
+    """Database health check component"""
+    
+    def __init__(self):
+        self.name = "database"
+    
+    def check(self) -> Dict[str, Any]:
+        """Perform database health check"""
+        return check_database_health()
+    
+    def is_healthy(self) -> bool:
+        """Check if database is healthy"""
+        return self.check()["status"] == "healthy"
+
+
+class RedisHealthCheck:
+    """Redis health check component"""
+    
+    def __init__(self):
+        self.name = "redis"
+    
+    def check(self) -> Dict[str, Any]:
+        """Perform Redis health check"""
+        return check_redis_health()
+    
+    def is_healthy(self) -> bool:
+        """Check if Redis is healthy"""
+        return self.check()["status"] == "healthy"
+
+
+class MLModelHealthCheck:
+    """ML Models health check component (alias for compatibility)"""
+    
+    def __init__(self):
+        self.name = "ml_models"
+    
+    def check(self) -> Dict[str, Any]:
+        """Perform ML models health check"""
+        return check_ml_models_health()
+    
+    def is_healthy(self) -> bool:
+        """Check if ML models are healthy"""
+        return self.check()["status"] == "healthy"
+
+
+class MLModelsHealthCheck(MLModelHealthCheck):
+    """ML Models health check component"""
+    pass
+
+
+class CacheHealthCheck:
+    """Cache (Redis) health check component"""
+    
+    def __init__(self):
+        self.name = "cache"
+    
+    def check(self) -> Dict[str, Any]:
+        """Perform cache health check"""
+        return check_redis_health()
+    
+    def is_healthy(self) -> bool:
+        """Check if cache is healthy"""
+        return self.check()["status"] == "healthy"
+
+
+class SystemResourcesCheck:
+    """System resources health check component"""
+    
+    def __init__(self):
+        self.name = "system_resources"
+    
+    def check(self) -> Dict[str, Any]:
+        """Perform system resources health check"""
+        return check_system_resources()
+    
+    def is_healthy(self) -> bool:
+        """Check if system resources are healthy"""
+        return self.check().get("memory", {}).get("status") == "healthy"
     def __init__(self):
         self.checks = {}
     
