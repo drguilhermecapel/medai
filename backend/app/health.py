@@ -49,6 +49,63 @@ class HealthChecker:
     """Health checker class"""
     
     def __init__(self):
+        pass
+    
+    def get_overall_health(self) -> Dict[str, Any]:
+        """Get overall system health"""
+        checks = {
+            "database": check_database_health(),
+            "redis": check_redis_health(),
+            "ml_models": check_ml_models_health(),
+            "system": check_system_resources()
+        }
+        return aggregate_health_checks(checks)
+
+
+class DatabaseHealthCheck:
+    """Database health check component"""
+    
+    def __init__(self):
+        self.name = "database"
+    
+    def check(self) -> Dict[str, Any]:
+        """Perform database health check"""
+        return check_database_health()
+    
+    def is_healthy(self) -> bool:
+        """Check if database is healthy"""
+        return self.check()["status"] == "healthy"
+
+
+class RedisHealthCheck:
+    """Redis health check component"""
+    
+    def __init__(self):
+        self.name = "redis"
+    
+    def check(self) -> Dict[str, Any]:
+        """Perform Redis health check"""
+        return check_redis_health()
+    
+    def is_healthy(self) -> bool:
+        """Check if Redis is healthy"""
+        return self.check()["status"] == "healthy"
+
+
+class MLModelsHealthCheck:
+    """ML Models health check component"""
+    
+    def __init__(self):
+        self.name = "ml_models"
+    
+    def check(self) -> Dict[str, Any]:
+        """Perform ML models health check"""
+        return check_ml_models_health()
+    
+    def is_healthy(self) -> bool:
+        """Check if ML models are healthy"""
+        return self.check()["status"] == "healthy"
+    def __init__(self):
         self.checks = {}
     
     def add_check(self, name: str, check_func):
