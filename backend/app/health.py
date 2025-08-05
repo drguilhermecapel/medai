@@ -3,6 +3,32 @@
 Health check module for MEDAI
 """
 from typing import Dict, Any
+from enum import Enum
+
+
+class HealthStatus(Enum):
+    """Health status enumeration"""
+    HEALTHY = "healthy"
+    UNHEALTHY = "unhealthy"
+    DEGRADED = "degraded"
+    UNKNOWN = "unknown"
+
+
+class HealthCheckResult:
+    """Health check result container"""
+    
+    def __init__(self, status: HealthStatus, message: str = "", details: Dict[str, Any] = None):
+        self.status = status
+        self.message = message
+        self.details = details or {}
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary"""
+        return {
+            "status": self.status.value,
+            "message": self.message,
+            "details": self.details
+        }
 
 def check_database_health() -> Dict[str, Any]:
     """Check database health"""
@@ -92,8 +118,8 @@ class RedisHealthCheck:
         return self.check()["status"] == "healthy"
 
 
-class MLModelsHealthCheck:
-    """ML Models health check component"""
+class MLModelHealthCheck:
+    """ML Models health check component (alias for compatibility)"""
     
     def __init__(self):
         self.name = "ml_models"
@@ -105,6 +131,41 @@ class MLModelsHealthCheck:
     def is_healthy(self) -> bool:
         """Check if ML models are healthy"""
         return self.check()["status"] == "healthy"
+
+
+class MLModelsHealthCheck(MLModelHealthCheck):
+    """ML Models health check component"""
+    pass
+
+
+class CacheHealthCheck:
+    """Cache (Redis) health check component"""
+    
+    def __init__(self):
+        self.name = "cache"
+    
+    def check(self) -> Dict[str, Any]:
+        """Perform cache health check"""
+        return check_redis_health()
+    
+    def is_healthy(self) -> bool:
+        """Check if cache is healthy"""
+        return self.check()["status"] == "healthy"
+
+
+class SystemResourcesCheck:
+    """System resources health check component"""
+    
+    def __init__(self):
+        self.name = "system_resources"
+    
+    def check(self) -> Dict[str, Any]:
+        """Perform system resources health check"""
+        return check_system_resources()
+    
+    def is_healthy(self) -> bool:
+        """Check if system resources are healthy"""
+        return self.check().get("memory", {}).get("status") == "healthy"
     def __init__(self):
         self.checks = {}
     

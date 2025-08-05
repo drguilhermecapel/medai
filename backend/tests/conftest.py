@@ -11,7 +11,7 @@ sys.path.insert(0, str(backend_dir))
 
 # Set environment variables for testing
 os.environ["TESTING"] = "true"
-os.environ["ENVIRONMENT"] = "test"
+os.environ["ENVIRONMENT"] = "testing"  # Fixed: should be "testing" not "test"
 os.environ["DATABASE_URL"] = "sqlite:///test.db"  # Use SQLite for tests to avoid DB connection issues
 
 import pytest
