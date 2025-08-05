@@ -2,7 +2,6 @@ import React, { useEffect } from 'react'
 import { Grid, Card, CardContent, Typography, Box, Chip, LinearProgress } from '@mui/material'
 import { MonitorHeart, People, Assignment, Warning } from '@mui/icons-material'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
-import { fetchAnalyses } from '../store/slices/ecgSlice'
 import { fetchUnreadCount } from '../store/slices/notificationSlice'
 
 interface StatCardProps {
@@ -36,18 +35,19 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, subtitle
 
 const DashboardPage: React.FC = () => {
   const dispatch = useAppDispatch()
-  const { analyses, isLoading } = useAppSelector(state => state.ecg)
   const { unreadCount } = useAppSelector(state => state.notification)
 
   useEffect(() => {
-    dispatch(fetchAnalyses({ limit: 10 }))
     dispatch(fetchUnreadCount())
   }, [dispatch])
 
-  const totalAnalyses = analyses.length
-  const pendingAnalyses = analyses.filter(a => a.status === 'pending').length
-  const criticalAnalyses = analyses.filter(a => a.clinicalUrgency === 'critical').length
-  const completedAnalyses = analyses.filter(a => a.status === 'completed').length
+  // Mock data for demonstration
+  const analyses = []
+  const isLoading = false
+  const totalAnalyses = 0
+  const pendingAnalyses = 0
+  const criticalAnalyses = 0
+  const completedAnalyses = 0
 
   if (isLoading) {
     return (

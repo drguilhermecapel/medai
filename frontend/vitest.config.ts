@@ -18,7 +18,13 @@ export default defineConfig({
         'dist/',
         'coverage/',
         '**/*.test.*',
-        '**/*.spec.*'
+        '**/*.spec.*',
+        'src/**/*.d.ts',
+        'src/test/**',
+        'src/**/*.test.*',
+        'src/**/*.spec.*',
+        'src/main.tsx',
+        'src/vite-env.d.ts'
       ],
       thresholds: {
         global: {
@@ -48,15 +54,7 @@ export default defineConfig({
         }
       },
       all: true,
-      include: ['src/**/*.{ts,tsx}'],
-      exclude: [
-        'src/**/*.d.ts',
-        'src/test/**',
-        'src/**/*.test.*',
-        'src/**/*.spec.*',
-        'src/main.tsx',
-        'src/vite-env.d.ts'
-      ]
+      include: ['src/**/*.{ts,tsx}']
     }
   },
   resolve: {
