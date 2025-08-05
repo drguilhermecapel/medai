@@ -1,0 +1,215 @@
+[tool.poetry]
+name = "medai-backend"
+version = "1.0.0"
+description = "Sistema de análise médica com IA - Backend"
+authors = ["MedAI Team <team@medai.com>"]
+readme = "README.md"
+packages = [{include = "app"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+# Core FastAPI dependencies
+fastapi = "^0.104.0"
+uvicorn = {extras = ["standard"], version = "^0.24.0"}
+python-multipart = "^0.0.6"
+
+# Database
+sqlalchemy = "^2.0.23"
+alembic = "^1.12.1"
+pydantic = "^2.5.0"
+
+# Security
+cryptography = "^41.0.0"
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+
+# Medical data standards
+hl7 = "^0.4.0"
+"fhir.resources" = "^6.4.0"
+
+# Medical imaging (from radiologia module)
+pydicom = "^2.4.3"
+opencv-python = "^4.8.1"
+Pillow = "^10.0.0"
+SimpleITK = "^2.3.0"
+nibabel = "^5.1.0"
+scikit-image = "^0.21.0"
+
+# GUI dependencies (from radiologia)
+PyQt5 = "^5.15.9"
+pyqtgraph = "^0.13.0"
+
+# Web server utilities
+flask = "^3.0.0"
+flask-cors = "^4.0.0"
+werkzeug = "^3.0.0"
+
+# Data processing
+pandas = "^2.0.0"
+numpy = "^1.24.0"
+h5py = "^3.9.0"
+
+# Machine Learning (optional, commented out ECG-related)
+# tensorflow = "^2.13.0"
+# scikit-learn = "^1.3.0"
+# matplotlib = "^3.7.0"
+# seaborn = "^0.12.0"
+# torch = "^2.0.0"
+# torchvision = "^0.15.0"
+
+# Utilities
+requests = "^2.31.0"
+python-dotenv = "^1.0.0"
+pyyaml = "^6.0"
+psutil = "^5.9.0"
+
+# Report generation
+reportlab = "^4.0.0"
+
+[tool.poetry.group.dev.dependencies]
+# Testing
+pytest = "^7.4.0"
+pytest-cov = "^4.1.0"
+pytest-asyncio = "^0.21.0"
+pytest-mock = "^3.10.0"
+
+# Code quality
+black = "^23.0.0"
+isort = "^5.12.0"
+flake8 = "^6.0.0"
+mypy = "^1.7.0"
+pre-commit = "^3.5.0"
+
+[tool.poetry.scripts]
+# Note: Poetry scripts have limitations with shell commands
+# Use poetry run <command> directly instead
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--ignore=docs",
+    "--ignore=setup.py",
+    "--ignore=ci",
+    "--doctest-modules",
+    "--doctest-glob=*.md",
+    "--tb=short",
+    "--cov=app",
+    "--cov-branch",
+    "--cov-report=term-missing:skip-covered",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml:coverage.xml",
+    "--cov-report=json:coverage.json",
+    "--cov-fail-under=80",
+    "-v"
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "critical: Critical medical functionality tests",
+    "slow: Tests that take > 5 seconds",
+    "requires_db: Tests that require database",
+    "requires_redis: Tests that require Redis",
+]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+parallel = true
+omit = [
+    "*/tests/*",
+    "*/migrations/*",
+    "*/__init__.py",
+    "*/config.py",
+    "*/conftest.py",
+]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+fail_under = 80
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+[tool.coverage.json]
+output = "coverage.json"
+pretty_print = true
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+check_untyped_defs = true
+no_implicit_reexport = true
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = [
+    "hl7.*",
+    "fhir.*",
+    "pydicom.*",
+    "cv2.*",
+    "SimpleITK.*",
+    "nibabel.*",
+    "PyQt5.*",
+    "pyqtgraph.*",
+]
+ignore_missing_imports = true
