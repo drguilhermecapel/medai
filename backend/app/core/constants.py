@@ -26,6 +26,35 @@ class Gender(str, Enum):
     NOT_INFORMED = "not_informed"
 
 
+class MedicalSpecialty(str, Enum):
+    """Medical specialties supported by the EMR system"""
+    CARDIOLOGY = "cardiology"
+    NEUROLOGY = "neurology"
+    ONCOLOGY = "oncology"
+    ORTHOPEDICS = "orthopedics"
+    DERMATOLOGY = "dermatology"
+    PEDIATRICS = "pediatrics"
+    PSYCHIATRY = "psychiatry"
+    RADIOLOGY = "radiology"
+    PATHOLOGY = "pathology"
+    ANESTHESIOLOGY = "anesthesiology"
+    SURGERY = "surgery"
+    INTERNAL_MEDICINE = "internal_medicine"
+    FAMILY_MEDICINE = "family_medicine"
+    EMERGENCY_MEDICINE = "emergency_medicine"
+    GYNECOLOGY = "gynecology"
+    OPHTHALMOLOGY = "ophthalmology"
+    OTOLARYNGOLOGY = "otolaryngology"
+    UROLOGY = "urology"
+    PULMONOLOGY = "pulmonology"
+    GASTROENTEROLOGY = "gastroenterology"
+    ENDOCRINOLOGY = "endocrinology"
+    RHEUMATOLOGY = "rheumatology"
+    NEPHROLOGY = "nephrology"
+    HEMATOLOGY = "hematology"
+    INFECTIOUS_DISEASE = "infectious_disease"
+
+
 class ExamType(str, Enum):
     """Tipos de exames médicos suportados (excluindo ECG)"""
     XRAY = "xray"
