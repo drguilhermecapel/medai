@@ -103,25 +103,31 @@ Sistema completo de prontuário eletrônico com inteligência artificial, agora 
 - **Tempo de Resposta**: < 200ms
 - **Disponibilidade**: 99.9%
 
-## 🎯 **Como Usar**
+## 🎯 **Como Executar Localmente**
 
-### **1. Acesso Direto**
+### **1. Instalar dependências**
+```bash
+pip install -r requirements.txt
 ```
-https://sknkvzjx.manus.space
+
+### **2. Iniciar a API**
+```bash
+python -m uvicorn app.main:app --reload
 ```
+A API sobe em `http://localhost:8000` (documentação interativa em `/docs`).
 
-### **2. Navegação**
-- Clique nos menus laterais
-- Explore todas as funcionalidades
-- Teste os botões de ação
-- Visualize dados médicos
+### **3. Fluxo básico da API**
+1. `POST /api/v1/auth/register` — criar usuário
+2. `POST /api/v1/auth/login` — obter token JWT
+3. `POST /api/v1/patients` — cadastrar paciente (com o token no header `Authorization: Bearer <token>`)
+4. `POST /api/v1/exams` — registrar exame com resultados e valores de referência
+5. `POST /api/v1/diagnostics/analyze/{exam_id}` — gerar diagnóstico automático comparando resultados com as referências
 
-### **3. Funcionalidades Testadas**
-- ✅ Dashboard com métricas
-- ✅ Lista de pacientes
-- ✅ Diagnósticos IA
-- ✅ Relatórios médicos
-- ✅ Telemedicina
+### **4. Rodar os testes**
+```bash
+pip install -r requirements-test.txt
+python -m pytest tests/
+```
 
 ## 📈 **Roadmap**
 

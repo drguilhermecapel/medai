@@ -108,6 +108,7 @@ class NotificationPriority(str, Enum):
     NORMAL = "normal"
     HIGH = "high"
     URGENT = "urgent"
+    CRITICAL = "critical"
 
 
 class AnalysisStatus(str, Enum):
@@ -156,6 +157,30 @@ class PrescriptionStatus(str, Enum):
     COMPLETED = "completed"
     CANCELLED = "cancelled"
     EXPIRED = "expired"
+
+
+class DiagnosisCategory(str, Enum):
+    """Categorias de diagnóstico (classificação clínica)"""
+    NORMAL = "normal"
+    ABNORMAL = "abnormal"
+    CRITICAL = "critical"
+    INCONCLUSIVE = "inconclusive"
+
+
+# Alias para compatibilidade
+UserRoles = UserRole
+
+
+# === CONSTANTES FISIOLÓGICAS ===
+
+# Frequência cardíaca (bpm)
+MIN_HEART_RATE = 30
+MAX_HEART_RATE = 250
+
+# Parâmetros de ECG
+ECG_SAMPLE_RATE = 500      # Hz
+ECG_DURATION = 10          # segundos
+ECG_LEADS = 12             # derivações
 
 
 # === CONSTANTES NUMÉRICAS ===

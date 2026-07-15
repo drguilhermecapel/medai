@@ -21,7 +21,7 @@ interface MockResizeObserver {
   disconnect: ReturnType<typeof vi.fn>
 }
 
-;(globalThis as unknown as { ResizeObserver: new () => MockResizeObserver }).ResizeObserver = vi
+(globalThis as unknown as { ResizeObserver: new () => MockResizeObserver }).ResizeObserver = vi
   .fn()
   .mockImplementation(() => ({
     observe: vi.fn(),

@@ -1,449 +1,230 @@
+# -*- coding: utf-8 -*-
 """
 Aplicação principal do MedAI - FastAPI
 Configuração central da API, middlewares, rotas e inicialização
 """
-from fastapi import FastAPI, Request, Response, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.middleware.base import BaseHTTPMiddleware
+import logging
 import time
 import uuid
-import logging
-from typing import Callable
 from contextlib import asynccontextmanager
+from typing import Callable
 
-from app.core.config import settings
-from app.core.database import init_database, close_database
-from app.core.exceptions import (
-    MedAIException, 
-    MedAIHTTPException,
-    create_http_exception,
-    log_exception
+from fastapi import FastAPI, Request, Response, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from app.config import settings
+from app.database import create_tables
+from app.exceptions import AuthenticationError, AuthorizationError, ValidationError
+from app.health import HealthChecker, HealthCheckResult
+from app.routers import auth, diagnostics, exams, patients
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
-from app.api.v1.api import api_router
-from app.utils.logging_config import setup_logging
-from app.utils.health_checker import HealthChecker
-
-
-# === CONFIGURAÇÃO DE LOGGING ===
-setup_logging()
 logger = logging.getLogger(__name__)
 
 
-# === GERENCIAMENTO DO CICLO DE VIDA ===
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Gerencia o ciclo de vida da aplicação
-    
-    Args:
-        app: Instância do FastAPI
-    """
-    # Startup
+    """Gerencia o ciclo de vida da aplicação."""
     logger.info("🚀 Starting MedAI application...")
-    
-    try:
-        # Inicializar banco de dados
-        init_database()
-        logger.info("✅ Database initialized")
-        
-        # Inicializar outros serviços
-        # Aqui podem ser adicionados outros serviços como Redis, etc.
-        
-        logger.info("🎉 MedAI application started successfully")
-        
-    except Exception as e:
-        logger.error(f"❌ Failed to start application: {e}")
-        raise
-    
+    create_tables()
+    logger.info("✅ Database initialized")
     yield
-    
-    # Shutdown
-    logger.info("🛑 Shutting down MedAI application...")
-    
-    try:
-        # Fechar conexões do banco
-        close_database()
-        logger.info("✅ Database connections closed")
-        
-        # Cleanup de outros recursos
-        
-        logger.info("👋 MedAI application shut down successfully")
-        
-    except Exception as e:
-        logger.error(f"❌ Error during shutdown: {e}")
+    logger.info("👋 MedAI application shut down")
 
-
-# === MIDDLEWARES CUSTOMIZADOS ===
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
-    """Middleware para logging de requisições"""
-    
+    """Middleware para logging de requisições com ID único e tempo de resposta."""
+
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        # Gerar ID único para a requisição
         request_id = str(uuid.uuid4())
-        
-        # Adicionar ID da requisição ao contexto
         request.state.request_id = request_id
-        
-        # Log da requisição de entrada
         start_time = time.time()
-        logger.info(
-            f"Request started",
-            extra={
-                "request_id": request_id,
-                "method": request.method,
-                "url": str(request.url),
-                "client_ip": request.client.host if request.client else None,
-                "user_agent": request.headers.get("user-agent")
-            }
-        )
-        
         try:
             response = await call_next(request)
-            
-            # Calcular tempo de processamento
-            process_time = time.time() - start_time
-            
-            # Log da resposta
-            logger.info(
-                f"Request completed",
-                extra={
-                    "request_id": request_id,
-                    "status_code": response.status_code,
-                    "process_time": round(process_time, 4)
-                }
-            )
-            
-            # Adicionar headers de response
-            response.headers["X-Request-ID"] = request_id
-            response.headers["X-Process-Time"] = str(round(process_time, 4))
-            
-            return response
-            
-        except Exception as e:
-            process_time = time.time() - start_time
-            
-            logger.error(
-                f"Request failed",
-                extra={
-                    "request_id": request_id,
-                    "error": str(e),
-                    "process_time": round(process_time, 4)
-                }
-            )
+        except Exception:
+            logger.exception("Request failed: %s %s [%s]", request.method, request.url.path, request_id)
             raise
-
-
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """Middleware para adicionar headers de segurança"""
-    
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        response = await call_next(request)
-        
-        # Headers de segurança
-        security_headers = {
-            "X-Content-Type-Options": "nosniff",
-            "X-Frame-Options": "DENY",
-            "X-XSS-Protection": "1; mode=block",
-            "Referrer-Policy": "strict-origin-when-cross-origin"
-        }
-        
-        # Adicionar apenas em produção
-        if settings.is_production:
-            security_headers.update({
-                "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
-                "Content-Security-Policy": "default-src 'self'"
-            })
-        
-        for header, value in security_headers.items():
-            response.headers[header] = value
-        
+        process_time = time.time() - start_time
+        response.headers["X-Request-ID"] = request_id
+        response.headers["X-Process-Time"] = str(round(process_time, 4))
         return response
 
 
-# === CRIAÇÃO DA APLICAÇÃO ===
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Middleware para adicionar headers de segurança."""
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        if settings.ENVIRONMENT == "production":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
+
 
 def create_application() -> FastAPI:
-    """
-    Factory function para criar aplicação FastAPI
-    
-    Returns:
-        Instância configurada do FastAPI
-    """
-    
-    # Metadados da aplicação
-    app_kwargs = {
-        "title": settings.APP_NAME,
-        "description": settings.DESCRIPTION,
-        "version": settings.VERSION,
-        "debug": settings.DEBUG,
-        "lifespan": lifespan
-    }
-    
-    # Configurações específicas por ambiente
-    if settings.is_production:
-        app_kwargs.update({
-            "docs_url": None,  # Desabilitar docs em produção
-            "redoc_url": None,
-            "openapi_url": None
-        })
-    else:
-        app_kwargs.update({
-            "docs_url": "/docs",
-            "redoc_url": "/redoc",
-            "openapi_url": "/openapi.json"
-        })
-    
-    app = FastAPI(**app_kwargs)
-    
-    # Configurar middlewares
+    """Factory function para criar a aplicação FastAPI."""
+    is_production = settings.ENVIRONMENT == "production"
+
+    app = FastAPI(
+        title=settings.APP_NAME,
+        description="Sistema de prontuário eletrônico com análise automática de exames",
+        version=settings.VERSION,
+        debug=settings.DEBUG,
+        lifespan=lifespan,
+        docs_url=None if is_production else "/docs",
+        redoc_url=None if is_production else "/redoc",
+        openapi_url=None if is_production else "/openapi.json",
+    )
+
     configure_middlewares(app)
-    
-    # Configurar rotas
     configure_routes(app)
-    
-    # Configurar handlers de exceção
     configure_exception_handlers(app)
-    
     return app
 
 
 def configure_middlewares(app: FastAPI) -> None:
-    """
-    Configura middlewares da aplicação
-    
-    Args:
-        app: Instância do FastAPI
-    """
-    
-    # Middleware de CORS
+    """Configura middlewares da aplicação."""
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
+        allow_origins=settings.BACKEND_CORS_ORIGINS,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
-    # Middleware de compressão
     app.add_middleware(GZipMiddleware, minimum_size=1000)
-    
-    # Middleware de hosts confiáveis (apenas em produção)
-    if settings.is_production:
-        app.add_middleware(
-            TrustedHostMiddleware,
-            allowed_hosts=["*.medai.com", "medai.com"]
-        )
-    
-    # Middlewares customizados
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestLoggingMiddleware)
 
 
 def configure_routes(app: FastAPI) -> None:
-    """
-    Configura rotas da aplicação
-    
-    Args:
-        app: Instância do FastAPI
-    """
-    
-    # Router principal da API
-    app.include_router(api_router, prefix=settings.API_V1_STR)
-    
-    # Rotas de saúde e monitoramento
-    @app.get("/health", tags=["Health"])
-    async def health_check():
-        """Endpoint básico de health check"""
-        return {"status": "healthy", "service": "MedAI"}
-    
-    @app.get("/health/detailed", tags=["Health"])
-    async def detailed_health_check():
-        """Health check detalhado com status de componentes"""
-        health_checker = HealthChecker()
-        return await health_checker.get_detailed_health()
-    
+    """Configura rotas da aplicação."""
+    app.include_router(auth.router, prefix=settings.API_V1_STR)
+    app.include_router(patients.router, prefix=settings.API_V1_STR)
+    app.include_router(exams.router, prefix=settings.API_V1_STR)
+    app.include_router(diagnostics.router, prefix=settings.API_V1_STR)
+
     @app.get("/", tags=["Root"])
     async def root():
-        """Endpoint raiz da API"""
+        """Endpoint raiz da API."""
         return {
             "message": "Bem-vindo ao MedAI API",
             "version": settings.VERSION,
-            "docs_url": "/docs" if not settings.is_production else None,
-            "health_url": "/health"
+            "docs_url": "/docs" if settings.ENVIRONMENT != "production" else None,
+            "health_url": "/health",
         }
-    
+
+    @app.get("/health", tags=["Health"])
+    async def health_check():
+        """Endpoint básico de health check."""
+        return {"status": "healthy", "service": "MedAI"}
+
+    @app.get("/health/detailed", tags=["Health"])
+    async def detailed_health_check():
+        """Health check detalhado com status de componentes."""
+        result = HealthChecker().check_health()
+        checks = {
+            name: {"status": check.status, "message": check.message}
+            if isinstance(check, HealthCheckResult) else check
+            for name, check in result.get("checks", {}).items()
+        }
+        return {**result, "checks": checks}
+
     @app.get("/info", tags=["Info"])
     async def app_info():
-        """Informações da aplicação"""
+        """Informações da aplicação."""
         return {
             "name": settings.APP_NAME,
             "version": settings.VERSION,
-            "description": settings.DESCRIPTION,
             "environment": settings.ENVIRONMENT,
-            "debug": settings.DEBUG
+            "debug": settings.DEBUG,
         }
 
 
 def configure_exception_handlers(app: FastAPI) -> None:
-    """
-    Configura handlers de exceção
-    
-    Args:
-        app: Instância do FastAPI
-    """
-    
-    @app.exception_handler(MedAIException)
-    async def medai_exception_handler(request: Request, exc: MedAIException):
-        """Handler para exceções customizadas do MedAI"""
-        
-        # Log da exceção
-        log_exception(exc, {
-            "request_id": getattr(request.state, "request_id", None),
-            "method": request.method,
-            "url": str(request.url)
-        })
-        
-        # Converter para HTTP exception
-        http_exc = create_http_exception(exc)
-        
+    """Configura handlers de exceção."""
+
+    @app.exception_handler(AuthenticationError)
+    async def authentication_error_handler(request: Request, exc: AuthenticationError):
         return JSONResponse(
-            status_code=http_exc.status_code,
-            content=http_exc.detail,
-            headers=http_exc.headers
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"error_code": "AUTHENTICATION_ERROR", "message": str(exc) or "Não autenticado"},
         )
-    
+
+    @app.exception_handler(AuthorizationError)
+    async def authorization_error_handler(request: Request, exc: AuthorizationError):
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"error_code": "AUTHORIZATION_ERROR", "message": str(exc) or "Acesso negado"},
+        )
+
+    @app.exception_handler(ValidationError)
+    async def app_validation_error_handler(request: Request, exc: ValidationError):
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content={"error_code": "VALIDATION_ERROR", "message": str(exc) or "Dados inválidos"},
+        )
+
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
-        """Handler para erros de validação do Pydantic"""
-        
-        # Formatar erros de validação
-        errors = []
-        for error in exc.errors():
-            field = " -> ".join(str(loc) for loc in error["loc"])
-            errors.append({
-                "field": field,
+        errors = [
+            {
+                "field": " -> ".join(str(loc) for loc in error["loc"]),
                 "message": error["msg"],
-                "type": error["type"]
-            })
-        
-        log_exception(exc, {
-            "request_id": getattr(request.state, "request_id", None),
-            "validation_errors": errors
-        })
-        
+                "type": error["type"],
+            }
+            for error in exc.errors()
+        ]
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             content={
                 "error_code": "VALIDATION_ERROR",
                 "message": "Erro de validação nos dados enviados",
-                "details": {
-                    "field_errors": errors
-                }
-            }
+                "details": {"field_errors": errors},
+            },
         )
-    
+
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-        """Handler para exceções HTTP do Starlette"""
-        
-        log_exception(exc, {
-            "request_id": getattr(request.state, "request_id", None),
-            "status_code": exc.status_code
-        })
-        
         return JSONResponse(
             status_code=exc.status_code,
             content={
                 "error_code": f"HTTP_{exc.status_code}",
                 "message": exc.detail,
-                "details": {}
-            }
+                "details": {},
+            },
+            headers=getattr(exc, "headers", None),
         )
-    
+
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception):
-        """Handler geral para exceções não tratadas"""
-        
-        log_exception(exc, {
-            "request_id": getattr(request.state, "request_id", None),
-            "method": request.method,
-            "url": str(request.url)
-        })
-        
-        # Em produção, não expor detalhes da exceção
-        if settings.is_production:
-            detail = "Erro interno do servidor"
-        else:
-            detail = str(exc)
-        
+        logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+        detail = "Erro interno do servidor" if settings.ENVIRONMENT == "production" else str(exc)
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={
-                "error_code": "INTERNAL_SERVER_ERROR",
-                "message": detail,
-                "details": {}
-            }
+            content={"error_code": "INTERNAL_SERVER_ERROR", "message": detail, "details": {}},
         )
 
 
-# === INSTÂNCIA DA APLICAÇÃO ===
-
-# Criar aplicação
 app = create_application()
 
 
-# === EVENTOS DE STARTUP/SHUTDOWN ADICIONAIS ===
-
-@app.on_event("startup")
-async def startup_event():
-    """Eventos adicionais de startup"""
-    logger.info("🔄 Running additional startup tasks...")
-    
-    # Aqui podem ser adicionadas tarefas de inicialização específicas
-    # Como carregamento de modelos ML, configuração de cache, etc.
-    
-    logger.info("✅ Additional startup tasks completed")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Eventos adicionais de shutdown"""
-    logger.info("🔄 Running additional shutdown tasks...")
-    
-    # Aqui podem ser adicionadas tarefas de cleanup específicas
-    
-    logger.info("✅ Additional shutdown tasks completed")
-
-
-# === CONFIGURAÇÃO PARA DESENVOLVIMENTO ===
-
 if __name__ == "__main__":
     import uvicorn
-    
-    # Configurações para desenvolvimento
-    uvicorn_config = {
-        "app": "app.main:app",
-        "host": settings.HOST,
-        "port": settings.PORT,
-        "reload": settings.is_development,
-        "log_level": settings.LOG_LEVEL.lower(),
-        "access_log": True,
-        "use_colors": True
-    }
-    
-    # Workers apenas em produção
-    if settings.is_production and settings.WORKERS > 1:
-        uvicorn_config["workers"] = settings.WORKERS
-    
-    logger.info(f"🚀 Starting MedAI server on {settings.HOST}:{settings.PORT}")
-    logger.info(f"📝 Environment: {settings.ENVIRONMENT}")
-    logger.info(f"🐛 Debug mode: {settings.DEBUG}")
-    
-    uvicorn.run(**uvicorn_config)
+
+    uvicorn.run(
+        "app.main:app",
+        host=settings.HOST,
+        port=settings.PORT,
+        reload=settings.ENVIRONMENT == "development",
+        log_level="info",
+    )
