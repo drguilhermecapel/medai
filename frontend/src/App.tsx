@@ -23,7 +23,6 @@ import {
   TrendingUp,
   TrendingDown,
   Activity,
-  AlertTriangle,
   Pill,
   ScanLine,
   Sparkles,
@@ -31,7 +30,6 @@ import {
 import { AuthProvider } from './contexts/AuthContext'
 import { useAuth } from './hooks/useAuth'
 import LoginPage from './pages/LoginPage'
-import Layout from './components/Layout'
 import InterfaceAutomacaoMedica from './pages/InterfaceAutomacaoMedica'
 
 const SPEIApp = (): JSX.Element => {

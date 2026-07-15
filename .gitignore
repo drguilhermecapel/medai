@@ -252,6 +252,9 @@ Thumbs.db
 data/
 *.csv
 *.json
+!package.json
+!package-lock.json
+!tsconfig.json
 *.xml
 *.dicom
 *.dcm
