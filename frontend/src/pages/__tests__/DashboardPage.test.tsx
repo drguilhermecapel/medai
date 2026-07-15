@@ -11,32 +11,33 @@ vi.mock('../../hooks/redux', () => ({
   useAppDispatch: vi.fn(() => vi.fn()),
   useAppSelector: vi.fn(selector => {
     const mockState = {
-      ecg: {
-        analyses: [],
+      exam: {
+        exams: [
+          {
+            id: 1,
+            patient_id: 1,
+            exam_type: 'blood_test',
+            status: 'completed',
+            results: { glucose: 126 },
+          },
+        ],
+        diagnostics: [
+          {
+            id: 1,
+            patient_id: 1,
+            exam_id: 1,
+            diagnostic_text: 'Análise automática: 1 parâmetro fora da referência (glucose).',
+            severity: 'severe',
+          },
+        ],
+        lastDiagnostic: null,
         isLoading: false,
-        error: null,
-        currentAnalysis: null,
-        uploadProgress: 0,
-      },
-      notification: {
-        unreadCount: 0,
-        notifications: [],
-        isLoading: false,
+        isAnalyzing: false,
         error: null,
       },
-      auth: {
-        isAuthenticated: true,
-        user: {
-          id: 1,
-          username: 'testuser',
-          email: 'test@example.com',
-          firstName: 'Test',
-          lastName: 'User',
-          role: 'physician',
-          isActive: true,
-        },
-        token: 'mock-token',
-        refreshToken: 'mock-refresh-token',
+      patient: {
+        patients: [{ id: 1, name: 'João Silva', cpf: '12345678901' }],
+        currentPatient: null,
         isLoading: false,
         error: null,
       },
@@ -65,7 +66,15 @@ describe('DashboardPage', () => {
 
   it('displays dashboard metrics', () => {
     renderWithProviders(<DashboardPage />)
-    expect(screen.getByText('Total Analyses')).toBeDefined()
-    expect(screen.getByText('Pending')).toBeDefined()
+    expect(screen.getByText('Pacientes')).toBeDefined()
+    expect(screen.getByText('Exames')).toBeDefined()
+    expect(screen.getByText('Diagnósticos IA')).toBeDefined()
+    expect(screen.getByText('Casos graves')).toBeDefined()
+  })
+
+  it('lists recent diagnostics with patient name and severity', () => {
+    renderWithProviders(<DashboardPage />)
+    expect(screen.getByText('João Silva')).toBeDefined()
+    expect(screen.getByText('Grave')).toBeDefined()
   })
 })

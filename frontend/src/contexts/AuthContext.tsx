@@ -6,6 +6,8 @@ interface User {
   token: string
 }
 
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
+
 const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }): JSX.Element => {
   const [user, setUser] = useState<User | null>(null)
 
@@ -19,56 +21,26 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }): JS
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL
-
-      let baseUrl = apiUrl
-      let authHeader = ''
-
-      if (apiUrl.includes('@')) {
-        const urlParts = apiUrl.split('://')
-        const protocol = urlParts[0]
-        const rest = urlParts[1]
-        const atIndex = rest.indexOf('@')
-        const credentials = rest.substring(0, atIndex)
-        const domain = rest.substring(atIndex + 1)
-
-        baseUrl = `${protocol}://${domain}`
-        authHeader = `Basic ${btoa(credentials)}`
-      }
-
       const formData = new URLSearchParams()
       formData.append('username', username)
       formData.append('password', password)
 
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      }
-
-      if (authHeader) {
-        headers['Authorization'] = authHeader
-      }
-
-      const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
+      const response = await fetch(`${API_BASE}/api/v1/auth/token`, {
         method: 'POST',
-        headers,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData.toString(),
       })
 
-      console.log('Auth response status:', response.status)
-      if (response.ok) {
-        const data = await response.json()
-        console.log('Auth response data:', data)
-        const userData = { username, token: data.access_token }
-        setUser(userData)
-        localStorage.setItem('token', data.access_token)
-        localStorage.setItem('username', username)
-        console.log('Login successful, user set:', userData)
-        return true
+      if (!response.ok) {
+        return false
       }
-      console.log('Auth response not ok:', response.status, response.statusText)
-      return false
-    } catch (error) {
-      console.error('Login error:', error)
+
+      const data = await response.json()
+      setUser({ username, token: data.access_token })
+      localStorage.setItem('token', data.access_token)
+      localStorage.setItem('username', username)
+      return true
+    } catch {
       return false
     }
   }

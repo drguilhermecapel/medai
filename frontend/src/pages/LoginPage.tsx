@@ -1,146 +1,128 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  Alert,
+  Avatar,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CircularProgress,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material'
+import { MonitorHeart as MonitorHeartIcon } from '@mui/icons-material'
 import { useAuth } from '../hooks/useAuth'
 
 const LoginPage: React.FC = () => {
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const { login } = useAuth()
+  const navigate = useNavigate()
 
-  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault()
-    console.log('LoginPage handleSubmit called with:', { username, password: '***' })
-    if (username && password) {
-      setIsLoading(true)
-      setError('')
-      console.log('Calling login function...')
-      try {
-        const success = await login(username, password)
-        console.log('Login function returned:', success)
-        if (!success) {
-          setError('Credenciais inválidas')
-          console.log('Login failed - setting error message')
-        }
-      } catch (error) {
-        console.error('Login exception caught:', error)
-        setError('Credenciais inválidas')
-      } finally {
-        setIsLoading(false)
-        console.log('Login process completed')
+  const handleSubmit = async (event: React.FormEvent): Promise<void> => {
+    event.preventDefault()
+    if (!email || !password) {
+      return
+    }
+    setIsLoading(true)
+    setError('')
+    try {
+      const success = await login(email, password)
+      if (success) {
+        navigate('/dashboard')
+      } else {
+        setError('Credenciais inválidas. Verifique e-mail e senha.')
       }
-    } else {
-      console.log('Username or password missing:', { username: !!username, password: !!password })
+    } catch {
+      setError('Não foi possível conectar ao servidor. Tente novamente.')
+    } finally {
+      setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-blue-100">
-            <svg
-              className="h-8 w-8 text-blue-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        p: 2,
+      }}
+    >
+      <Card sx={{ width: '100%', maxWidth: 420 }}>
+        <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
+          <Stack spacing={3} alignItems="center">
+            <Avatar
+              variant="rounded"
+              sx={{
+                bgcolor: 'primary.main',
+                color: 'primary.contrastText',
+                width: 56,
+                height: 56,
+              }}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-              />
-            </svg>
-          </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            SPEI - Sistema EMR
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Sistema de Prontuário Eletrônico Inteligente com IA
-          </p>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-              {error}
-            </div>
-          )}
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="username" className="sr-only">
-                Usuário
-              </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Usuário"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Senha
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Senha"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
-          </div>
+              <MonitorHeartIcon fontSize="large" />
+            </Avatar>
+            <Box textAlign="center">
+              <Typography variant="h4" component="h1">
+                MedAI
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Prontuário Eletrônico Inteligente
+              </Typography>
+            </Box>
 
-          <div>
-            <button
-              type="submit"
-              disabled={isLoading || !username || !password}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <svg
-                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
+            {error && (
+              <Alert severity="error" sx={{ width: '100%' }}>
+                {error}
+              </Alert>
+            )}
+
+            <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
+              <Stack spacing={2}>
+                <TextField
+                  label="E-mail"
+                  type="email"
+                  value={email}
+                  onChange={event => setEmail(event.target.value)}
+                  autoComplete="email"
+                  autoFocus
+                  required
+                  fullWidth
+                />
+                <TextField
+                  label="Senha"
+                  type="password"
+                  value={password}
+                  onChange={event => setPassword(event.target.value)}
+                  autoComplete="current-password"
+                  required
+                  fullWidth
+                />
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="large"
+                  disabled={isLoading || !email || !password}
+                  startIcon={isLoading ? <CircularProgress size={18} color="inherit" /> : undefined}
                 >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-              ) : null}
-              {isLoading ? 'Entrando...' : 'Entrar'}
-            </button>
-          </div>
+                  {isLoading ? 'Entrando…' : 'Entrar'}
+                </Button>
+              </Stack>
+            </Box>
 
-          <div className="text-center">
-            <p className="text-sm text-gray-600">
-              Para demonstração, use: <strong>admin / admin</strong>
-            </p>
-          </div>
-        </form>
-      </div>
-    </div>
+            <Typography variant="caption" color="text.secondary" textAlign="center">
+              Acesso restrito a profissionais autorizados.
+            </Typography>
+          </Stack>
+        </CardContent>
+      </Card>
+    </Box>
   )
 }
 

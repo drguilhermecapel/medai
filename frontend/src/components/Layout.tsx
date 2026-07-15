@@ -1,11 +1,56 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
+import {
+  AppBar,
+  Avatar,
+  Box,
+  Divider,
+  Drawer,
+  IconButton,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
+  Toolbar,
+  Tooltip,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material'
+import {
+  Menu as MenuIcon,
+  Dashboard as DashboardIcon,
+  People as PeopleIcon,
+  Science as ScienceIcon,
+  FactCheck as FactCheckIcon,
+  Notifications as NotificationsIcon,
+  Person as PersonIcon,
+  Logout as LogoutIcon,
+  MonitorHeart as MonitorHeartIcon,
+} from '@mui/icons-material'
 import { useAuth } from '../hooks/useAuth'
+
+const DRAWER_WIDTH = 248
+
+const NAV_ITEMS = [
+  { label: 'Dashboard', path: '/dashboard', icon: <DashboardIcon /> },
+  { label: 'Pacientes', path: '/patients', icon: <PeopleIcon /> },
+  { label: 'Exames', path: '/exams', icon: <ScienceIcon /> },
+  { label: 'Validações', path: '/validations', icon: <FactCheckIcon /> },
+  { label: 'Notificações', path: '/notifications', icon: <NotificationsIcon /> },
+]
 
 const Layout: React.FC = (): JSX.Element | null => {
   const { user, logout, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const theme = useTheme()
+  const isDesktop = useMediaQuery(theme.breakpoints.up('md'))
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
 
   React.useEffect(() => {
     if (!isAuthenticated) {
@@ -18,109 +63,144 @@ const Layout: React.FC = (): JSX.Element | null => {
   }
 
   const handleLogout = (): void => {
+    setAnchorEl(null)
     logout()
     navigate('/login')
   }
 
-  const isActive = (path: string): boolean => location.pathname === path
+  const drawerContent = (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <Toolbar sx={{ gap: 1.5 }}>
+        <Avatar
+          variant="rounded"
+          sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', width: 36, height: 36 }}
+        >
+          <MonitorHeartIcon fontSize="small" />
+        </Avatar>
+        <Box>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.1 }}>
+            SPEI - Sistema EMR
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            MedAI · Prontuário Inteligente
+          </Typography>
+        </Box>
+      </Toolbar>
+      <Divider />
+      <List sx={{ px: 1.5, py: 2, flex: 1 }}>
+        {NAV_ITEMS.map(item => (
+          <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton
+              component={Link}
+              to={item.path}
+              selected={location.pathname === item.path}
+              onClick={() => setMobileOpen(false)}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.label} />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+      <Divider />
+      <List sx={{ px: 1.5, py: 1 }}>
+        <ListItem disablePadding>
+          <ListItemButton
+            component={Link}
+            to="/profile"
+            selected={location.pathname === '/profile'}
+            onClick={() => setMobileOpen(false)}
+          >
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <PersonIcon />
+            </ListItemIcon>
+            <ListItemText primary="Perfil" />
+          </ListItemButton>
+        </ListItem>
+      </List>
+    </Box>
+  )
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-blue-600 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold">SPEI - Sistema EMR</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span>Bem-vindo, {user?.username}</span>
-              <button
-                onClick={handleLogout}
-                className="bg-blue-700 hover:bg-blue-800 px-3 py-1 rounded"
-              >
-                Sair
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+      <AppBar
+        position="fixed"
+        sx={{
+          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+          ml: { md: `${DRAWER_WIDTH}px` },
+        }}
+      >
+        <Toolbar sx={{ gap: 1 }}>
+          {!isDesktop && (
+            <IconButton edge="start" onClick={() => setMobileOpen(!mobileOpen)} aria-label="menu">
+              <MenuIcon />
+            </IconButton>
+          )}
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>
+            {NAV_ITEMS.find(item => item.path === location.pathname)?.label ?? 'MedAI'}
+          </Typography>
+          <Tooltip title="Conta">
+            <IconButton onClick={event => setAnchorEl(event.currentTarget)} size="small">
+              <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
+                {(user?.username ?? '?').charAt(0).toUpperCase()}
+              </Avatar>
+            </IconButton>
+          </Tooltip>
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={() => setAnchorEl(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          >
+            <Box sx={{ px: 2, py: 1 }}>
+              <Typography variant="subtitle2">{user?.username}</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Sessão ativa
+              </Typography>
+            </Box>
+            <Divider />
+            <MenuItem
+              onClick={() => {
+                setAnchorEl(null)
+                navigate('/profile')
+              }}
+            >
+              <ListItemIcon>
+                <PersonIcon fontSize="small" />
+              </ListItemIcon>
+              Perfil
+            </MenuItem>
+            <MenuItem onClick={handleLogout}>
+              <ListItemIcon>
+                <LogoutIcon fontSize="small" />
+              </ListItemIcon>
+              Sair
+            </MenuItem>
+          </Menu>
+        </Toolbar>
+      </AppBar>
 
-      <div className="flex">
-        <aside className="w-64 bg-white shadow-md min-h-screen">
-          <nav className="mt-8">
-            <div className="px-4 space-y-2">
-              <Link
-                to="/dashboard"
-                className={`block px-4 py-2 rounded-md ${
-                  isActive('/dashboard')
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                Dashboard
-              </Link>
-              <Link
-                to="/patients"
-                className={`block px-4 py-2 rounded-md ${
-                  isActive('/patients')
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                Pacientes
-              </Link>
-              <Link
-                to="/medical-records"
-                className={`block px-4 py-2 rounded-md ${
-                  isActive('/medical-records')
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                Prontuários
-              </Link>
-              <Link
-                to="/ai-diagnostics"
-                className={`block px-4 py-2 rounded-md ${
-                  isActive('/ai-diagnostics')
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                IA Diagnóstica
-              </Link>
-              <Link
-                to="/telemedicine"
-                className={`block px-4 py-2 rounded-md ${
-                  isActive('/telemedicine')
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                Telemedicina
-              </Link>
-              <Link
-                to="/automacao-medica"
-                className={`block px-4 py-2 rounded-md ${
-                  isActive('/automacao-medica')
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                Automação Médica
-              </Link>
-            </div>
-          </nav>
-        </aside>
+      <Box component="nav" sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}>
+        <Drawer
+          variant={isDesktop ? 'permanent' : 'temporary'}
+          open={isDesktop ? true : mobileOpen}
+          onClose={() => setMobileOpen(false)}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            '& .MuiDrawer-paper': { width: DRAWER_WIDTH, boxSizing: 'border-box' },
+          }}
+        >
+          {drawerContent}
+        </Drawer>
+      </Box>
 
-        <main className="flex-1 p-8">
-          <Outlet />
-        </main>
-      </div>
-    </div>
+      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 4 }, minWidth: 0 }}>
+        <Toolbar />
+        <Outlet />
+      </Box>
+    </Box>
   )
 }
 
 export default Layout
-
-

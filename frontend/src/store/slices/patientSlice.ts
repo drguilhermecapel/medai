@@ -1,14 +1,27 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
+import { authHeaders } from '../api'
 
-interface Patient {
+export interface Patient {
   id: number
-  patientId: string
-  firstName: string
-  lastName: string
-  dateOfBirth: string
-  gender: string
+  name: string
+  cpf: string
+  birth_date?: string | null
+  gender?: string | null
+  phone?: string | null
+  email?: string | null
+  city?: string | null
+  state?: string | null
+}
+
+export interface PatientInput {
+  name: string
+  cpf: string
+  birth_date?: string
+  gender?: string
   phone?: string
   email?: string
+  city?: string
+  state?: string
 }
 
 interface PatientState {
@@ -27,42 +40,39 @@ const initialState: PatientState = {
 
 export const fetchPatients = createAsyncThunk(
   'patient/fetchPatients',
-  async (params: { limit?: number; offset?: number } = {}) => {
+  async (params: { limit?: number; skip?: number; search?: string } = {}) => {
     const searchParams = new URLSearchParams()
     if (params.limit) searchParams.append('limit', params.limit.toString())
-    if (params.offset) searchParams.append('offset', params.offset.toString())
+    if (params.skip) searchParams.append('skip', params.skip.toString())
+    if (params.search) searchParams.append('search', params.search)
 
-    const response = await fetch(`/api/v1/patients/?${searchParams}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
+    const response = await fetch(`/api/v1/patients?${searchParams}`, {
+      headers: authHeaders(),
     })
 
     if (!response.ok) {
-      throw new Error('Failed to fetch patients')
+      throw new Error('Falha ao carregar pacientes')
     }
 
-    return response.json()
+    return response.json() as Promise<Patient[]>
   }
 )
 
 export const createPatient = createAsyncThunk(
   'patient/createPatient',
-  async (patientData: Omit<Patient, 'id'>) => {
-    const response = await fetch('/api/v1/patients/', {
+  async (patientData: PatientInput, { rejectWithValue }) => {
+    const response = await fetch('/api/v1/patients', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(patientData),
     })
 
     if (!response.ok) {
-      throw new Error('Failed to create patient')
+      const body = await response.json().catch(() => null)
+      return rejectWithValue(body?.message ?? 'Falha ao cadastrar paciente')
     }
 
-    return response.json()
+    return response.json() as Promise<Patient>
   }
 )
 
@@ -85,11 +95,11 @@ const patientSlice = createSlice({
       })
       .addCase(fetchPatients.fulfilled, (state, action) => {
         state.isLoading = false
-        state.patients = action.payload.patients
+        state.patients = action.payload
       })
       .addCase(fetchPatients.rejected, (state, action) => {
         state.isLoading = false
-        state.error = action.error.message || 'Failed to fetch patients'
+        state.error = action.error.message ?? 'Falha ao carregar pacientes'
       })
       .addCase(createPatient.pending, state => {
         state.isLoading = true
@@ -101,7 +111,7 @@ const patientSlice = createSlice({
       })
       .addCase(createPatient.rejected, (state, action) => {
         state.isLoading = false
-        state.error = action.error.message || 'Failed to create patient'
+        state.error = (action.payload as string) ?? 'Falha ao cadastrar paciente'
       })
   },
 })

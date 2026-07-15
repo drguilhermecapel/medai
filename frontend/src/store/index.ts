@@ -1,7 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit'
 
 import authReducer from './slices/authSlice'
-import ecgReducer from './slices/ecgSlice'
+import examReducer from './slices/examSlice'
 import patientReducer from './slices/patientSlice'
 import validationReducer from './slices/validationSlice'
 import notificationReducer from './slices/notificationSlice'
@@ -9,7 +9,7 @@ import notificationReducer from './slices/notificationSlice'
 export const store = configureStore({
   reducer: {
     auth: authReducer,
-    ecg: ecgReducer,
+    exam: examReducer,
     patient: patientReducer,
     validation: validationReducer,
     notification: notificationReducer,
